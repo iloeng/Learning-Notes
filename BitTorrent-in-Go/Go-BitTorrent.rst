@@ -175,5 +175,91 @@ KB至1MB之间。 这意味着一个大文件可能由数千个文件组成。 �
 
 https://blog.jse.li/posts/torrent/#retrieving-peers-from-the-tracker
 
+现在我们有了关于文件及其 Tracker 的信息，让我们与 Tracker 对话，\
+宣布我们作为对等方(Peer)的存在，并检索其他对等方(Peers)的列表。我\
+们只需要使用几个查询参数对 .torrent 文件中提供的 announce URL 发\
+出GET请求：
+::
+
+    func (t *TorrentFile) buildTrackerURL(peerID [20]byte, port uint16) (string, error) {
+        base, err := url.Parse(t.Announce)
+        if err != nil {
+            return "", err
+        }
+        params := url.Values{
+            "info_hash":  []string{string(t.InfoHash[:])},
+            "peer_id":    []string{string(peerID[:])},
+            "port":       []string{strconv.Itoa(int(Port))},
+            "uploaded":   []string{"0"},
+            "downloaded": []string{"0"},
+            "compact":    []string{"1"},
+            "left":       []string{strconv.Itoa(t.Length)},
+        }
+        base.RawQuery = params.Encode()
+        return base.String(), nil
+    }
+
+重要的是：
+
+**info_hash** ：标识要下载的文件。这是我们之前根据 bencoded ``info`` \
+dict 计算出的 infohash。Tracker 将使用它来确定向我们显示哪些 Peers。
+
+**peer_id** : 一个20字节的名称，用于向 Tracker 和对等者 (peers) 标识自\
+己。我们将为此生成 20 个随机字节。真实的 BitTorrent 客户端的ID类似\
+于 ``-TR2940-k8hj0wgej6ch`` ， 它标识客户端软件和版本， 在本例中，\
+TR2940 代表传输客户端 2.94。
+
+.. image:: img/info-hash-peer-id.png
+
+分析 Tracker 响应
+--------------------------------
+
+我们得到了一个编码后的响应：
+::
+
+    d
+      8:interval
+        i900e
+      5:peers
+        252:(another long binary blob)
+    e
+
+``Interval`` 告诉我们应该多久重新连接一次 Tracker 以刷新我们的对等\
+列表。值是 900 意味着我们应该每 15 分钟（900秒）重新连接一次。
+
+``Peers`` 是另一个包含每个 peer 的 IP 地址的长二进制 blob。它是由\
+6个字节组组成的。每组中的前四个字节代表对等方的 IP 地址，每个字节代\
+表 IP 中的一个数字。最后两个字节表示端口，表示为大端 ``uint16``。\
+**Big-endian** 或 **network order** 意味着我们可以将一组字节从左\
+到右压缩成整数。例如，字节 ``0x1A`` 、 ``0xE1`` 变成 ``0x1AE1`` \
+或以十进制表示为 6881。
+
+.. image:: img/address.png
+
+::
+
+    // Peer encodes connection information for a peer
+    type Peer struct {
+        IP   net.IP
+        Port uint16
+    }
+
+    // Unmarshal parses peer IP addresses and ports from a buffer
+    func Unmarshal(peersBin []byte) ([]Peer, error) {
+        const peerSize = 6 // 4 for IP, 2 for port
+        numPeers := len(peersBin) / peerSize
+        if len(peersBin)%peerSize != 0 {
+            err := fmt.Errorf("Received malformed peers")
+            return nil, err
+        }
+        peers := make([]Peer, numPeers)
+        for i := 0; i < numPeers; i++ {
+            offset := i * peerSize
+            peers[i].IP = net.IP(peersBin[offset : offset+4])
+            peers[i].Port = binary.BigEndian.Uint16(peersBin[offset+4 : offset+6])
+        }
+        return peers, nil
+    }
+
 放在一起
 --------------------------------
