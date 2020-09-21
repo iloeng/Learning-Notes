@@ -260,7 +260,448 @@ TR2940 代表传输客户端 2.94。
 从 Peers 下载
 ----------------------------------------
 
-https://blog.jse.li/posts/torrent/#downloading-from-peers
+现在我们有了一个 Peers 列表，是时候与他们连接并开始下载片段了！我们可以将过程\
+分为几个步骤。 对于每个 Peer，我们希望：
+
+1. 与 Peer 启动一个 TCP 连接。就像打个电话一样。
+2. 完成双向 BitTorrent **握手** 。 “你好？” “你好。”
+3. 交换消息以下载片段。 “请给我 ＃231 片段。”
+
+启动一个 TCP 连接
+******************************************
+
+::
+
+    conn, err := net.DialTimeout("tcp", peer.String(), 3*time.Second)
+    if err != nil {
+        return nil, err
+    }
+
+我设置了超时时间，这样我就不会在不让我建立联系的 Peers 身上浪费太多时\
+间。 在大多数情况下，这是一个非常标准的TCP连接。
+
+完成握手
+******************************************
+
+我们刚刚建立了与对等方 (Peers) 的连接，但是我们想握手以验证我们对等方的假设
+
+* 可以使用 BitTorrent 协议进行通讯
+* 能够理解并回复我们的信息
+* 拥有我们想要的文件，或者至少知道我们在说什么
+
+.. image:: img/handshake.png
+
+我的父亲告诉我，良好的握手秘诀是牢固握力和目光接触。而良好的 BitTorrent 握\
+手秘诀在于它由五个部分组成：
+
+1. 协议标识符的长度，始终为19（十六进制为 0x13 ）
+2. 协议标识符，称为 **pstr** ，始终为 ``BitTorrent Protocol``
+3. 八个 ``保留字节`` ，都设置为0。我们会将其中一些翻转为1，以表示我们支持某\
+   些 `extensions`_。 但是我们没有，所以我们将它们保持为0。
+4. 我们之前计算出的信息哈希，用于标识我们想要的文件
+5. **Peer ID** 我们用来识别自己
+
+.. _`extensions`: http://www.bittorrent.org/beps/bep_0010.html
+
+放在一起，握手字符串可能如下所示：
+::
+
+    \x13BitTorrent protocol\x00\x00\x00\x00\x00\x00\x00\x00\x86\xd4\xc8\x00\x24\xa4\x69\xbe\x4c\x50\xbc\x5a\x10\x2c\xf7\x17\x80\x31\x00\x74-TR2940-k8hj0wgej6ch
+
+向我们的 Peer 发送一次握手后，我们应该以相同的格式收到一次握手。返回的信息哈希\
+应该与我们发送的信息哈希匹配，以便我们知道我们在谈论同一文件。 如果一切都按计划\
+进行，那么就很好了。如果没有，我们可以切断连接，因为出了点问题。“Hello?” “这是\
+谁？ 你想要什么？” “Okay, wow, wrong number."
+
+在我们的代码中，让我们构造一个表示握手的结构，并编写一些用于序列化和读取它们的方法：
+::
+
+    // A Handshake is a special message that a peer uses to identify itself
+    type Handshake struct {
+        Pstr     string
+        InfoHash [20]byte
+        PeerID   [20]byte
+    }
+
+    // Serialize serializes the handshake to a buffer
+    func (h *Handshake) Serialize() []byte {
+        buf := make([]byte, len(h.Pstr)+49)
+        buf[0] = byte(len(h.Pstr))
+        curr := 1
+        curr += copy(buf[curr:], h.Pstr)
+        curr += copy(buf[curr:], make([]byte, 8)) // 8 reserved bytes
+        curr += copy(buf[curr:], h.InfoHash[:])
+        curr += copy(buf[curr:], h.PeerID[:])
+        return buf
+    }
+
+    // Read parses a handshake from a stream
+    func Read(r io.Reader) (*Handshake, error) {
+        // Do Serialize(), but backwards
+        // ...
+    }
+
+发送和接受消息
+******************************************
+
+完成初始握手后，我们就可以发送和接收消息。 好吧，还不完全，如果对方没有准备好\
+接受消息，我们将无法发送任何消息，除非对方告诉我们他们已经准备好了。 在这种状\
+态下，我们被其他 Peer 阻塞住了。 他们会向我们发送一条取消锁定的消息，来告知我\
+们我们可以开始向他们询问数据。默认情况下，我们假设我们一直处于阻塞状态，除非\
+另行证明。
+
+一旦我们变成非阻塞状态，我们就可以开始发送碎片请求，他们可以向我们发送包含碎片\
+的消息。
+
+.. image:: img/choke.png
+
+解释信息
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+一条信息具有长度，**ID** 和 **Payload** 。 在电线上，它看起来像：
+
+.. image:: img/message.png
+
+一条消息以长度指示符开头，该指示符告诉我们该消息将有多少字节的长度。这是一个32位\
+整数，表示它是由四个按大端字节序排列的字节组成。下一个字节，即 **ID** ，告诉我\
+们正在接收的消息类型，例如 ``2`` 字节表示 “interested”。最后，可选的 **Payload** \
+将填充消息的剩余长度。
+::
+
+    type messageID uint8
+
+    const (
+        MsgChoke         messageID = 0
+        MsgUnchoke       messageID = 1
+        MsgInterested    messageID = 2
+        MsgNotInterested messageID = 3
+        MsgHave          messageID = 4
+        MsgBitfield      messageID = 5
+        MsgRequest       messageID = 6
+        MsgPiece         messageID = 7
+        MsgCancel        messageID = 8
+    )
+
+    // Message stores ID and payload of a message
+    type Message struct {
+        ID      messageID
+        Payload []byte
+    }
+
+    // Serialize serializes a message into a buffer of the form
+    // <length prefix><message ID><payload>
+    // Interprets `nil` as a keep-alive message
+    func (m *Message) Serialize() []byte {
+        if m == nil {
+            return make([]byte, 4)
+        }
+        length := uint32(len(m.Payload) + 1) // +1 for id
+        buf := make([]byte, 4+length)
+        binary.BigEndian.PutUint32(buf[0:4], length)
+        buf[4] = byte(m.ID)
+        copy(buf[5:], m.Payload)
+        return buf
+    }
+
+要从数据流中读取消息，我们只需遵循消息的格式。我们读取四个字节并将其解释为 ``uint32`` \
+，以获取消息的长度。然后，我们读取该字节数以获得 **ID** （第一个字节）和 **Payload** \
+（其余字节）。
+::
+
+    // Read parses a message from a stream. Returns `nil` on keep-alive message
+    func Read(r io.Reader) (*Message, error) {
+        lengthBuf := make([]byte, 4)
+        _, err := io.ReadFull(r, lengthBuf)
+        if err != nil {
+            return nil, err
+        }
+        length := binary.BigEndian.Uint32(lengthBuf)
+
+        // keep-alive message
+        if length == 0 {
+            return nil, nil
+        }
+
+        messageBuf := make([]byte, length)
+        _, err = io.ReadFull(r, messageBuf)
+        if err != nil {
+            return nil, err
+        }
+
+        m := Message{
+            ID:      messageID(messageBuf[0]),
+            Payload: messageBuf[1:],
+        }
+
+        return &m, nil
+    }
+
+Bitfields
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+消息中最有趣的一种类型是位域( **Bitfield** )，位域是 Peers 用来有效编码他们能够发\
+送给我们哪些数据的数据结构。位域看起来像一个字节数组，要检查它们具有哪些文件片段，我\
+们只需要查看设置为 1 的位的位置即可。您可以将其视为咖啡店会员卡的数字等效物。我们从\
+全为 ``0`` 的空白卡开始，然后将位翻转为 ``1`` 以将其位置标记为“盖章”。
+
+.. image:: img/bitfield.png
+
+通过使用 *bit* 而不是 *Byte* 工作，是因为此数据结构非常紧凑。我们可以在一个字节的\
+空间（ ``bool`` 的大小）中填充有关八段的信息。难点是访问值变得有些棘手。计算机可以\
+寻址的最小内存单位是字节，因此要获取位，我们必须进行一些按位操作：
+
+::
+
+    // A Bitfield represents the pieces that a peer has
+    type Bitfield []byte
+
+    // HasPiece tells if a bitfield has a particular index set
+    func (bf Bitfield) HasPiece(index int) bool {
+        byteIndex := index / 8
+        offset := index % 8
+        return bf[byteIndex]>>(7-offset)&1 != 0
+    }
+
+    // SetPiece sets a bit in the bitfield
+    func (bf Bitfield) SetPiece(index int) {
+        byteIndex := index / 8
+        offset := index % 8
+        bf[byteIndex] |= 1 << (7 - offset)
+    }
 
 放在一起
 --------------------------------
+
+现在，我们拥有下载 torrent 所需的所有工具：我们有从跟踪器获得的对等方的列表，\
+并且我们可以通过建立 TCP 连接，发起握手以及发送和接收消息来与它们进行通信。我\
+们的最后一个大问题是处理与多个对等方交谈所涉及的并发性，以及在与对等方交互时管\
+理对等方的状态。这些都是经典的难题。
+
+并发管理：将通道作为队列
+******************************************
+
+在 Go 中，我们通过 `通信共享内存`_ ，并且可以将 Go 通道视为廉价的线程安全队列。
+
+.. _`通信共享内存`: https://blog.golang.org/share-memory-by-communicating
+
+我们将设置两个 channel 来同步我们的并发工作：一个用于在同伴之间分发工作（下载\
+的作品），另一个用于收集下载的作品。当下载的片段通过结果 channel 进入时，我们\
+可以将它们复制到缓冲区中以开始组装完整的文件。
+::
+
+    // Init queues for workers to retrieve work and send results
+    workQueue := make(chan *pieceWork, len(t.PieceHashes))
+    results := make(chan *pieceResult)
+    for index, hash := range t.PieceHashes {
+        length := t.calculatePieceSize(index)
+        workQueue <- &pieceWork{index, hash, length}
+    }
+
+    // Start workers
+    for _, peer := range t.Peers {
+        go t.startDownloadWorker(peer, workQueue, results)
+    }
+
+    // Collect results into a buffer until full
+    buf := make([]byte, t.Length)
+    donePieces := 0
+    for donePieces < len(t.PieceHashes) {
+        res := <-results
+        begin, end := t.calculateBoundsForPiece(res.index)
+        copy(buf[begin:end], res.buf)
+        donePieces++
+    }
+    close(workQueue)
+
+我们将为从 Tracker 收到的每个同伴产生一个 worker goroutine。 它将与对等方连\
+接并握手，然后开始从 ``workQueue`` 检索工作，并尝试下载它，然后通过结果 Channel 将\
+下载的片段发送回去。
+
+.. image:: img/download.png
+
+::
+
+    func (t *Torrent) startDownloadWorker(peer peers.Peer, workQueue chan *pieceWork, results chan *pieceResult) {
+        c, err := client.New(peer, t.PeerID, t.InfoHash)
+        if err != nil {
+            log.Printf("Could not handshake with %s. Disconnecting\n", peer.IP)
+            return
+        }
+        defer c.Conn.Close()
+        log.Printf("Completed handshake with %s\n", peer.IP)
+
+        c.SendUnchoke()
+        c.SendInterested()
+
+        for pw := range workQueue {
+            if !c.Bitfield.HasPiece(pw.index) {
+                workQueue <- pw // Put piece back on the queue
+                continue
+            }
+
+            // Download the piece
+            buf, err := attemptDownloadPiece(c, pw)
+            if err != nil {
+                log.Println("Exiting", err)
+                workQueue <- pw // Put piece back on the queue
+                return
+            }
+
+            err = checkIntegrity(pw, buf)
+            if err != nil {
+                log.Printf("Piece #%d failed integrity check\n", pw.index)
+                workQueue <- pw // Put piece back on the queue
+                continue
+            }
+
+            c.SendHave(pw.index)
+            results <- &pieceResult{pw.index, buf}
+        }
+    }
+
+状态管理
+******************************************
+
+我们将跟踪结构中的每个对等体，并在阅读消息时对其进行修改。其中将包含诸如从同伴那里\
+下载了多少，从同伴那里请求了多少以及是否阻塞了数据。如果要进一步扩展，可以将其形式\
+化为有限状态机。但是到目前为止，一个结构和一个开关已经足够了。
+::
+
+    type pieceProgress struct {
+        index      int
+        client     *client.Client
+        buf        []byte
+        downloaded int
+        requested  int
+        backlog    int
+    }
+
+    func (state *pieceProgress) readMessage() error {
+        msg, err := state.client.Read() // this call blocks
+        switch msg.ID {
+        case message.MsgUnchoke:
+            state.client.Choked = false
+        case message.MsgChoke:
+            state.client.Choked = true
+        case message.MsgHave:
+            index, err := message.ParseHave(msg)
+            state.client.Bitfield.SetPiece(index)
+        case message.MsgPiece:
+            n, err := message.ParsePiece(state.index, state.buf, msg)
+            state.downloaded += n
+            state.backlog--
+        }
+        return nil
+    }
+
+是时候开始请求了！
+******************************************
+
+文件，碎片和碎片哈希不是完整的故事，我们可以通过将碎片分解成块来进一步发展。\
+块是碎片的一部分，我们可以通过碎片的索引，碎片中的字节偏移量和长度来完全定义\
+块。当我们从对等体请求数据时，实际上是在请求数据块。一个块通常为16KB，这意味\
+着一个256KB的块实际上可能需要16个请求。
+
+如果对等方收到大于16KB的块的请求，则应该切断该连接。但是，根据我的经验，他们\
+通常非常乐意满足最大128KB的请求。在更大的块尺寸下，我的整体速度只有中等程度\
+的提高，因此最好遵循规范。
+
+流水线
+******************************************
+
+网络往返很昂贵，一个一个地请求每个块绝对会降低我们的下载性能。因此，以流水线\
+方式管理我们的请求是很重要的，以便我们对一些未完成的请求保持恒定的压力。这可\
+以将我们的连接吞吐量提高一个数量级。
+
+.. image:: img/pipelining.png
+
+传统上，BitTorrent 客户端保持五个流水线请求排队，这就是我要使用的值。我发现增\
+加它可以使下载速度提高一倍。较新的客户端使用自适应队列大小来更好地适应现代网络\
+的速度和条件。这绝对是一个值得调整的参数，对于将来的性能优化而言，这是一个很低\
+的目标。
+::
+
+    // MaxBlockSize is the largest number of bytes a request can ask for
+    const MaxBlockSize = 16384
+
+    // MaxBacklog is the number of unfulfilled requests a client can have in its pipeline
+    const MaxBacklog = 5
+
+    func attemptDownloadPiece(c *client.Client, pw *pieceWork) ([]byte, error) {
+        state := pieceProgress{
+            index:  pw.index,
+            client: c,
+            buf:    make([]byte, pw.length),
+        }
+
+        // Setting a deadline helps get unresponsive peers unstuck.
+        // 30 seconds is more than enough time to download a 262 KB piece
+        c.Conn.SetDeadline(time.Now().Add(30 * time.Second))
+        defer c.Conn.SetDeadline(time.Time{}) // Disable the deadline
+
+        for state.downloaded < pw.length {
+            // If unchoked, send requests until we have enough unfulfilled requests
+            if !state.client.Choked {
+                for state.backlog < MaxBacklog && state.requested < pw.length {
+                    blockSize := MaxBlockSize
+                    // Last block might be shorter than the typical block
+                    if pw.length-state.requested < blockSize {
+                        blockSize = pw.length - state.requested
+                    }
+
+                    err := c.SendRequest(pw.index, state.requested, blockSize)
+                    if err != nil {
+                        return nil, err
+                    }
+                    state.backlog++
+                    state.requested += blockSize
+                }
+            }
+
+            err := state.readMessage()
+            if err != nil {
+                return nil, err
+            }
+        }
+
+        return state.buf, nil
+    }
+
+main.go
+******************************************
+
+这是一个简短的。 我们就到这了。
+
+::
+
+    package main
+
+    import (
+        "log"
+        "os"
+
+        "github.com/veggiedefender/torrent-client/torrentfile"
+    )
+
+    func main() {
+        inPath := os.Args[1]
+        outPath := os.Args[2]
+
+        tf, err := torrentfile.Open(inPath)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        err = tf.DownloadToFile(outPath)
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+
+这并不是全部
+=========================
+
+为简洁起见，我仅包含了一些重要的代码片段。值得注意的是，我忽略了所有粘合代码，\
+解析，单元测试以及构建字符的无聊部分。如果您有兴趣，请查看我的 完整实施_ 。
+
+.. _完整实施: https://github.com/veggiedefender/torrent-client
