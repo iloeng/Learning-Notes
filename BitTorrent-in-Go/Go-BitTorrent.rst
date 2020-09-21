@@ -77,24 +77,22 @@ Bencoded 数据不像 JSON 那样易于人读/写，但是它可以有效地处�
 
     d
         8:announce
-            41\:http\://bttracker.debian.org:6969/announce
+          41\:http\://bttracker.debian.org:6969/announce
         7:comment
-            35:"Debian CD from cdimage.debian.org"
+          35:"Debian CD from cdimage.debian.org"
         13:creation date
-            i1573903810e
+          i1573903810e
         4:info
-            d
-                6:length
-                    i351272960e
-                4:name
-                    31:debian-10.2.0-amd64-netinst.iso
-                12:piece length
-                    i262144e
-                6:pieces
-                    26800:�����PS�^�� (binary blob of the hashes of each piece)
-            
-            e
-
+          d
+            6:length
+              i351272960e
+            4:name
+              31:debian-10.2.0-amd64-netinst.iso
+            12:piece length
+              i262144e
+            6:pieces
+              26800:�����PS�^�� (binary blob of the hashes of each piece)
+          e
     e
 
 在此文件中，我们可以发现 Tracker 的URL，创建日期（以Unix时间戳），文\
@@ -172,8 +170,6 @@ KB至1MB之间。 这意味着一个大文件可能由数千个文件组成。 �
 
 从 Tracker 中检索 Peers
 -------------------------
-
-https://blog.jse.li/posts/torrent/#retrieving-peers-from-the-tracker
 
 现在我们有了关于文件及其 Tracker 的信息，让我们与 Tracker 对话，\
 宣布我们作为对等方(Peer)的存在，并检索其他对等方(Peers)的列表。我\
@@ -260,6 +256,11 @@ TR2940 代表传输客户端 2.94。
         }
         return peers, nil
     }
+
+从 Peers 下载
+----------------------------------------
+
+https://blog.jse.li/posts/torrent/#downloading-from-peers
 
 放在一起
 --------------------------------
