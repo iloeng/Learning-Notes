@@ -682,8 +682,6 @@ main.go
 
 .. code-block:: go
 
-    :linenos:
-
     package main
 
     import (
