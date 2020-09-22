@@ -89,7 +89,7 @@
     >>> list(tokenize("d3:cow3:moo4:spam4:eggse")) # dict
     ['d', 's', 'cow', 's', 'moo', 's', 'spam', 's', 'eggs', 'e']
 
-请注意，越简单的格式通常可以使用 **finditer ** 方法进行拆分（或甚至于使用 **findall** ）。
+请注意，越简单的格式通常可以使用 **finditer** 方法进行拆分（或甚至于使用 **findall** ）。
 
 **encode_item** 函数使用类型信息将数据转换为合适的 Python 对象。 它调用自\
 身来处理嵌套的容器类型。
