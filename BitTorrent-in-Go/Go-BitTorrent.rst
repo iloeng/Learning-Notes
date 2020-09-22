@@ -681,6 +681,7 @@ main.go
 这是一个简短的。 我们就到这了。
 
 .. code-block:: go
+
     :linenos:
 
     package main
