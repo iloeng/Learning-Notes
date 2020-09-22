@@ -111,7 +111,8 @@ KB至1MB之间。 这意味着一个大文件可能由数千个文件组成。 �
 编写 Bencode 解析器确实很有趣，但是解析器并不是我们今天关注的重点。\
 但是我发现 Fredrik Lundh 的 `50行解析器`_ 特别具有启发性。对于这个项目，\
 我使用了 https://github.com/jackpal/bencode-go
-::
+
+.. code-block:: go
 
     import (
         "github.com/jackpal/bencode-go"
@@ -154,7 +155,7 @@ KB至1MB之间。 这意味着一个大文件可能由数千个文件组成。 �
 
 .. image:: img/info-hash.png
 
-::
+.. code-block:: go
 
     type TorrentFile struct {
         Announce    string
@@ -175,7 +176,8 @@ KB至1MB之间。 这意味着一个大文件可能由数千个文件组成。 �
 宣布我们作为对等方(Peer)的存在，并检索其他对等方(Peers)的列表。我\
 们只需要使用几个查询参数对 .torrent 文件中提供的 announce URL 发\
 出GET请求：
-::
+
+.. code-block:: go
 
     func (t *TorrentFile) buildTrackerURL(peerID [20]byte, port uint16) (string, error) {
         base, err := url.Parse(t.Announce)
@@ -232,7 +234,7 @@ TR2940 代表传输客户端 2.94。
 
 .. image:: img/address.png
 
-::
+.. code-block:: go
 
     // Peer encodes connection information for a peer
     type Peer struct {
@@ -270,7 +272,7 @@ TR2940 代表传输客户端 2.94。
 启动一个 TCP 连接
 ******************************************
 
-::
+.. code-block:: go
 
     conn, err := net.DialTimeout("tcp", peer.String(), 3*time.Second)
     if err != nil {
@@ -314,7 +316,8 @@ TR2940 代表传输客户端 2.94。
 谁？ 你想要什么？” “Okay, wow, wrong number."
 
 在我们的代码中，让我们构造一个表示握手的结构，并编写一些用于序列化和读取它们的方法：
-::
+
+.. code-block:: go
 
     // A Handshake is a special message that a peer uses to identify itself
     type Handshake struct {
@@ -366,7 +369,8 @@ TR2940 代表传输客户端 2.94。
 整数，表示它是由四个按大端字节序排列的字节组成。下一个字节，即 **ID** ，告诉我\
 们正在接收的消息类型，例如 ``2`` 字节表示 “interested”。最后，可选的 **Payload** \
 将填充消息的剩余长度。
-::
+
+.. code-block:: go
 
     type messageID uint8
 
@@ -406,7 +410,8 @@ TR2940 代表传输客户端 2.94。
 要从数据流中读取消息，我们只需遵循消息的格式。我们读取四个字节并将其解释为 ``uint32`` \
 ，以获取消息的长度。然后，我们读取该字节数以获得 **ID** （第一个字节）和 **Payload** \
 （其余字节）。
-::
+
+.. code-block:: go
 
     // Read parses a message from a stream. Returns `nil` on keep-alive message
     func Read(r io.Reader) (*Message, error) {
@@ -450,7 +455,7 @@ Bitfields
 空间（ ``bool`` 的大小）中填充有关八段的信息。难点是访问值变得有些棘手。计算机可以\
 寻址的最小内存单位是字节，因此要获取位，我们必须进行一些按位操作：
 
-::
+.. code-block:: go
 
     // A Bitfield represents the pieces that a peer has
     type Bitfield []byte
@@ -487,7 +492,8 @@ Bitfields
 我们将设置两个 channel 来同步我们的并发工作：一个用于在同伴之间分发工作（下载\
 的作品），另一个用于收集下载的作品。当下载的片段通过结果 channel 进入时，我们\
 可以将它们复制到缓冲区中以开始组装完整的文件。
-::
+
+.. code-block:: go
 
     // Init queues for workers to retrieve work and send results
     workQueue := make(chan *pieceWork, len(t.PieceHashes))
@@ -519,7 +525,7 @@ Bitfields
 
 .. image:: img/download.png
 
-::
+.. code-block:: go
 
     func (t *Torrent) startDownloadWorker(peer peers.Peer, workQueue chan *pieceWork, results chan *pieceResult) {
         c, err := client.New(peer, t.PeerID, t.InfoHash)
@@ -565,7 +571,8 @@ Bitfields
 我们将跟踪结构中的每个对等体，并在阅读消息时对其进行修改。其中将包含诸如从同伴那里\
 下载了多少，从同伴那里请求了多少以及是否阻塞了数据。如果要进一步扩展，可以将其形式\
 化为有限状态机。但是到目前为止，一个结构和一个开关已经足够了。
-::
+
+.. code-block:: go
 
     type pieceProgress struct {
         index      int
@@ -619,7 +626,8 @@ Bitfields
 加它可以使下载速度提高一倍。较新的客户端使用自适应队列大小来更好地适应现代网络\
 的速度和条件。这绝对是一个值得调整的参数，对于将来的性能优化而言，这是一个很低\
 的目标。
-::
+
+.. code-block:: go
 
     // MaxBlockSize is the largest number of bytes a request can ask for
     const MaxBlockSize = 16384
@@ -672,7 +680,8 @@ main.go
 
 这是一个简短的。 我们就到这了。
 
-::
+.. code-block:: go
+    :linenos:
 
     package main
 
