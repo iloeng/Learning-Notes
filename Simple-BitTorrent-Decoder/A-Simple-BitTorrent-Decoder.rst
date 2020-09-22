@@ -110,7 +110,7 @@
 
 运行此命令将产生类似以下内容：
 
-..code-block:: 
+.. code-block:: 
 
     'Little Earthquakes/01 Crucify.m4a' - 4845721 bytes
     'Little Earthquakes/02 Girl.m4a' - 4012517 bytes
