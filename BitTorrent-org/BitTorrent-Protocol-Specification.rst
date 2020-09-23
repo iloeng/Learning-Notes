@@ -6,23 +6,22 @@ BitTorrent 协议规范
 :BEP: 3
 :Title: BitTorrent 协议规范
 :Version: $Revision$
-:Last-Modified: $Date$
+:Last Modified: $Date$
 :Author:  Bram Cohen <bram@bittorrent.com>
 :Status:  Final
 :Type:    Standard
 :Created: 10-Jan-2008
-:Post-History: 24-Jun-2009 (arvid@bittorrent.com), clarified the encoding of strings in torrent files.
-	20-Oct-2012 (arvid@bittorrent.com), clarified that info-hash is the digest of en bencoding found in .torrent file.
-	Introduced some references to new BEPs and cleaned up formatting.
-	11-Oct-2013 (arvid@bittorrent.com), correct the accepted and de-facto sizes for request messages
-	04-Feb-2017 (the8472.bep@infinite-source.de), further info-hash clarifications, added resources for new implementors
+:Post History:  24-6-2009 (arvid@bittorrent.com), 阐明了 torrent 文件中字符串的编码。
+	20-10-2012 (arvid@bittorrent.com), 阐明了 info hash 是 .torrent 文件中的 en bencoding摘要。引入了一些对新bep的引用并清理了格式。
+	11-10-2013 (arvid@bittorrent.com), 更正请求消息的可接受大小和实际大小
+	04-2-2017 (the8472.bep@infinite-source.de), 进一步阐述 info hash，为新的实现者添加了资源
 
-BitTorrent is a protocol for distributing files. It identifies content
-by URL and is designed to integrate seamlessly with the web. Its
-advantage over plain HTTP is that when multiple downloads of the same
-file happen concurrently, the downloaders upload to each other, making
-it possible for the file source to support very large numbers of
-downloaders with only a modest increase in its load.
+
+
+BitTorrent 是一种分发文件的协议。它通过 URL 标识内容，并设计为与 web 无缝集成。\
+与普通 HTTP 相比，它的优势在于当同一文件的多个下载同时发生时，下载者会互相上传，\
+使得文件源只需稍微增加一点负载就可以支撑大量的下载者。
+
 
 一个 BitTorrent 文件分发包含这些实体:
 ----------------------------------------------------------
@@ -30,77 +29,68 @@ downloaders with only a modest increase in its load.
 - 一个普通的 Web Server
 - 一个静态的 "metainfo" 文件
 - 一个 BitTorrent Tracker
-- An 'original' downloader
-- The end user web browsers
-- The end user downloaders
+- 一个原始的下载器
+- 最终用户的 Web 浏览器
+- 最终用户的下载程序
 
-There are ideally many end users for a single file.
+理想的情况是，单个文件有多个最终用户。
 
-To start serving, a host goes through the following steps:
+要开始服务，主机需要完成以下步骤：
 ----------------------------------------------------------
 
-#. Start running a tracker (or, more likely, have one running already).
-#. Start running an ordinary web server, such as apache, or have one already.
-#. Associate the extension .torrent with mimetype application/x-bittorrent on their web server (or have done so already).
-#. Generate a metainfo (.torrent) file using the complete file to be served and the URL of the tracker.
-#. Put the metainfo file on the web server.
-#. Link to the metainfo (.torrent) file from some other web page.
-#. Start a downloader which already has the complete file (the 'origin').
+#. 开始运行一个 Tracker（或者，更可能的是，已经运行了一个 Tracker ）。
+#. 开始运行一个普通的 Web 服务器，比如 Apache，或者已经正在运行一个。
+#. 将 .torrent 的拓展名与 Web 服务器上的 mimetype application/x-bitorrent 关联起来（或者已经这样做了）。
+#. 使用要提供的完整文件和跟踪器的 URL 生成元信息（.torrent）文件。
+#. 将 metainfo (元信息) 文件放在 Web 服务器上。
+#. 从其他网页链接到 metainfo（.torrent）文件。
+#. 启动一个已经拥有完整文件（作为 “来源”）的下载器。
 
-To start downloading, a user does the following:
+要开始下载，用户需要执行以下操作：
 ------------------------------------------------
 
-#. Install BitTorrent (or have done so already).
-#. Surf the web.
-#. Click on a link to a .torrent file.
-#. Select where to save the file locally, or select a partial download to resume.
-#. Wait for download to complete.
-#. Tell downloader to exit (it keeps uploading until this happens).
+#. 安装BitTorrent（或已经安装）。
+#. 浏览网页。
+#. 单击指向 .torrent 文件的链接。
+#. 选择在本地保存文件的位置，或选择部分下载以继续。
+#. 等待下载完成。
+#. 告诉下载者退出（它会一直上传直到这种情况发生）。
 
 bencoding
 ---------
 
-- Strings are length-prefixed base ten followed by a colon and the string. For example ``4:spam`` corresponds to 'spam'.
+- 字符串以长度为前缀的十进制数开头，后跟冒号和字符串。 例如 ``4：spam`` 对应于 'spam' 。
 
-- Integers are represented by an 'i' followed by the number in base 10
-  followed by an 'e'. For example ``i3e`` corresponds to 3 and
-  ``i-3e`` corresponds to -3. Integers have no size
-  limitation. ``i-0e`` is invalid. All encodings with a leading
-  zero, such as ``i03e``, are invalid, other than
-  ``i0e``, which of course corresponds to 0.
+- 整数由 ``i`` 表示，后跟以10为底的数字，最跟 ``e`` 表示。例如，``i3e`` 对应于 3，\
+  ``i-3e`` 对应于 -3。整数没有大小限制。 ``i-0e`` 是无效的。除 ``i0e`` （当然对应于0）\
+  之外，所有带有前导零的编码（例如 ``i03e`` ）均无效。
 
-- Lists are encoded as an 'l' followed by their elements (also
-  bencoded) followed by an 'e'. For example ``l4:spam4:eggse``
-  corresponds to ['spam', 'eggs'].
+- 列表被编码为 ``l`` ，后跟元素（也被编码），最后跟 ``e`` 。 例如， ``l4：spam4：eggse`` \
+  对应于['spam', 'eggs']。
 
-- Dictionaries are encoded as a 'd' followed by a list of alternating
-  keys and their corresponding values followed by an 'e'. For example,
-  ``d3:cow3:moo4:spam4:eggse`` corresponds to {'cow': 'moo',
-  'spam': 'eggs'} and ``d4:spaml1:a1:bee`` corresponds to
-  {'spam': ['a', 'b']}. Keys must be strings and appear in sorted order
-  (sorted as raw strings, not alphanumerics).
+- 字典被编码为 ``d`` ，后跟一系列交替的 Key 及其对应的 Value，最后跟 ``e`` 。例如， \
+  ``d3:cow3:moo4:spam4:eggse`` 对应于 ``{'cow':'moo', 'spam':'eggs'}`` 和 \
+  ``d4:spaml1:a1:bee`` 对应于 ``{'spam':['a','b']}`` 。键必须是字符串并按排序顺序\
+  显示（排序为原始字符串，而不是字母数字）。
 
-
-metainfo files
+元信息文件
 --------------
 
-Metainfo files (also known as .torrent files) are bencoded dictionaries
-with the following keys:
+元信息文件 (Metainfo files) (也称为 .torrent 文件) 被编码成带有以下键的标准词典：
 
 announce
-  The URL of the tracker.
+  Tracker 的 URL。
 
 info
-  This maps to a dictionary, with keys described below.
+  这将映射到一个字典，其键如下所述。
 
-All strings in a .torrent file that contains text must be UTF-8
-encoded.
+.torrent 文件中包含文本的所有字符串都必须是 UTF-8 编码的。
 
-info dictionary
+info 字典
 ...............
 
-The ``name`` key maps to a UTF-8 encoded string which is the
-suggested name to save the file (or directory) as. It is purely advisory.
+``name`` 映射到一个 UTF-8 编码的字符串，这是将文件（或目录）另存为的建议名称。这纯粹是\
+  建议性的。
 
 ``piece length`` maps to the number of bytes in each piece
 the file is split into. For the purposes of transfer, files are
