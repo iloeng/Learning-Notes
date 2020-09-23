@@ -90,7 +90,7 @@ info 字典
 ...............
 
 ``name`` 映射到一个UTF-8编码的字符串，这是将文件（或目录）另存为的建议名称。这纯粹是\
-  建议性的。
+建议性的。
 
 ``piece length`` maps to the number of bytes in each piece
 the file is split into. For the purposes of transfer, files are
