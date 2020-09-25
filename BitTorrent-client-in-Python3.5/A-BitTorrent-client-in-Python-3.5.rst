@@ -171,3 +171,26 @@ Bencoding 支持四种不同的数据类型， *字典* ， *列表* ，*整数*
     ]), (b'comment', b'Ubuntu CD releases.ubuntu.com'), (b'creation date', 1461232732), (b'info', OrderedDict([(b'length', 1485881344), (b'name', b'ubuntu-16.04-desktop-amd64.iso'), (b'piece
     length', 524288), (b'pieces', b'\x1at\xfc\x84\xc8\xfaV\xeb\x12\x1c\xc5\xa4\x1c?\xf0\x96\x07P\x87\xb8\xb2\xa5G1\xc8L\x18\x81\x9bc\x81\xfc8*\x9d\xf4k\xe6\xdb6\xa3\x0b\x8d\xbe\xe3L\xfd\xfd4\...')]))])
 
+在这里，您可以看到一些元数据，比如目标文件的名称 (ubuntu-16.04-desktop-amd64.iso) \
+和总字节大小 (1485881344)。
+
+注意 OrderedDict 中使用的键是二进制字符串。Bencoding 是一个二进制协议，使用 UTF-8 \
+字符串作为键不能工作!
+
+包装类 ``piece.torrent.Torrent`` 揭示这些属性是通过抽象二进制字符串和其他细节来\
+实现的，这些细节远离客户端的其他部分。这个类只实现了在 pieces 客户端中使用的属性。
+
+我将不详细说明哪些属性是可用的，而在本文的其余部分将引用 ``.torrent`` / *meta-info* \
+中使用的属性。
+
+连接 Tracker
+=============================
+
+现在我们可以解码 ``.torrent`` 文件，并且我们有了这些数据的 Python 表示，我们需要\
+获得一个要连接的对等点列表。这就是追踪器的作用。一个跟踪器是一个中央服务器，为一个\
+给定的种子记录可用的对等点。一个跟踪器不包含任何的torrent数据，只可以连接到的对等\
+点和他们的统计数据。
+
+发起请求
+*********
+
