@@ -194,3 +194,44 @@ Bencoding 支持四种不同的数据类型， *字典* ， *列表* ，*整数*
 发起请求
 *********
 
+元信息中的 announce 属性是使用以下 URL 参数连接到 Tracker 的 HTTP URL：
+
+============  =====
+参数           描述
+============  =====
+info_hash     在 ``.torrent`` 中找到的信息字典的 SHA1 哈希
+peer_id       为客户端生成的唯一 ID
+uploaded      上传的总字节数
+downloaded    下载的总字节数
+left          客户端要下载的剩余字节数
+port          客户端侦听的 TCP 端口
+compact       客户端是否接受一个压缩的对等点列表
+============  =====
+
+``peer_id`` 需要精确为20个字节，在如何生成这个ID上有两种主要的约定。Pieces 遵循 \
+`Azureus 风格`_ 的惯例产生 ``peer id`` 如下:
+
+.. _`Azureus 风格`: https://wiki.theory.org/BitTorrentSpecification#peer_id
+
+.. code-block:: python
+
+    >>> import random
+    # -<2 character id><4 digit version number>-<random numbers>
+    >>> '-PC0001-' + ''.join([str(random.randint(0, 9)) for _ in range(12)])
+    '-PC0001-478269329936'
+
+使用 httpie_ ，Tracker 的请求可以像这样:
+
+.. _httpie: https://github.com/jkbrzt/httpie
+
+.. code-block::
+
+    http GET "http://torrent.ubuntu.com:6969/announce?info_hash=%90%28%9F%D3M%FC%1C%F8%F3%16%A2h%AD%D85L%853DX&peer_id=-PC0001-706887310628&uploaded=0&downloaded=0&left=699400192&port=6889&compact=1"
+    HTTP/1.0 200 OK
+    Content-Length: 363
+    Content-Type: text/plain
+    Pragma: no-cache
+
+    d8:completei3651e10:incompletei385e8:intervali1800e5:peers300:£¬%ËÌyOkÝ.ê@_<K+Ô\Ý Ámb^TnÈÕ^AËO*ÈÕ1*ÈÕ>¥³ÈÕBä)ðþ¸ÐÞ¦Ô/ãÈÕÈuÉæÈÕ
+    ...
+
