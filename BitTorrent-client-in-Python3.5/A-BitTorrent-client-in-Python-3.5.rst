@@ -235,3 +235,50 @@ compact       客户端是否接受一个压缩的对等点列表
     d8:completei3651e10:incompletei385e8:intervali1800e5:peers300:£¬%ËÌyOkÝ.ê@_<K+Ô\Ý Ámb^TnÈÕ^AËO*ÈÕ1*ÈÕ>¥³ÈÕBä)ðþ¸ÐÞ¦Ô/ãÈÕÈuÉæÈÕ
     ...
 
+*响应数据被截断，因为它包含的二进制数据增加了标记格式*。
+
+从 Tracker 的响应来看，有两个属性值得关注:
+
+- **interval** - 间隔时间，以秒为单位，直到客户端对 Tracker 进行一次新的宣布调用。
+- **peers** - 对等点列表是一个二进制字符串，长度为 6 字节的倍数。其中每个对等点包\
+  括一个 4 字节的 IP 地址和一个 2 字节的端口号(因为我们正在使用紧凑的格式)。
+
+因此，一个成功的对 Tracker 的宣布调用，会给你一个要连接的对等点列表。这可能不是群\
+集中所有可用的对等点，只是 Tracker 指定您的客户端连接的对等点。对 Tracker 的后续\
+调用可能会导致另一个对等点列表。
+
+异步HTTP
+*********
+
+Python 没有自带对异步 HTTP 的内置支持，我心爱的 requests_ 库也没有实现异步。环顾 \
+Internet，看起来大多数都使用 aiohttp_ ，它同时实现了 HTTP 客户端和服务器。
+
+.. _requests: https://github.com/kennethreitz/requests
+.. _aiohttp: https://github.com/KeepSafe/aiohttp
+
+Pieces 在 ``Pieces.tracker.Tracker`` 类中使用 ``aiohttp`` 。用于向 Tracker 声明 \
+url 发出 HTTP 请求。代码的缩写是这样的:
+
+.. code-block:: python
+
+    async def connect(self, first: bool=None, uploaded: int=0, downloaded: int=0):
+        params = { ...}
+        url = self.torrent.announce + '?' + urlencode(params)
+
+        async with self.http_client.get(url) as response:
+            if not response.status == 200:
+                raise ConnectionError('Unable to connect to tracker')
+            data = await response.read()
+            return TrackerResponse(bencoding.Decoder(data).decode())
+
+该方法使用 ``async`` 声明，并使用新的 `异步上下文管理器(asynchronous context manager)`_ \
+``async with`` 来允许在进行 HTTP 调用时挂起。如果响应成功，则在读取二进制响应数据时该方法将\
+再次挂起，``await response.read()`` 。最后，响应数据包封装在包含对等点列表的 \
+``TrackerResponse`` 实例中，替代错误消息。
+
+使用 ``aiohttp`` 的结果是，当我们对跟踪器有未完成的请求时，我们的事件循环可以自由地安排其他工作。
+
+请参阅 ``pieces.tracker`` 模块部分 `Source Code`_ 的完整细节。
+
+.. _`异步上下文管理器(asynchronous context manager)`: https://www.python.org/dev/peps/pep-0492/#asynchronous-context-managers-and-async-with
+.. _`Source Code`: https://github.com/eliasson/pieces/blob/master/pieces/tracker.py
