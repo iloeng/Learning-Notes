@@ -282,3 +282,44 @@ url 发出 HTTP 请求。代码的缩写是这样的:
 
 .. _`异步上下文管理器(asynchronous context manager)`: https://www.python.org/dev/peps/pep-0492/#asynchronous-context-managers-and-async-with
 .. _`Source Code`: https://github.com/eliasson/pieces/blob/master/pieces/tracker.py
+
+循环
+=========================
+
+到目前为止，所有的东西都是同步的，但是现在我们要连接到多个对等点，我们需要异步。
+
+在 ``pieces.cli`` 中的主要功能负责设置 asyncio 事件循环。如果我们去掉一些 ``argparse`` \
+和错误处理细节，它看起来就像这样(参见 cli.py_ 了解完整的细节)。
+
+.. _cli.py: https://github.com/eliasson/pieces/blob/master/pieces/cli.py
+
+.. code-block:: python
+
+    import asyncio
+
+    from pieces.torrent import Torrent
+    from pieces.client import TorrentClient
+
+    loop = asyncio.get_event_loop()
+    client = TorrentClient(Torrent(args.torrent))
+    task = loop.create_task(client.start())
+
+    try:
+        loop.run_until_complete(task)
+    except CancelledError:
+        logging.warning('Event loop was canceled')
+
+我们首先获取这个线程的默认事件循环。然后我们用给定的 ``Torrent`` (元信息)构建 ``TorrentClient`` \
+。这将解析 ``.torrent`` 文件并验证一切正常。
+
+调用 ``async`` 方法 ``client.start()`` 并将其包装在 ``asyncio.Feature`` 中。\
+之后将其功能添加并指示事件循环继续运行，直到任务完成。
+
+是它吗? 不，并不是这样 —— 我们在 ``pieces.client.TorrentClient`` 中实现了自己的循环\
+(而不是事件循环)。它用来建立对等连接，安排宣布呼叫等等。
+
+``TorrentClient`` 有点像一个工作协调器，它首先创建一个 `async.Queue`_ ，它保存可\
+连接到的可用对等点的列表。
+
+.. _`async.Queue`: https://docs.python.org/3/library/asyncio-queue.html
+
