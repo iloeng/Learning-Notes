@@ -323,3 +323,63 @@ url 发出 HTTP 请求。代码的缩写是这样的:
 
 .. _`async.Queue`: https://docs.python.org/3/library/asyncio-queue.html
 
+然后构造N个 ``pieces.protocol.PeerConnection`` 将消耗队列外的对等点。这些 ``PeerConnection`` \
+实例将等待( ``await`` )，直到队列中有一个对等点可供它们连接(而不是阻塞)。
+
+因为队列一开始是空的，所以在我们用它可以连接到的对等节点填充它之前，没有任何 ``PeerConnection`` \
+会做任何实际的工作。这是在 ``TorrentClient.start`` 的循环中完成的。
+
+让我们来看看这个循环:
+
+.. code-block:: python
+
+    async def start(self):
+        self.peers = [PeerConnection(self.available_peers,
+                                        self.tracker.torrent.info_hash,
+                                        self.tracker.peer_id,
+                                        self.piece_manager,
+                                        self._on_block_retrieved)
+                        for _ in range(MAX_PEER_CONNECTIONS)]
+
+        # The time we last made an announce call (timestamp)
+        previous = None
+        # Default interval between announce calls (in seconds)
+        interval = 30*60
+
+        while True:
+            if self.piece_manager.complete:
+                break
+            if self.abort:
+                break
+
+            current = time.time()
+            if (not previous) or (previous + interval < current):
+                response = await self.tracker.connect(
+                    first=previous if previous else False,
+                    uploaded=self.piece_manager.bytes_uploaded,
+                    downloaded=self.piece_manager.bytes_downloaded)
+
+                if response:
+                    previous = current
+                    interval = response.interval
+                    self._empty_queue()
+                    for peer in response.peers:
+                        self.available_peers.put_nowait(peer)
+            else:
+                await asyncio.sleep(5)
+        self.stop()
+
+基本上，这个循环做的是:
+
+#. 检查我们是否下载了所有的片段
+#. 检查用户是否中断了下载
+#. 如果需要，向 Tracker 做 announce 调用
+#. 将检索到的对等点添加到可用对等点队列中
+#. Sleep 5 秒钟
+
+因此，每当对 Tracker 进行一个 announce 调用时，要连接的对等点列表将被重置，\
+如果没有检索到对等点，则不会运行 ``PeerConnection`` 。这将一直进行，直到下载完成或中止。
+
+对等协议
+==================================
+
