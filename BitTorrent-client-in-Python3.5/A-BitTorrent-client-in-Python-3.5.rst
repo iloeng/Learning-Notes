@@ -406,3 +406,302 @@ url 发出 HTTP 请求。代码的缩写是这样的:
 用于通知客户端远程对等端拥有哪些片段。片段支持接收 ``BitField`` 消息，大多数 \
 BitTorrent 客户端似乎要发送它 - 但由于片段目前不支持做种，它从来没有发送，只有接收。
 
+``BitField`` 消息有效负载包含一个字节序列，当读取二进制时，每个位将代表一个片段。\
+如果比特为 ``1`` ，则表示对等点拥有该索引的片段，而 ``0`` 则表示对等点缺少该片段。\
+也就是说，有效负载中的每个字节最多代表8个字节，而任何空闲的字节都被设置为 ``0`` 。
+
+每个客户端开始状态是 *choked* 和 *not interested* 。这意味着客户端不允许从远程对\
+等端请求部分，我们也不想感兴趣。
+
+- **Choked** 一个阻塞的对等点不允许向其他对等点请求任何片段。
+- **Unchoked** 允许非阻塞对等点向另一个对等点请求片段。
+- **Interested** 表明对等点对请求块感兴趣。
+- **Not interested** 表明对等点对请求片段不感兴趣。
+
+将 **Choked** 和 **Unchoked** 看作是规则，将 **Interested** 和 **Not interested** \
+看作是两个对等点之间的意向。
+
+在握手之后，我们向远程对等端发送一条 ``Interested`` 的消息，告知我们想要解\
+除阻塞，以便开始请求片段。
+
+直到客户端收到一个 ``Unchoke`` 消息 - 它可能不会向它的远程对等端请求一块数据 - \
+这个 ``PeerConnection`` 将被阻塞(被动)，直到非阻塞或断开连接。
+
+以下信息序列是我们的目标，当建立一个 ``PeerConnection`` :
+
+.. code-block::
+
+              Handshake
+    client --------------> peer    We are initiating the handshake
+
+              Handshake
+    client <-------------- peer    Comparing the info_hash with our hash
+
+              BitField
+    client <-------------- peer    Might be receiving the BitField
+
+             Interested
+    client --------------> peer    Let peer know we want to download
+
+              Unchoke
+    client <-------------- peer    Peer allows us to start requesting pieces
+
+请求片段
+********************
+
+一旦客户机进入非阻塞( *Unchoke* )状态，它就会开始向连接的对等端请求片段。\
+稍后在 管理片段_ 时将详细描述有关请求哪个片段的细节。
+
+.. _管理片段: #managing-the-pieces
+
+如果我们知道另一个对等点有给定的片段，我们可以发送一条 ``Request`` 消息，请求远程\
+对等点向我们发送指定片段的数据。如果对等方遵守，它将发送给我们一个相应的 ``Piece`` 消息，\
+其中消息的有效负载是原始数据。
+
+客户端将只有一个未完成的 ``Request`` ，每个对等点，并礼貌地等待一个消息，直到采取下一个行动。\
+由于到多个对等点的连接是并发打开的，客户端将有多个未完成的请求，但每个连接只有一个请求。
+
+如果由于某种原因，客户端不再需要一块，它可以向远程对等端发送一条 ``Cancel`` 消息来取消之前发送的任何请求。
+
+其他消息
+*************
+
+Have
+
+远程对等点可以在任何时间给我们发送 ``Have`` 消息。当远程对等点接收到一个片段并使其连接的对等点\
+可以下载该片段时，就会执行此操作。
+
+``Have`` 消息有效负载是块索引。
+
+当各部分收到 ``Have`` 消息时，它会更新对等端拥有的信息。
+
+KeepAlive
+
+``KeepAlive`` 消息可以在任何时候从任何方向发送。消息不持有任何负载。
+
+实现
+***********
+
+``PeerConnection`` 使用 ``asyncio.open_connection`` 异步打开一个到远程对等点的TCP连接。该连接\
+返回 ``StreamReader`` 和 ``StreamWriter`` 元组。假设连接已成功创建， ``PeerConnection`` 将发\
+送和接收 ``Handshake`` 消息。
+
+一旦握手完成，PeerConnection 将使用异步迭代器返回 ``PeerMessages`` 流并采取适当的操作。
+
+使用异步迭代器将 ``PeerConnection`` 从如何读取套接字和如何解析 BitTorrent 二进制协议的细节中\
+分离出来。 ``PeerConnection`` 可以专注于与协议相关的语义 -- 比如管理对等点状态、接收片段、关闭连接。
+
+这允许 ``PeerConnection.start`` 的主要代码。开始看起来像:
+
+.. code-block:: python
+
+    async for message in PeerStreamIterator(self.reader, buffer):
+        if type(message) is BitField:
+            self.piece_manager.add_peer(self.remote_id, message.bitfield)
+        elif type(message) is Interested:
+            self.peer_state.append('interested')
+        elif type(message) is NotInterested:
+            if 'interested' in self.peer_state:
+                self.peer_state.remove('interested')
+        elif type(message) is Choke:
+            ...
+
+一个 异步迭代器_ 是一个类，它实现了方法 ``__aiter__`` 和 ``__anext__`` ，它是 Python 标准迭代器的异步\
+版本，已经实现了方法 ``__iter__`` 和 ``next`` 。
+
+.. _异步迭代器: https://www.python.org/dev/peps/pep-0492/#asynchronous-iterators-and-async-for
+
+在迭代(调用 next )时， ``PeerStreamIterator`` 将从 ``StreamReader`` 读取数据，如果有足够\
+的数据可用，尝试解析并返回有效的 ``PeerMessage`` 。
+
+BitTorrent 协议使用可变长度的消息，其中所有消息采用以下形式:
+
+.. code-block::
+
+    <length><id><payload>
+
+- **Length** 是一个4字节整数值
+- **id** 是一个十进制字节码
+- **payload** 相关的信息变量
+
+因此，只要缓冲区有足够的数据用于下一条消息，它就会被解析并从迭代器返回。
+
+所有的消息都使用 Python 的模块 ``struct`` 进行解码，模块包含了 Python 的值和 C 语言数据结构之间\
+进行转换的函数。 Struct_ 使用紧凑的字符串作为要转换的内容的描述符，例如 ``>Ib`` 读取为大端，4字\
+节无符号整数，1字节字符。
+
+.. _Struct: https://docs.python.org/3.5/library/struct.html
+
+*请注意，BitTorrent 中所有的消息都使用 Big-Endian*。
+
+这使得创建单元测试来编码和解码消息变得很容易。让我们来看看 ``Have`` 信息的测试:
+
+.. code-block:: python
+
+    class HaveMessageTests(unittest.TestCase):
+        def test_can_construct_have(self):
+            have = Have(33)
+            self.assertEqual(
+                have.encode(),
+                b"\x00\x00\x00\x05\x04\x00\x00\x00!")
+
+        def test_can_parse_have(self):
+            have = Have.decode(b"\x00\x00\x00\x05\x04\x00\x00\x00!")
+            self.assertEqual(33, have.index)
+
+从原始二进制字符串中，我们可以知道 Have 消息的长度为 5 字节 ``\x00\x00\x00\x05`` , id 值为 4 ``\x04`` ，\
+有效负载为 33 ``\x00\x00\x00!`` 。
+
+由于消息长度为 5 ，并且 ID 只使用单个字节，因此我们知道有 4 个字节可以解释为有效负载值。使用 ``struct.unpack`` \
+我们可以很容易地将它转换成一个 python 整数:
+
+.. code-block::
+
+    >>> import struct
+    >>> struct.unpack('>I', b'\x00\x00\x00!')
+    (33,)
+
+关于协议, 这基本上是所有消息遵循相同的过程和迭代器不断从套接字读取数据，直到断开连接。\
+有关所有消息的详细信息，请 参阅源代码_ 。
+
+.. _参阅源代码: https://github.com/eliasson/pieces/blob/master/pieces/protocol.py
+
+管理片段
+================
+
+到目前为止，我们只讨论了数据片段 - 由两个对等方交换的数据片段。原来碎片并不是全部的事实，\
+还有一个概念 - *blocks* 。如果您浏览过任何一个源代码，您可能看到过引用块的代码，那么让我\
+们来了解一下 *piece* 到底是什么。
+
+顾名思义, 一个 *piece* 是一个种子的部分数据。一个 torrent 的大量的数据被分成 N 同等大小的片段 \
+(除了 torrent 中最后一个片段, 这可能是较小的，相比其他片段)。片段的长度在 ``.torrent`` 文件中被\
+指定。通常，块的大小为 512 kB 或更小，大小应该是 2 的乘方。
+
+片段仍然太大，无法在对等体之间有效地共享，因此块被进一步划分为称为 *blocks*  的部分。块是在对等点之间实\
+际请求的数据块，但片段仍然用于指示哪个对等点拥有哪些片段。如果只使用块，它将大大增加协议的开\
+销(导致更长的比特字段，更多的 Have 消息和更大的 ``.torrent`` 文件)。
+
+一个块的大小是2^14(16384)字节，除了最后一个块的大小可能更小。
+
+考虑一个示例，其中 ``.torrent`` 描述了要下载的单个文件 ``foo.txt`` 。
+
+.. code-block::
+
+    name: foo.txt
+    length: 135168
+    piece length: 49152
+
+这一小的 Torrent 会导致 3 个片段:
+
+.. code-block::
+
+    piece 0: 49 152 bytes
+    piece 1: 49 152 bytes
+    piece 2: 36 864 bytes (135168 - 49152 - 49152)
+            = 135 168
+
+现在每个片段被分成大小为 ``2^14`` 字节的块:
+
+.. code-block::
+
+    piece 0:
+        block 0: 16 384 bytes (2^14)
+        block 1: 16 384 bytes
+        block 2: 16 384 bytes
+            =  49 152 bytes
+
+    piece 1:
+        block 0: 16 384 bytes
+        block 1: 16 384 bytes
+        block 2: 16 384 bytes
+            =  49 152 bytes
+
+    piece 2:
+        block 0: 16 384 bytes
+        block 1: 16 384 bytes
+        block 2:  4 096 bytes
+            =  36 864 bytes
+
+    total:       49 152 bytes
+            +  49 152 bytes
+            +  36 864 bytes
+            = 135 168 bytes
+
+在对等端之间交换这些块基本上就是 BitTorrent 的目的。当一个片段的所有块都完成后，该片段就完成了，可以\
+与其他对等点共享( Have 消息被发送到连接的对等点)。一旦所有的片段都完成了对等转换，从下载器变成播种器。
+
+关于官方规范的地方有两个注释:
+
+1. *官方规范将块和块都称为块，这很令人困惑。非官方的规范和其他人似乎已经同意使用术语块为较小的一块，这是我们也将使用*。
+2. *官方规范说明了我们使用的另一个块大小。阅读非官方的规范，看起来2^14字节是实现者之间达成一致的——不管官方规范是什么*。
+
+实现
+===========================================
+
+当 ``TorrentClient`` 被构建时，对以下行为负有责任的 ``PieceManager`` 也是如此:
+
+- 确定下一步请求哪个块
+- 将接收到的块持久化到文件中
+- 确定下载完成的时间
+
+当一个 ``PeerConnection`` 成功地与另一个对等点握手并接收到 ``BitField`` 消息时，它将通\
+知 ``PieceManager`` 哪个对等点( ``peer_id`` )拥有哪些片段。这一信息将更新任何收到\
+的 Have 消息。通过使用此信息， ``PeerManager`` 知道集合状态，即哪些部分可以从哪些对等点获得。
+
+当第一个对等连接 ( ``PeerConnection`` )进入非阻塞( *Unchoked* )状态时，它将向它的对等\
+连接请求下一个块。下一个块是通过调用方法 ``PieceManager.next_request`` 来确定的。
+
+``next_request`` 实现了一个非常简单的策略，即下一步请求哪一块。
+
+1. 当 ``PieceManager`` 被构建时，所有的片段和块都是基于 ``.torrent`` 元信息中的片段长度预先构建的
+2. 所有的片段都放在失踪的名单
+3. 当 ``next_request`` 被调用时，管理器将执行以下操作之一:
+    - 重新请求以前已超时的请求的块
+    - 在一个正在进行的片段中要求下一个片段
+    - 请求下一个丢失的片段中的第一个块
+
+通过这种方式，块和片段将被依次请求。然而，根据客户机拥有的片段，可能会有多个片段正在进行。
+
+由于 pieces 的目标是成为一个简单的客户端，因此没有为请求哪些 pieces 实现智能或有效的策略。\
+更好的解决办法是先要最稀有的那一块，这样也能让整个蜂群更健康。
+
+无论何时从对等方接收到一个块，PieceManager 都会将其存储(在内存中)。当检索到一个片段的所有\
+块时，就会在该片段上生成一个 SHA1 散列值。这个哈希值将与 ``.torrent`` 信息 dict 中包含的\
+SHA1 哈希值进行比较 - 如果匹配的话，就会将该片段写入磁盘。
+
+当所有的片段都被考虑在内(匹配的散列)，torrent 被认为是完整的，就会停止 ``TorrentClient`` ，\
+关闭任何开放的 TCP 连接，程序退出并有一个消息，torrent 已经被下载。
+
+未来工作
+========================
+
+种子播种尚未实现，但应该不难实现。我们需要的是这样的东西:
+
+- 每当连接到一个对等点时，我们应该向远程对等点发送一个比特字段消息，指示我们拥有哪些数据块。
+- 每当接收到一个新片段(并且确认了散列的正确性)，每个 ``PeerConnection`` 都应该向它的远程\
+  对等点发送一条 Have 消息，以指示可以共享的新片段。
+
+为了做到这一点，需要扩展 ``PieceManager`` 以返回一个 0 和 1 组成的列表。 ``TorrentClient`` \
+告诉 ``PeerConnection`` 向它的远程对等端发送一个 ``Have`` 。 ``BitField`` 和 ``Have`` 消\
+息都应该支持这些消息的编码。
+
+实现播种将使 Pieces 成为一个好公民，支持在蜂群中下载和上传数据。
+
+额外的功能，可能可以添加, 不用太多的努力是:
+
+- **Multi-file torrent** ，将命中 ``PieceManager`` ，因为片段和块可能跨越多个文件，\
+  它影响文件如何持久(即一个单一块可能包含数据为多个文件)。
+- **Resume a download** ， 通过查看文件的哪些部分已经下载(通过生成SHA1哈希来验证)。
+
+总结
+============
+
+实现一个 BitTorrent 客户端真的很有趣，需要处理二进制协议和网络，这对平衡我最近做的所\
+有的 web 开发很有帮助。
+
+Python 仍然是我最喜欢的编程语言之一。考虑到 ``struct`` 模块，处理二进制数据轻而易举，\
+而且最近添加的 ``asyncio`` 感觉非常符合 python 风格。使用 *异步迭代器* 来实现协议也\
+非常适合。
+
+希望这篇文章能启发你编写自己的 BitTorrent 客户端，或者以某种方式扩展 pieces。如果您在\
+文章或源代码中发现任何错误，请随时在 GitHub_ 上提出问题。
