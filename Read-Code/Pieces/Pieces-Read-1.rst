@@ -59,3 +59,26 @@ pieces/cli.py
         except CancelledError:
             logging.warning('Event loop was canceled')
 
+首先是命令行参数，在创建异步循环。
+
+.. code-block:: Python
+
+    class Torrent:
+        """
+        Represent the torrent meta-data that is kept within a .torrent file. It is
+        basically just a wrapper around the bencoded data with utility functions.
+
+        This class does not contain any session state as part of the download.
+        """
+        def __init__(self, filename):
+            self.filename = filename
+            self.files = []
+
+            with open(self.filename, 'rb') as f:
+                meta_info = f.read()
+                self.meta_info = bencoding.Decoder(meta_info).decode()
+                info = bencoding.Encoder(self.meta_info[b'info']).encode()
+                self.info_hash = sha1(info).digest()
+                self._identify_files()
+
+在 ``Torrent`` 类中，初始化会打开给定的文件名。
