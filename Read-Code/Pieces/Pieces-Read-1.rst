@@ -82,3 +82,9 @@ pieces/cli.py
                 self._identify_files()
 
 在 ``Torrent`` 类中，初始化会打开给定的文件名。
+
+元信息在读取种子文件的时候，对其进行解码，然后用 ``self.meta_info`` 表示。而信息是从\
+``self.meta_info`` dict 字典中 ``b'info'`` 所代表的值， ``self.info_hash`` 是信息\
+的 sha1 值， 最后在验证文件。
+
+
