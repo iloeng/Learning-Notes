@@ -59,7 +59,16 @@ pieces/cli.py
         except CancelledError:
             logging.warning('Event loop was canceled')
 
-首先是命令行参数，在创建异步循环。
+首先是命令行参数，在创建异步事件循环，然后通过 ``Torrent`` 类对传入的 torrent 进行解析，\
+解析之后的数据传给 ``TorrentClient`` 用于进行对等连接。
+
+``signal.signal(signal.SIGINT, signal_handler)`` 在这里，调用的是 Signal 信号模块\
+中的 ``signal.SIGINT`` 中断信号， ``signal.signal(signalnum, handler)`` 设置信号\
+处理的函数，也就是当遇到连接中断信号 ``signal.SIGINT`` 后，就会执行设置的 ``signal_handler`` \
+函数，而这个函数内部是停止 Client ，取消 task 任务， 最后是要求整个循环任务执行完毕。\
+否则就会抛出被取消的异常。
+
+整个 ``main`` 函数的处理过程就是这些，接下来继续看 ``Torrent`` 类的处理过程：
 
 .. code-block:: Python
 
@@ -81,10 +90,75 @@ pieces/cli.py
                 self.info_hash = sha1(info).digest()
                 self._identify_files()
 
-在 ``Torrent`` 类中，初始化会打开给定的文件名。
+        def _identify_files(self):
+            """
+            Identifies the files included in this torrent
+            """
+            ...
+            pass
+
+        @property
+        def announce(self) -> str:
+            """
+            The announce URL to the tracker.
+            """
+            return self.meta_info[b'announce'].decode('utf-8')
+
+        @property
+        def multi_file(self) -> bool:
+            """
+            Does this torrent contain multiple files?
+            """
+            # If the info dict contains a files element then it is a multi-file
+            return b'files' in self.meta_info[b'info']
+
+        @property
+        def piece_length(self) -> int:
+            """
+            Get the length in bytes for each piece
+            """
+            return self.meta_info[b'info'][b'piece length']
+
+        @property
+        def total_size(self) -> int:
+            """
+            The total size (in bytes) for all the files in this torrent. For a
+            single file torrent this is the only file, for a multi-file torrent
+            this is the sum of all files.
+
+            :return: The total size (in bytes) for this torrent's data.
+            """
+            pass
+
+        @property
+        def pieces(self):
+            # The info pieces is a string representing all pieces SHA1 hashes
+            # (each 20 bytes long). Read that data and slice it up into the
+            # actual pieces
+            pass
+
+        @property
+        def output_file(self):
+            return self.meta_info[b'info'][b'name'].decode('utf-8')
+
+        def __str__(self):
+            pass
+
+以上部分函数的处理过程已经省略，后面用到后再详细分析。在 ``Torrent`` 类中，初始化会读取\
+给定的 torrent 文件名。
 
 元信息在读取种子文件的时候，对其进行解码，然后用 ``self.meta_info`` 表示。而信息是从\
 ``self.meta_info`` dict 字典中 ``b'info'`` 所代表的值， ``self.info_hash`` 是信息\
 的 sha1 值， 最后在验证文件。
+
+解析完毕之后，会返回如下格式的信息：
+
+.. code-block::
+
+    Filename: b'ubuntu-16.04-desktop-amd64.iso'
+    File length: 1485881344
+    Announce URL: b'http://torrent.ubuntu.com:6969/announce'
+    Hash: b"CDP;~y~\xbf1X#'\xa5\xba\xae5\xb1\x1b\xda\x01"
+
 
 
