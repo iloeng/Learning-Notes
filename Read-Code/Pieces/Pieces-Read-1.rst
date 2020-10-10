@@ -160,5 +160,57 @@ pieces/cli.py
     Announce URL: b'http://torrent.ubuntu.com:6969/announce'
     Hash: b"CDP;~y~\xbf1X#'\xa5\xba\xae5\xb1\x1b\xda\x01"
 
+他是通过这个函数生成的数据：
 
+.. code-block:: Python
 
+    def __str__(self):
+        return 'Filename: {0}\n' \
+               'File length: {1}\n' \
+               'Announce URL: {2}\n' \
+               'Hash: {3}'.format(self.meta_info[b'info'][b'name'],
+                                  self.meta_info[b'info'][b'length'],
+                                  self.meta_info[b'announce'],
+                                  self.info_hash)
+
+接下来看解码部分：
+
+.. code-block:: Python
+
+    class Decoder:
+        """
+        Decodes a bencoded sequence of bytes.
+        """
+        def __init__(self, data: bytes):
+            if not isinstance(data, bytes):
+                raise TypeError('Argument "data" must be of type bytes')
+            self._data = data
+            self._index = 0
+
+        def decode(self):
+            """
+            Decodes the bencoded data and return the matching python object.
+
+            :return A python object representing the bencoded data
+            """
+            c = self._peek()
+            if c is None:
+                raise EOFError('Unexpected end-of-file')
+            elif c == TOKEN_INTEGER:
+                self._consume()  # The token
+                return self._decode_int()
+            elif c == TOKEN_LIST:
+                self._consume()  # The token
+                return self._decode_list()
+            elif c == TOKEN_DICT:
+                self._consume()  # The token
+                return self._decode_dict()
+            elif c == TOKEN_END:
+                return None
+            elif c in b'01234567899':
+                return self._decode_string()
+            else:
+                raise RuntimeError('Invalid token read at {0}'.format(
+                    str(self._index)))
+
+解码的时候，主要函数就是 ``decode()`` 函数。
