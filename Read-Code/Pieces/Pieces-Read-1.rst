@@ -214,3 +214,96 @@ pieces/cli.py
                     str(self._index)))
 
 解码的时候，主要函数就是 ``decode()`` 函数。
+
+``Decoder`` 类初始化的时候，首先会判断传入的参数是不是二进制数据，如果不是，就会抛出异常。\
+这是因为 Bencoded 后的数据是二进制的。然后使用 ``self._data`` 保存传入的 ``data`` ， 索\
+引 ``self._index`` 初始化为 ``0`` 。
+
+解码的第一步，执行了 ``_peek()`` 函数， 其作用是返回下一个 bencoded 编码后的数据段的第一个\
+字符，它用于标识分隔符后的数据代表的是什么数据 （字符串， 数字， 列表和字典）。当 ``_peek()`` \
+为空时，代表当前数据是无效的。下面是数据的标识：
+
+ | 1. 字符串以长度为前缀的十进制数开头，后跟冒号和字符串。 例如 ``4:spam`` 对应于 'spam' 。
+
+ | 2. 整数由 ``i`` 表示，后跟以10为底的数字，最跟 ``e`` 表示。例如，``i3e`` 对应于 3，\
+   ``i-3e`` 对应于 -3。整数没有大小限制。 ``i-0e`` 是无效的。除 ``i0e`` （当然对应于0）\
+   之外，所有带有前导零的编码（例如 ``i03e`` ）均无效。
+
+ | 3. 列表被编码为 ``l`` ，后跟元素（也被编码），最后跟 ``e`` 。 例如， ``l4：spam4：eggse`` \
+   对应于['spam', 'eggs']。
+
+ | 4. 字典被编码为 ``d`` ，后跟一系列交替的 Key 及其对应的 Value，最后跟 ``e`` 。例如， \
+   ``d3:cow3:moo4:spam4:eggse`` 对应于 ``{'cow':'moo', 'spam':'eggs'}`` 和 \
+   ``d4:spaml1:a1:bee`` 对应于 ``{'spam':['a','b']}`` 。键必须是字符串并按排序顺序\
+   显示（排序为原始字符串，而不是字母数字）。
+
+而在代码中，是这样实现的：
+
+.. code-block:: python
+
+    # Indicates start of integers
+    TOKEN_INTEGER = b'i'
+
+    # Indicates start of list
+    TOKEN_LIST = b'l'
+
+    # Indicates start of dict
+    TOKEN_DICT = b'd'
+
+    # Indicate end of lists, dicts and integer values
+    TOKEN_END = b'e'
+
+    # Delimits string length from string data
+    TOKEN_STRING_SEPARATOR = b':'
+
+其中字符串类型的并没有标识出来，因为字符串是以数字开头的。
+
+然后根据 ``_peek()`` 函数返回的结果进行解码操作。其源码如下：
+
+.. code-block:: python
+
+    def _peek(self):
+        """
+        Return the next character from the bencoded data or None
+        """
+        if self._index + 1 >= len(self._data):
+            return None
+        return self._data[self._index:self._index + 1]
+
+首先判断当前索引值加 1 是否大于或等于当前的数据长度，如果大于或等于，则表明数据已经\
+解码完毕，因此返回 ``None`` ，小于的情况就直接返回当前索引开始的第一个字符。拿一个\
+数据进行演示：
+
+::
+
+    b'l4:spam4:eggsi123ee'
+
+解码函数第一次运行时，初始化的索引值为 0 ，执行 ``_peek`` 函数时，首先会返回字符 ``l`` \
+，也就是 ``decode()`` 函数中局部变量 ``c`` 为 ``l`` ，代表的是 list ，需要执行的\
+过程为：
+
+.. code-block:: python
+
+    elif c == TOKEN_LIST:
+        self._consume()  # The token
+        return self._decode_list()
+
+在这里，调用了 ``_consume()`` 函数，它的作用是对当前的索引值加 1 ，因为前面已经读取\
+了数据标识符，因此而加一，代表的是下一个字符。最后返回的是 ``_decode_list()`` 函数值。\
+看一下源码：
+
+.. code-block:: python
+
+    def _consume(self) -> bytes:
+        """
+        Read (and therefore consume) the next character from the data
+        """
+        self._index += 1
+
+    def _decode_list(self):
+        res = []
+        # Recursive decode the content of the list
+        while self._data[self._index: self._index + 1] != TOKEN_END:
+            res.append(self.decode())
+        self._consume()  # The END token
+        return res
