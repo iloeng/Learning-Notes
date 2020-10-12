@@ -307,3 +307,8 @@ pieces/cli.py
             res.append(self.decode())
         self._consume()  # The END token
         return res
+
+``_decode_list`` 函数执行时，局部变量 ``res`` 存储解码结果，先判断当标识符后的第一个字符不\
+是结束符，在此对数据进行解码操作，通过嵌套循环实现解码。
+
+然后，执行 ``_peek`` 函数获取到 c=4
