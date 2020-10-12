@@ -311,4 +311,147 @@ pieces/cli.py
 ``_decode_list`` 函数执行时，局部变量 ``res`` 存储解码结果，先判断当标识符后的第一个字符不\
 是结束符，在此对数据进行解码操作，通过嵌套循环实现解码。
 
-然后，执行 ``_peek`` 函数获取到 c=4
+然后，执行 ``_peek`` 函数获取到 c=4 ，这时就会执行如下步骤：
+
+.. code-block:: python 
+
+    def decode(self):
+        ...
+        elif c in b'01234567899':
+            return self._decode_string()
+        ...
+
+    def _decode_string(self):
+        bytes_to_read = int(self._read_until(TOKEN_STRING_SEPARATOR))
+        data = self._read(bytes_to_read)
+        return data
+
+在 ``_decode_string`` 函数内，首先会计算需要读取多少个字节的数据需要读取，一直读取到字符串\
+分隔符 ``:`` 。然后将需要读取的数据返回出来。
+
+在字符串解码函数 ``_decode_string`` 中调用了 ``_read_until`` 和 ``_read`` 函数，源码如下：
+
+.. code-block:: python
+
+    def _read(self, length: int) -> bytes:
+        """
+        Read the `length` number of bytes from data and return the result
+        """
+        if self._index + length > len(self._data):
+            raise IndexError('Cannot read {0} bytes from current position {1}'
+                             .format(str(length), str(self._index)))
+        res = self._data[self._index:self._index+length]
+        self._index += length
+        return res
+
+    def _read_until(self, token: bytes) -> bytes:
+        """
+        Read from the bencoded data until the given token is found and return
+        the characters read.
+        """
+        try:
+            occurrence = self._data.index(token, self._index)
+            result = self._data[self._index:occurrence]
+            self._index = occurrence + 1
+            return result
+        except ValueError:
+            raise RuntimeError('Unable to find token {0}'.format(
+                str(token)))
+
+首先分析 ``_read_until`` 函数，因为首先调用的是它。传入的参数是 ``TOKEN_STRING_SEPARATOR`` \
+字符串分隔符，在函数内部的过程是：
+
+1. 获取以当前索引值开始， ``TOKEN_STRING_SEPARATOR`` 的索引值 ``occurrence`` 。详细可以看一\
+   下内置函数 ``index`` 的声明：
+
+   ::
+
+        def index(self, sub, start=None, end=None):
+
+2. 然后用 ``result`` 保存从当前索引值（已经解码到哪里了）到分隔符之间的数据，这个数据就是要读\
+   取的字符串数据的长度（多少字节），然后将当前索引值改成字符串分隔符的索引值加 1 ，这是因为\
+   已经把长度解码出来了，更新解码状态，只需要从分隔符后开始进行解码 ``b'l4:spam4:eggsi123ee'`` \
+   在这个例子中就是 ``l4:`` 已经解码完毕了。
+
+``_read_until`` 函数分析完毕，得出的长度是 4 字节，然后执行 ``_read`` 函数。其过程如下：
+
+1. 首先判断当前索引值加上要读取的字节长度是否大于整个编码后的文本，如果大于了，就表明有错误。
+
+2. 字符串切片获取从当前索引值开始的 4 字节长度的字符串
+
+3. 将当前索引值更新为加上字节长度的索引值，因为字节长度的字符已经解码了
+
+4. 最后返回字符串切片获取的 4 字节长度的字符串
+
+到这里，字符串解码分析完毕。
+
+当前的索引值 ``self._index`` 就被更新为指向 ``l4:spam`` 后面的 4 了。但是在 ``_decode_list`` \
+函数内只完成了一轮循环，接下来的一轮循环是解析 ``4:eggs`` ，与上文相同，就不在详细分析，接下\
+来解析 ``i123e`` 。
+
+同样的步骤，通过第一个字符 ``i`` 得知是数字，需要执行的是：
+
+.. code-block:: python
+
+    def decode(self):
+        ...
+        elif c == TOKEN_INTEGER:
+            self._consume()  # The token
+            return self._decode_int()
+        ...
+
+    def _decode_int(self):
+        return int(self._read_until(TOKEN_END))
+
+对当前索引值加一后，执行 ``_decode_int`` 函数，一直读取到结束符 ``e`` ，从而获取到 123 。\
+同时，当前索引值也被更新为指向最后一个字符 ``e`` ，然后由于与结束字符相等，结束整个解析列\
+表的循环，并把当前索引值更新为最后字符的索引加上 1 ，表示解码完毕。
+
+最终结果如下：
+
+::
+
+    b'l4:spam4:eggsi123ee' => [b'spam', b'eggs', 123]
+
+找的这个示例字符串不太好，没有 dict 的分析。重新在单元测试中找了一个 dict 数据进行分析：
+
+:: 
+
+    b'd3:cow3:moo4:spam4:eggse'
+
+同理，获取到第一个字符 ``d`` 得知是 dict 数据，需要执行下面的过程：
+
+.. code-block:: python 
+
+    def decode(self):
+        ...
+        elif c == TOKEN_DICT:
+            self._consume()  # The token
+            return self._decode_dict()
+        ...
+    
+    def _decode_dict(self):
+        res = OrderedDict()
+        while self._data[self._index: self._index + 1] != TOKEN_END:
+            key = self.decode()
+            obj = self.decode()
+            res[key] = obj
+        self._consume()  # The END token
+        return res
+
+第一步也是更新当前的索引值，然后执行 ``_decode_dict`` 函数。该函数的过程如下：
+
+1. 创建一个有序字典 ``res`` ，使插入其中的数据安装插入顺序输入。
+
+2. 创建循环，当当前索引值开始的第一个字符不是结束符时，进入循环，对 dict 数据进行解码。\
+   以同样的方式解码字符串，从而得到 ``key=cow obj=moo`` ， 完成第一轮循环，然后以相同\
+   的方式得到 ``key=spam obj=eggs`` 。 ``e`` 为结束符。
+
+最终的返回结果为：
+
+::
+
+    b'd3:cow3:moo4:spam4:eggse' => OrderedDict([(b'cow', b'moo'), (b'spam', b'eggs')])
+
+到此，整个 Bencoded 编码后数据的解码器分析完毕，接下来就跟随 ``Torrent`` 类中的步骤 \
+``info = bencoding.Encoder(self.meta_info[b'info']).encode()`` 来分析编码器。
