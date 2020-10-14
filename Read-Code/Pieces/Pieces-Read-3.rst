@@ -111,4 +111,5 @@ ubuntu-19.04-desktop-amd64.iso.torrent 为例，解码后的结果类似于如�
 
 到这里，把 ``Torrent`` 类也分析完毕，接着返回上一层：
 
-``client = TorrentClient(Torrent(args.torrent))`` 接下来需要分析 ``TorrentClient`` 类了。
+``client = TorrentClient(Torrent(args.torrent))`` 接下来需要进入 ``TorrentClient`` \
+类进行分析了。
