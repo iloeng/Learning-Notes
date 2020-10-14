@@ -113,5 +113,75 @@ Pieces 源码阅读系列 2 编码器
 数字编码的时候是以 ``i`` 开头， 以 ``e`` 结尾，中间是原来的数字，拼接完成后对拼接后的字\
 符串进行编码为字节码操作，并返回字节码。
 
+::
 
+    123 => i123e
 
+列表编码
+==========================
+
+假设 ``self._data`` 为 ``['spam', 'eggs', 123]`` ，判断出类型是 ``list`` 后，调用 \
+``_encode_list`` 函数，其代码如下：
+
+.. code-block:: python 
+
+    def _encode_list(self, data):
+        result = bytearray('l', 'utf-8')
+        result += b''.join([self.encode_next(item) for item in data])
+        result += b'e'
+        return result
+
+1. 首先创建一个以 ``l`` 开头，以 ``utf-8`` 编码的字节序列，需要注意的是 ``bytearray`` \
+   是可变的字节序列，何以再后面添加字符，而 ``bytes`` 是不可变字节序列。
+
+2. 对 list 中的每个元素进行编码，同上面的字符串和数字编码，编码完毕后结果是一个 list 。\
+   使用 ``join`` 函数拼接成一个字符串。
+
+3. 随后再末尾加上 ``e`` 并返回编码结果。
+
+::
+
+    ['spam', 'eggs', 123] => b'l4:spam4:eggsi123ee'
+
+字典编码
+=====================
+
+假设 ``self._data`` 为 ``{'cow': 'moo', 'spam': 'eggs'}`` ，判断出类型是 ``dict`` \
+或是 ``OrderedDict`` 后，调用 ``_encode_dict`` 函数，其代码如下：
+
+.. code-block:: python
+
+    def _encode_dict(self, data: dict) -> bytes:
+        result = bytearray('d', 'utf-8')
+        for k, v in data.items():
+            key = self.encode_next(k)
+            value = self.encode_next(v)
+            if key and value:
+                result += key
+                result += value
+            else:
+                raise RuntimeError('Bad dict')
+        result += b'e'
+        return result
+
+其处理过程如下：
+
+1. 首先创建一个以 ``d`` 开头，以 ``utf-8`` 编码的字节序列
+
+2. 对字典中的数据循环迭代，分别对 key 和 value 进行相应的编码（数字或字符串或列表编码）
+
+3. 当 key 和 value 编码后的结果不为空时，先将 key 的编码的结果加入到字节序列中，然后\
+   将 value 的编码结果加入到字节序列；为空时就会抛出异常，直到整个字典迭代完成
+
+4. 最后在字节序列的随后添加字符 ``e`` 并返回编码结果。
+
+::
+
+    {'cow': 'moo', 'spam': 'eggs'} => b'd3:cow3:moo4:spam4:eggse'
+
+数据为空时的编码
+==================
+
+代码中显示，为空时直接返回 None 。
+
+编码器分析完毕。接下来分析下面的内容
