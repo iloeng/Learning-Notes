@@ -113,3 +113,51 @@ ubuntu-19.04-desktop-amd64.iso.torrent 为例，解码后的结果类似于如�
 
 ``client = TorrentClient(Torrent(args.torrent))`` 接下来需要进入 ``TorrentClient`` \
 类进行分析了。
+
+TorrentClient
+====================
+
+首先看类的初始化过程，其代码如下：
+
+.. code-block:: python
+
+    class TorrentClient:
+
+        def __init__(self, torrent):
+            self.tracker = Tracker(torrent)
+            # The list of potential peers is the work queue, consumed by the
+            # PeerConnections
+            self.available_peers = Queue()
+            # The list of peers is the list of workers that *might* be connected
+            # to a peer. Else they are waiting to consume new remote peers from
+            # the `available_peers` queue. These are our workers!
+            self.peers = []
+            # The piece manager implements the strategy on which pieces to
+            # request, as well as the logic to persist received pieces to disk.
+            self.piece_manager = PieceManager(torrent)
+            self.abort = False
+
+初始化传入的参数是 Torrent 类处理的结果，然后用 ``self.tracker`` 保存 Tracker 类处理\
+的结果； ``self.available_peers`` 创建了一个队列； ``self.peers`` 创建一个空的列表； \
+``self.piece_manager`` 保存了 ``PieceManager`` 处理的结果； ``self.abort`` 初始设置\
+为 ``False``。
+
+Tracker
+===========================
+
+按照这个过程，先进入 ``Tracker`` 类进行分析了。其初始化代码如下：
+
+.. code-block:: python 
+
+    class Tracker:
+        """
+        Represents the connection to a tracker for a given Torrent that is either
+        under download or seeding state.
+        """
+
+        def __init__(self, torrent):
+            self.torrent = torrent
+            self.peer_id = _calculate_peer_id()
+            self.http_client = aiohttp.ClientSession()
+
+这里的初始化参数 ``torrent`` ，仍然是 ``Torrent`` 类处理种子文件的结果。
