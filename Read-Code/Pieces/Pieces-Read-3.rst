@@ -160,4 +160,30 @@ Tracker
             self.peer_id = _calculate_peer_id()
             self.http_client = aiohttp.ClientSession()
 
-这里的初始化参数 ``torrent`` ，仍然是 ``Torrent`` 类处理种子文件的结果。
+这里的初始化参数 ``torrent`` ，仍然是 ``Torrent`` 类处理种子文件的结果，然后用 \
+``self.torrent`` 保存它， 使用 ``self.peer_id`` 保存 ``_calculate_peer_id`` \
+函数结果， 使用 ``self.http_client`` 保存 ``aiohttp.ClientSession()`` ，我对\
+这个模块还不太熟悉，后面再找时间学习一下。
+
+接着来看 ``_calculate_peer_id`` 函数，其代码如下：
+
+.. code-block:: python
+
+    def _calculate_peer_id():
+        """
+        Calculate and return a unique Peer ID.
+
+        The `peer id` is a 20 byte long identifier. This implementation use the
+        Azureus style `-PC1000-<random-characters>`.
+
+        Read more:
+            https://wiki.theory.org/BitTorrentSpecification#peer_id
+        """
+        return '-PC0001-' + ''.join(
+            [str(random.randint(0, 9)) for _ in range(12)])
+
+用来生成一个随机的 peer_id。
+
+
+
+
