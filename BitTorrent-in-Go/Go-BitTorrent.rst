@@ -710,6 +710,6 @@ main.go
 =========================
 
 为简洁起见，我仅包含了一些重要的代码片段。值得注意的是，我忽略了所有粘合代码，\
-解析，单元测试以及构建字符的无聊部分。如果您有兴趣，请查看我的 完整实施_ 。
+解析，单元测试以及构建字符的无聊部分。如果您有兴趣，请查看我的 完整实现_ 。
 
-.. _完整实施: https://github.com/veggiedefender/torrent-client
+.. _完整实现: https://github.com/veggiedefender/torrent-client
