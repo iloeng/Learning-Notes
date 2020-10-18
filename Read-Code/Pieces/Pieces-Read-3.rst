@@ -263,3 +263,6 @@ Tracker
             pieces.append(Piece(index, blocks, hash_value))
         return pieces
 
+在这个函数中， ``torrent`` 变量被赋值为 ``self.torrent`` ，而 ``self.torrent`` \
+是 ``Torrent`` 类的实例化；然后创建了一个空的列表 ``pieces`` ； ``total_pieces`` \
+是共有多少个片段，
