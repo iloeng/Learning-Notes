@@ -265,4 +265,64 @@ Tracker
 
 在这个函数中， ``torrent`` 变量被赋值为 ``self.torrent`` ，而 ``self.torrent`` \
 是 ``Torrent`` 类的实例化；然后创建了一个空的列表 ``pieces`` ； ``total_pieces`` \
-是共有多少个片段，
+是共有多少个片段， ``std_piece_blocks`` 是每个 piece 一共有多少个标准的 ``block`` \
+。 一个标准 ``block`` 的大小是 2^14(16384) 字节， ``math.ceil`` 函数用于向上取\
+整，由此可以计算出多少个标准 block 。
+
+进入 ``torrent.pieces`` 函数，其代码如下：
+
+.. code-block::  python
+
+    @property
+    def pieces(self):
+        # The info pieces is a string representing all pieces SHA1 hashes
+        # (each 20 bytes long). Read that data and slice it up into the
+        # actual pieces
+        data = self.meta_info[b'info'][b'pieces']
+        pieces = []
+        offset = 0
+        length = len(data)
+
+        while offset < length:
+            pieces.append(data[offset:offset + 20])
+            offset += 20
+        return pieces
+
+借用 ``@property`` 装饰器使得 pieces 可以当作属性访问。 
+``self.meta_info[b'info'][b'pieces']`` 字段中存入的是所有 piece 的 SHA1 值，每个\
+长度是 20 字节，因此把它每 20 字节长度分割 pieces 字段，最终得到一个代表所有 piece \
+的 SHA1 值的列表。``total_pieces`` 则通过 len 函数可以获取到一共有多少个 piece 。
+
+然后对所有的 ``piece`` 进行枚举，当当前 piece 的索引小于总的 piece 数减一时，说明不\
+是随后一个 piece ，这时 block 的长度时一个标准长度 2^14 字节；否则就是最后一个 block \
+，它的长度会小于或等于 2^14 字节。
+
+之后，进入 ``Block`` 类中进一步处理，看一下其的代码：
+
+.. code-block:: python
+
+    class Block:
+        """
+        The block is a partial piece, this is what is requested and transferred
+        between peers.
+
+        A block is most often of the same size as the REQUEST_SIZE, except for the
+        final block which might (most likely) is smaller than REQUEST_SIZE.
+        """
+        Missing = 0
+        Pending = 1
+        Retrieved = 2
+
+        def __init__(self, piece: int, offset: int, length: int):
+            self.piece = piece
+            self.offset = offset
+            self.length = length
+            self.status = Block.Missing
+            self.data = None
+
+它初始化的时候又三个参数，分别是 piece , offset, length ，而在实际使用的时候，可以看出\
+来 \
+``[Block(index, offset * REQUEST_SIZE, REQUEST_SIZE) for offset in range(std_piece_blocks)]`` \
+piece 参数传入的是当前索引代表的 piece ， 而 offset 则是通过循环迭代，然后通过与标准 \
+block 长度相乘
+
