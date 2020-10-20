@@ -323,6 +323,52 @@ Tracker
 它初始化的时候又三个参数，分别是 piece , offset, length ，而在实际使用的时候，可以看出\
 来 \
 ``[Block(index, offset * REQUEST_SIZE, REQUEST_SIZE) for offset in range(std_piece_blocks)]`` \
-piece 参数传入的是当前索引代表的 piece ， 而 offset 则是通过循环迭代，然后通过与标准 \
-block 长度相乘
+piece 参数传入的是当前索引代表的 block ， 而 offset 则是通过循环迭代，然后通过与标准 \
+block 长度相乘得出偏移量，例如第一个 block 的偏移量为 0 ，长度为一个标准 block 长度；\
+第二个 block 的偏移量为一个标准 block 长度，长度仍是一个标准 block 长度，依次类推。当\
+是最后一个 block 时，长度就不固定了，有可能小于一个标准 block 长度，或是等于。
 
+在 ``_initiate_pieces`` 函数中的 else 段， ``torrent.total_size`` 代表的是文件的总\
+大小, ``torrent.total_size % torrent.piece_length`` 可以计算出来最后一个 piece 的\
+长度， 总长度对每个 piece 长度取余。
+
+.. code-block:: python 
+
+    last_length = torrent.total_size % torrent.piece_length
+    num_blocks = math.ceil(last_length / REQUEST_SIZE)
+    blocks = [Block(index, offset * REQUEST_SIZE, REQUEST_SIZE)
+                for offset in range(num_blocks)]
+
+    if last_length % REQUEST_SIZE > 0:
+        # Last block of the last piece might be smaller than
+        # the ordinary request size.
+        last_block = blocks[-1]
+        last_block.length = last_length % REQUEST_SIZE
+        blocks[-1] = last_block
+
+然后用最后一个 piece 的长度除于标准 block 的长度，可以得出最后一个 piece 中有多少个\
+标准 block ，同上述将每个 block 加入到 list 中。
+
+最后在判断最后一个 piece 的长度是不是标准 block 长度的整数倍，如果不是，就更新最后一\
+个 block 的长度。
+
+在循环迭代最后，会对每个 block 进行 Piece 类的实例化，然后加入到 piece 列表中。 \
+``pieces.append(Piece(index, blocks, hash_value))`` ，进入到 Piece 类中，其代\
+码如下：
+
+.. code-block:: python 
+
+    class Piece:
+        """
+        The piece is a part of of the torrents content. Each piece except the final
+        piece for a torrent has the same length (the final piece might be shorter).
+
+        A piece is what is defined in the torrent meta-data. However, when sharing
+        data between peers a smaller unit is used - this smaller piece is refereed
+        to as `Block` by the unofficial specification (the official specification
+        uses piece for this one as well, which is slightly confusing).
+        """
+        def __init__(self, index: int, blocks: [], hash_value):
+            self.index = index
+            self.blocks = blocks
+            self.hash = hash_value
