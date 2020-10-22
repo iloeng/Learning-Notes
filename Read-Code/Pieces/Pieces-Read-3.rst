@@ -323,7 +323,7 @@ Tracker
 它初始化的时候又三个参数，分别是 piece , offset, length ，而在实际使用的时候，可以看出\
 来 \
 ``[Block(index, offset * REQUEST_SIZE, REQUEST_SIZE) for offset in range(std_piece_blocks)]`` \
-piece 参数传入的是当前索引代表的 block ， 而 offset 则是通过循环迭代，然后通过与标准 \
+piece 参数传入的是当前 piece 的索引， 而 offset 则是通过循环迭代，然后通过与标准 \
 block 长度相乘得出偏移量，例如第一个 block 的偏移量为 0 ，长度为一个标准 block 长度；\
 第二个 block 的偏移量为一个标准 block 长度，长度仍是一个标准 block 长度，依次类推。当\
 是最后一个 block 时，长度就不固定了，有可能小于一个标准 block 长度，或是等于。
@@ -372,3 +372,130 @@ block 长度相乘得出偏移量，例如第一个 block 的偏移量为 0 ，�
             self.index = index
             self.blocks = blocks
             self.hash = hash_value
+
+index 是当前 piece 的索引， block 是这个 piece 所包含的所有的 block ， 以及当前 piece \
+的 SHA1 Hash 值。
+
+将每个 piece 进行 ``Piece`` 实例化得到 ``Piece`` 对象，方便后续处理。返回上层函数中。\
+将每个 ``Piece`` 实例化得到 ``Piece`` 对象加入到 ``pieces`` 列表中。继续返回上层函数。\
+
+.. code-block:: python
+
+    def __init__(self, torrent):
+        self.total_pieces = len(torrent.pieces)
+        self.fd = os.open(self.torrent.output_file,  os.O_RDWR | os.O_CREAT)
+
+``self.total_pieces`` 中调用的是 ``Torrent`` 类中的 ``pieces`` 函数，这个函数已经在\
+上文中分析过。
+
+``self.fd`` 中则调用了 ``Torrent`` 类中的 ``output_file`` 函数，其代码如下：
+
+.. code-block:: python
+
+    @property
+    def output_file(self):
+        return self.meta_info[b'info'][b'name'].decode('utf-8')
+
+从 ``meta_info`` 中获取 ``info`` 字段中的 ``name`` ，即为文件名， \
+b'ubuntu-19.04-desktop-amd64.iso' 但是获取的是字节码，需要转换成 UTF-8 编码。返回上层\
+函数。 ``os.open`` 函数中的参数，第一个为创建的文件名，第二个 ``os.O_RDWR`` 表示的是以\
+读写的方式打开， ``os.O_CREAT`` 表示的是创建并打开一个新文件。
+
+继续返回上层函数。这时，返回到 ``TorrentClient`` 类中。 ``self.piece_manager`` 是 \
+``PieceManager`` 类的实例化对象。
+
+``TorrentClient`` 类的初始化分析完成，继续返回上层函数。其下一步操作是：
+
+.. code-block:: python
+
+    task = loop.create_task(client.start())
+
+``client`` 是 ``TorrentClient`` 类的实例化对象，然后直接调用了 ``start`` 函数，其代码如\
+下:
+
+.. code-block:: python
+
+    async def start(self):
+        """
+        Start downloading the torrent held by this client.
+
+        This results in connecting to the tracker to retrieve the list of
+        peers to communicate with. Once the torrent is fully downloaded or
+        if the download is aborted this method will complete.
+        """
+        self.peers = [PeerConnection(self.available_peers,
+                                     self.tracker.torrent.info_hash,
+                                     self.tracker.peer_id,
+                                     self.piece_manager,
+                                     self._on_block_retrieved)
+                      for _ in range(MAX_PEER_CONNECTIONS)]
+
+        # The time we last made an announce call (timestamp)
+        previous = None
+        # Default interval between announce calls (in seconds)
+        interval = 30*60
+
+        while True:
+            if self.piece_manager.complete:
+                logging.info('Torrent fully downloaded!')
+                break
+            if self.abort:
+                logging.info('Aborting download...')
+                break
+
+            current = time.time()
+            if (not previous) or (previous + interval < current):
+                response = await self.tracker.connect(
+                    first=previous if previous else False,
+                    uploaded=self.piece_manager.bytes_uploaded,
+                    downloaded=self.piece_manager.bytes_downloaded)
+
+                if response:
+                    previous = current
+                    interval = response.interval
+                    self._empty_queue()
+                    for peer in response.peers:
+                        self.available_peers.put_nowait(peer)
+            else:
+                await asyncio.sleep(5)
+        self.stop()
+
+它是一个异步函数，首先就调用了 ``PeerConnection`` 类，看一下其代码：
+
+.. code-block:: python
+
+    class PeerConnection:
+
+        def __init__(self, queue: Queue, info_hash,
+                    peer_id, piece_manager, on_block_cb=None):
+            """
+            Constructs a PeerConnection and add it to the asyncio event-loop.
+
+            Use `stop` to abort this connection and any subsequent connection
+            attempts
+
+            :param queue: The async Queue containing available peers
+            :param info_hash: The SHA1 hash for the meta-data's info
+            :param peer_id: Our peer ID used to to identify ourselves
+            :param piece_manager: The manager responsible to determine which pieces
+                                to request
+            :param on_block_cb: The callback function to call when a block is
+                                received from the remote peer
+            """
+            self.my_state = []
+            self.peer_state = []
+            self.queue = queue
+            self.info_hash = info_hash
+            self.peer_id = peer_id
+            self.remote_id = None
+            self.writer = None
+            self.reader = None
+            self.piece_manager = piece_manager
+            self.on_block_cb = on_block_cb
+            self.future = asyncio.ensure_future(self._start())  # Start this worker
+
+为了方便阅读，我将注释去除了。
+
+另文章不能过长，本篇文章到此结束，接下来的分析在 `下一篇`_ 文章中。
+
+.. _`下一篇`: Pieces-Read-4.rst
