@@ -137,3 +137,41 @@ PeerConnection 类分析
                 self.cancel()
                 raise e
             self.cancel()
+
+首先判断自己的状态 ``self.my_state`` 是不是已经停止了，如果没有停止，就会执行\
+接下来的步骤，等待获取到 IP 和端口，获取到后，记录日志。然后尝试执行接下来的步\
+骤，打开一个异步连接，然后获取握手数据，执行函数为： 
+
+.. code-block:: python
+
+    async def _handshake(self):
+        """
+        Send the initial handshake to the remote peer and wait for the peer
+        to respond with its handshake.
+        """
+        self.writer.write(Handshake(self.info_hash, self.peer_id).encode())
+        await self.writer.drain()
+
+        buf = b''
+        tries = 1
+        while len(buf) < Handshake.length and tries < 10:
+            tries += 1
+            buf = await self.reader.read(PeerStreamIterator.CHUNK_SIZE)
+
+        response = Handshake.decode(buf[:Handshake.length])
+        if not response:
+            raise ProtocolError('Unable receive and parse a handshake')
+        if not response.info_hash == self.info_hash:
+            raise ProtocolError('Handshake with invalid info_hash')
+
+        # TODO: According to spec we should validate that the peer_id received
+        # from the peer match the peer_id received from the tracker.
+        self.remote_id = response.peer_id
+        logging.info('Handshake with peer was successful')
+
+        # We need to return the remaining buffer data, since we might have
+        # read more bytes then the size of the handshake message and we need
+        # those bytes to parse the next message.
+        return buf[Handshake.length:]
+
+无法进行下去了，缺少异步知识，先补补知识在继续阅读。
