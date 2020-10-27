@@ -131,5 +131,87 @@ Python 中的字符串对象。 ``PyObject_Print`` 函数中第二个参数指�
 通常 Python 的源代码中会使用 PyObject_GC_New , PyObject_GC_Malloc, \
 PyMem_MALLOC , PyObject_MALLOC 等 API ，只需坚持一个原则，即凡是以 New \
 结尾的， 都以 C++ 中的 new 操作符视之；凡是以 Malloc 结尾的，都以 C 中的 \
-malloc 操作符视之。（C++ 中的 new 我不知道啊^_^!,找时间了解一下）。
+malloc 操作符视之。（C++ 中的 new 我不知道啊^_^!,找时间了解一下）。例如：
+
+.. code-block:: c 
+
+    [PyString_FromString() in stringobject.c]
+    op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
+    等效于：
+    PyStringObject* op = (PyStringObject*)malloc(sizeof(PyStringObject) + size)
+
+    [PyList_New() in listobject.c]
+    op = PyObject_GC_New(PyListObject, &PyList_Type);
+    等效于：
+    PyListObject* op = new PyList_Type();
+
+    op->ob_item = (PyObject **) PyMem_MALLOC(nbytes);
+    等效于：
+    op->ob_item = (PyObject **)malloc(nbytes);
+
+Python 内建对象
+==================================
+
+对象是数据以及基于这些数据的操作的集合。在计算机中，一个对象实际上就是一片\
+被分配的内存空间，这些内存可能是连续的，也可能是离散的，这并不重要，重要的\
+是这片内存在更高层次上可以作为一个整体来考虑，这个整体就是一个对象。在这片\
+内存中，存储着一系列的数据以及可以对这些数据进行修改或读取操作的一系列代码。
+
+在 Python 中，对象就是为 C 中的结构体在堆上申请的一块内存，一般来说，对象\
+是不能被静态初始化的，而且也不能在栈空间上生存。唯一的例外就是类型对象， \
+Python 中所有的内建的类型对象（如整数类型对象，字符串类型对象）都是被静态\
+初始化的。
+
+在 Python 中，一个对象一旦被创建，它在内存中的大小就是不变的了。这意味着那\
+些需要容纳可变长度数据的对象只能在对象内维护一个指向一块可变大小的内存区域\
+的指针。
+
+Python 对象的基石 - PyObject
+--------------------------------
+
+在 Python 中，所有的东西都是对象，而所有的对象都拥有一些相同的内容，这些内\
+容在 PyObject 中定义， PyObject 是整个 Python 对象机制的核心。
+
+.. code-block:: c
+
+    [Include/object.h]
+    typedef struct _object {
+        PyObject_HEAD
+    } PyObject;
+
+这个结构体是 Python 对象机制的核心基石，从代码中可以看到， Python 对象的秘\
+密都隐藏在 PyObject_HEAD 这个宏中。
+
+.. code-block:: c
+
+    [Include/object.h]
+    #ifdef Py_TRACE_REFS
+    /* Define pointers to support a doubly-linked list of all live heap objects. */
+    #define _PyObject_HEAD_EXTRA		\
+        struct _object *_ob_next;	\
+        struct _object *_ob_prev;
+
+    #define _PyObject_EXTRA_INIT 0, 0,
+
+    #else
+    #define _PyObject_HEAD_EXTRA
+    #define _PyObject_EXTRA_INIT
+    #endif
+
+    /* PyObject_HEAD defines the initial segment of every PyObject. */
+    #define PyObject_HEAD			\
+        _PyObject_HEAD_EXTRA		\
+        Py_ssize_t ob_refcnt;		\
+        struct _typeobject *ob_type;
+
+Release 编译 Python 的时候，是不会定义符号 Py_TRACE_REFS 的。所以在实际发\
+布的 Python 中， PyObject 的定义非常简单：
+
+.. code-block:: c
+
+    [Include/object.h]
+    typedef struct _object {
+        Py_ssize_t ob_refcnt;		// 书中是 int ob_refcnt; 对此我有点而疑惑
+        struct _typeobject *ob_type;
+    } PyObject;    
 
