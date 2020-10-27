@@ -40,3 +40,53 @@ Python 2.5 的代码结构如下：
 
 - **PCBuild8** : 包含了 Visual Studio 2005 使用的工程文件
 
+编译的时候只选择 ``pythoncore`` 和 ``python`` 子工程，但是编译的时候仍然会报\
+错，缺少了一个必要文件，源码包中没有提供，需要编译 ``make_buildinfo`` 和 \
+``make_versioninfo`` 子工程生成。
+
+编译成功后，结果都在 build 文件夹下，主要有两个： python25.dll 和 python.exe 。\
+Python 解释器的全部代码都在 python25.dll 中。对于 WinXP 系统，安装 python \
+时，python25.dll 会被拷贝到 ``C:\Windows\system32`` 下。（此结果来自与书中，后\
+续我会尝试在本地编译一次试试）
+
+修改 Python 源代码
+--------------------------
+
+书中修改了一个函数的源代码，它的原始代码为：
+
+.. code-block:: c
+    :name: intobject.c
+
+    static int
+    int_print(PyIntObject *v, FILE *fp, int flags)
+        /* flags -- not used but required by interface */
+    {
+      fprintf(fp, "%ld", v->ob_ival);
+      return 0;
+    }
+
+然后借用 Python 的 C API 中提供的输出对象接口：
+
+.. code-block:: c
+    :name: object.h
+
+    PyAPI_FUNC(int) PyObject_Print(PyObject *, FILE *, int);
+
+修改后的代码如下：
+
+.. code-block:: c
+    :name: intobject_new.c
+
+    static int
+    int_print(PyIntObject *v, FILE *fp, int flags)
+        /* flags -- not used but required by interface */
+    {
+      
+      PyObject* str = PyString_FromString("i am in int_print");
+      PyObject_Print(str, stdout, 0);
+      printf("\n");
+
+      fprintf(fp, "%ld", v->ob_ival);
+      return 0;
+    }
+
