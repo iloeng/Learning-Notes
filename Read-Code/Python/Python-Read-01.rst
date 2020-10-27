@@ -52,41 +52,84 @@ Python 解释器的全部代码都在 python25.dll 中。对于 WinXP 系统，�
 修改 Python 源代码
 --------------------------
 
-书中修改了一个函数的源代码，它的原始代码为：
+书中修改了一个函数的源代码，它的原始代码在 Objects/intobject.c 里面，代码如下：
 
 .. code-block:: c
-    :name: intobject.c
 
     static int
     int_print(PyIntObject *v, FILE *fp, int flags)
         /* flags -- not used but required by interface */
     {
-      fprintf(fp, "%ld", v->ob_ival);
-      return 0;
+        fprintf(fp, "%ld", v->ob_ival);
+        return 0;
     }
 
-然后借用 Python 的 C API 中提供的输出对象接口：
+然后借用 Python 的 C API 中提供的输出对象接口，代码在 Include/object.h 文件里，\
+代码如下：
 
 .. code-block:: c
-    :name: object.h
 
     PyAPI_FUNC(int) PyObject_Print(PyObject *, FILE *, int);
 
 修改后的代码如下：
 
 .. code-block:: c
-    :name: intobject_new.c
 
     static int
     int_print(PyIntObject *v, FILE *fp, int flags)
         /* flags -- not used but required by interface */
     {
       
-      PyObject* str = PyString_FromString("i am in int_print");
-      PyObject_Print(str, stdout, 0);
-      printf("\n");
+        PyObject* str = PyString_FromString("i am in int_print");
+        PyObject_Print(str, stdout, 0);
+        printf("\n");
 
-      fprintf(fp, "%ld", v->ob_ival);
-      return 0;
+        fprintf(fp, "%ld", v->ob_ival);
+        return 0;
     }
+
+
+``PyString_FromString`` 是 Python 提供的 C API ，用于从 C 中的原生字符数组创建出 \
+Python 中的字符串对象。 ``PyObject_Print`` 函数中第二个参数指明的是输出目标。代码\
+中使用的是 ``stdout`` ，即指定的输出目标是标准输出。
+
+重定向输出：
+
+.. code-block:: c 
+
+    static PyObject *
+    int_repr(PyIntObject *v)
+    {
+        char buf[64];
+        PyOS_snprintf(buf, sizeof(buf), "%ld", v->ob_ival);
+        return PyString_FromString(buf);
+    }
+
+添加重定向输出后的代码：
+
+.. code-block:: c 
+
+    static PyObject *
+    int_repr(PyIntObject *v)
+    {
+        if(PyInt_AsLong(v) == -999){
+            PyObject* str = PyString_FromString("i am in int_repr");
+            PyObject* out = PySys_GetObject("stdout");
+            if (out != NULL) {
+                PyObject_Print(str, stdout, 0);
+                printf("\n");
+            }
+        }
+
+        char buf[64];
+        PyOS_snprintf(buf, sizeof(buf), "%ld", v->ob_ival);
+        return PyString_FromString(buf);
+    }
+
+``PyInt_AsLong`` 的功能是将 Python 的整数对象转换为 C 中的 int 值。
+
+通常 Python 的源代码中会使用 PyObject_GC_New , PyObject_GC_Malloc, \
+PyMem_MALLOC , PyObject_MALLOC 等 API ，只需坚持一个原则，即凡是以 New \
+结尾的， 都以 C++ 中的 new 操作符视之；凡是以 Malloc 结尾的，都以 C 中的 \
+malloc 操作符视之。（C++ 中的 new 我不知道啊^_^!,找时间了解一下）。
 
