@@ -215,3 +215,28 @@ Release 编译 Python 的时候，是不会定义符号 Py_TRACE_REFS 的。所�
         struct _typeobject *ob_type;
     } PyObject;    
 
+在 PyObject 的定义中，整型变量 ob_refcnt (目前不确定是不是整型，但是书中是的)\
+与 Python 的内存管理机制有关，它实现了基于引用计数的垃圾搜集机制。对于某一个对\
+象 A ，当有一个新的 PyObject * 引用该对象时， A 的引用计数应该增加；而当这个 \
+PyObject * 被删除时， A 的引用计数应该减少。当 A 的引用计数减少到 0 时， A 就\
+可以从堆上被删除，以释放出内存供别的对象使用。
+
+ob_type 是一个指向 _typeobject 结构体的指针， _typeobject 结构体对应着 Python \
+内部的一种特殊对象，用来指定一个对象类型的类型对象。
+
+由此可以看出， 在 Python 中，对象机制的核心其实非常简单，一个时引用计数，一个就\
+是类型信息。
+
+在 PyObject 中定义了每个 Python 对象都必须有的内容，这些内容将出现在每个 Python \
+对象所占有的内存的最开始的字节中。例如：
+
+.. code-block:: c
+
+  typedef struct {
+      PyObject_HEAD
+      long ob_ival;
+  } PyIntObject;
+
+Python 的整数对象中，除了 PyObject ，还有一个额外的 long 变量，整数的值就保存在 \
+ob_ival 中。同样的， 字符串对象，list对象，dict对象，其他对象，都在 PyObject \
+之外保存了属于自己的特殊信息。
