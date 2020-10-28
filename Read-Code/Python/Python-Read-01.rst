@@ -240,3 +240,175 @@ ob_type 是一个指向 _typeobject 结构体的指针， _typeobject 结构体�
 Python 的整数对象中，除了 PyObject ，还有一个额外的 long 变量，整数的值就保存在 \
 ob_ival 中。同样的， 字符串对象，list对象，dict对象，其他对象，都在 PyObject \
 之外保存了属于自己的特殊信息。
+
+整数对象的特殊信息是一个 C 中的整型变量，无论这个整数对象的值有多大，都可以保存在\
+这个整型变量 ( ob_ival ) 中。 Python 在 PyObject 对象之外，还有一个表示这类对象\
+的结构体 -- PyVarObject:
+
+.. code-block:: c 
+
+    [Include/object.h]
+    #define PyObject_VAR_HEAD		\
+        PyObject_HEAD			\
+        Py_ssize_t ob_size; /* Number of items in variable part */
+        // 此处书中是 int ob_size
+    
+    typedef struct {
+        PyObject_VAR_HEAD
+    } PyVarObject;
+
+把整数对象这样不包含可变数据的对象称为 "定长对象"， 而字符串对象这样的包含了可变数\
+据的对象称为 "变长对象"。 区别在于定长对象的不同对象占用的内存大小是一样的，而变长\
+对象的不同对象占用的内存可能是不一样的。比如，整数对象 “1” 和 “100” 占用的内存大小\
+都是 sizeof(PyIntObject)， 而字符串对象 “Python” 和 “Ruby” 占用的内存大小就不同\
+了。正是这种区别导致了 PyVarObject 对象中 ob_size 的出现。变长对象通常都是容器， \
+ob_size 这个成员实际上就是指明了变长对象中一共容纳了多少个元素。 注意， ob_size \
+指明的是所容纳元素的个数，而不是字节的数量。例如，Python 中最常用的 list 就是一个 \
+PyVarObject 对象，如果 list 中有 5 个元素，那么 ob_size 的值就是 5。
+
+从 PyObject_VAR_HEAD 的定义可以看出， PyVarObject 实际上只是对 PyObject 的一个拓\
+展。因此对于任何一个 PyVarObject , 其所占用的内存开始部分的字节的意义和 PyObject \
+是一样的。在 Python 内部，每个对象都拥有相同的对象头部，这使得 Python 中对对象的引\
+用变得非常统一，只需要用一个 PyObject * 指针就可以引用任意的一个对象，不论该对象实\
+际是什么对象。
+
+.. image:: img/pyobject-1-1.png
+
+类型对象
+=================================
+
+当在内存中分配空间，创建对象的时候，必须要知道申请多大的空间。显然，这不是一个定值，\
+因为不同的对象需要不同的空间。对象所需的内存空间的大小信息虽然不显见于 PyObject 的定\
+义中，但它却隐身于 PyObject 中。
+
+实际上，占用内存空间的大小是对象的一种元信息，这样的元信息是与对象所属类型密切相关的，\
+因此一定会出现在与对象所对应的类型对象中，详细考察一下类型对象 _typeobject:
+
+.. code-block:: c 
+
+    typedef struct _typeobject {
+        PyObject_VAR_HEAD
+        const char *tp_name; /* For printing, in format "<module>.<name>" */
+        Py_ssize_t tp_basicsize, tp_itemsize; /* For allocation */
+
+        /* Methods to implement standard operations */
+
+        destructor tp_dealloc;
+        printfunc tp_print;
+        getattrfunc tp_getattr;
+        setattrfunc tp_setattr;
+        cmpfunc tp_compare;
+        reprfunc tp_repr;
+
+        /* Method suites for standard classes */
+
+        PyNumberMethods *tp_as_number;
+        PySequenceMethods *tp_as_sequence;
+        PyMappingMethods *tp_as_mapping;
+
+        /* More standard operations (here for binary compatibility) */
+
+        hashfunc tp_hash;
+        ternaryfunc tp_call;
+        reprfunc tp_str;
+        getattrofunc tp_getattro;
+        setattrofunc tp_setattro;
+
+        /* Functions to access object as input/output buffer */
+        PyBufferProcs *tp_as_buffer;
+
+        /* Flags to define presence of optional/expanded features */
+        long tp_flags;
+
+        const char *tp_doc; /* Documentation string */
+
+        /* Assigned meaning in release 2.0 */
+        /* call function for all accessible objects */
+        traverseproc tp_traverse;
+
+        /* delete references to contained objects */
+        inquiry tp_clear;
+
+        /* Assigned meaning in release 2.1 */
+        /* rich comparisons */
+        richcmpfunc tp_richcompare;
+
+        /* weak reference enabler */
+        Py_ssize_t tp_weaklistoffset;
+
+        /* Added in release 2.2 */
+        /* Iterators */
+        getiterfunc tp_iter;
+        iternextfunc tp_iternext;
+
+        /* Attribute descriptor and subclassing stuff */
+        struct PyMethodDef *tp_methods;
+        struct PyMemberDef *tp_members;
+        struct PyGetSetDef *tp_getset;
+        struct _typeobject *tp_base;
+        PyObject *tp_dict;
+        descrgetfunc tp_descr_get;
+        descrsetfunc tp_descr_set;
+        Py_ssize_t tp_dictoffset;
+        initproc tp_init;
+        allocfunc tp_alloc;
+        newfunc tp_new;
+        freefunc tp_free; /* Low-level free-memory routine */
+        inquiry tp_is_gc; /* For PyObject_IS_GC */
+        PyObject *tp_bases;
+        PyObject *tp_mro; /* method resolution order */
+        PyObject *tp_cache;
+        PyObject *tp_subclasses;
+        PyObject *tp_weaklist;
+        destructor tp_del;
+
+    #ifdef COUNT_ALLOCS
+        /* these must be last and never explicitly initialized */
+        Py_ssize_t tp_allocs;
+        Py_ssize_t tp_frees;
+        Py_ssize_t tp_maxalloc;
+        struct _typeobject *tp_prev;
+        struct _typeobject *tp_next;
+    #endif
+    } PyTypeObject;
+
+在上述 _typeobject 的定义中包含了许多信息，主要可以分为 4 类：
+
+- 类型名， tp_name ，主要是 Python 内部以及调试的时候使用；
+- 创建该类型对象是分配内存空间大小的信息，即 tp_basicsize 和 tp_itemsize;
+- 与该类型对象相关联的操作信息（就是诸如 tp_print 这样的许多的函数指针）；
+- 下面将要描述的类型的类型信息。
+
+事实上，一个 PyTypeObject 对象就是 Python 中对面向对象理论中 “类” 这个概念的实现，\
+而 PyTypeObject 也是一个非常复杂的话题，将在以后详细剖析构建在 PyTypeObject 之上\
+的 Python 的类型和对象体系。
+
+对象的创建
+=====================
+
+Python 创建一个整数对象一般来说会有两种方法；第一种是通过 Python C API 来创建；第\
+二种是通过类型对象 PyInt_Type。
+
+Python 的 C API 分成两类，一类称为范型的 API ，或者称为 AOL （Abstrack Object Layer）。\
+这类 API 都具有诸如 PyObject_*** 的形式，可以应用在任何 Python 对象身上，比如输出对象的 \
+PyObject_Print ，你可以 PyObject_Print(int object) ， 也可以 PyObject_Print(string object) \
+， API 内部会有一整套机制确定最终调用的函数是哪一个。对于创建一个整数对象，可以采用如下的\
+表达式： PyObject* intObj = PyObject_New(PyObject, &PyInt_Type) 。
+
+另一类是与类型相关的 API ，或者成为 COL (Concrete Object Layer) 。这类 API 通常只作\
+用在某一类型的对象上，对于每一种内建对象， Python 都提供了这样的一组 API 。对于整数对象\
+可以使用如下 API 创建： PyObject \*intObj = PyInt_FromLong(10) ， 这样就创建了一个值\
+为 10 的整数对象。
+
+不论采用哪种 C API ， Python 内部最终都是直接分配内存，因为 Python 对于内建对象是无所不\
+知的。但是对于用户自定义的类型，比如通过 class A(Object) 定义的一个类型 A ，如果要创建 \
+A 的实例对象， Python 就不可能事先提供 PyA_New 这样的 API 。 对于这种情况， Python 会\
+通过 A 所对应的类型对象创建实例对象。
+
+.. image:: img/1-2-PyInt_Type.png
+
+图 1-2 通过 PyInt_Type 创建一个整数对象 （截取自 Python 3.8 IPython）
+
+
+
+
