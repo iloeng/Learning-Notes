@@ -409,6 +409,17 @@ A 的实例对象， Python 就不可能事先提供 PyA_New 这样的 API 。 �
 
 图 1-2 通过 PyInt_Type 创建一个整数对象 （截取自 Python 3.8 IPython）
 
+实际上，在 Python 完成运行环境的初始化后，符号 “int” 就对应着一个表示为 <type 'int'> \
+的对象，这个对象其实就是 Python 内部的 PyInt_Type 。当我们执行 "int(10)" 时就是通过 \
+PyInt_Type 创建了一个整数对象。
+
+图 1-2 中显示， 在 Python 2.2 之后的 new style class 中， int 时一个继承自 object 的\
+类型，类似于 int 对应着 Python 内部的 PyInt_Type , Object 在 Python 内部则对应着 \
+PyBaseObject_Type 。 图 1-3 显示了 int 类型在 Python 内部这种继承关系是如何实现的。
+
+.. image:: img/1-3-int.png
+
+图 1-3 从 PyInt_Type 创建整数对象
 
 
 
