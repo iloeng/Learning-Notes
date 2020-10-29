@@ -421,5 +421,94 @@ PyBaseObject_Type 。 图 1-3 显示了 int 类型在 Python 内部这种继承�
 
 图 1-3 从 PyInt_Type 创建整数对象
 
+标上序号的虚线箭头代表了创建整数对象的函数调用流程，首先 PyInt_Type 中的 tp_new 会被调用，\
+如果这个 tp_new 为 NULL （真正的 PyInt_Type 中并不为 NULL，只是举例说明 tp_new 为 NULL \
+的情况）， 那么会到 tp_base 指定的基类中去寻找 tp_new 操作， PyBaseObject_Type 的 tp_new \
+指向了 object_new 。在 Python 2.2 之后的 new style class 中，所有的类都是以 object 为基\
+类的，所以最终会找到一个不为 NULL 的 tp_new 。在 object_new 中，会访问 PyInt_Type 中记录\
+的 tp_basicsize 信息，继而完成申请内存的操作。这个信息记录着一个整数对象应该占用多大内存，在 \
+Python 源码中，你会看到这个值被设置成了 sizeof(PyIntObject) 。在调用 tp_new 完成 “创建对象” \
+之后，流程会转向 PyInt_Type 的 tp_init ， 完成 “初始化对象” 的工作。对应到 C++ 中， tp_new \
+可以视为 new 操作符， 而 tp_init 则可以视为类的构造函数。
 
+对象的行为
+================
 
+在 PyTypeObject 中定义了大量对的函数指针，他们最终都会指向某个函数，或者指向 NULL。可以视为\
+类型对象中所定义的操作，而这些操作直接决定着一个对象在运行时所表现的行为。
+
+如 PyTypeObject 中的 tp_hash 指明对于该类型的对象，如何生成其 Hash 值。可以看到 tp_hash \
+是一个 hashfunc 类型的变量，在 object.h 中， hashfunc 实际上是一个函数指针： \
+typedef long (\*hashfunc)(PyObject \*) 。在上一节中看到了 tp_new ， tp_init 是如何决定一\
+个实例对象被创建出来并初始化的。在 PyTypeObject 中指定的不用的操作信息也正是一种对象区别于另\
+一种对象的关键所在。
+
+在这些操作信息中，有三组非常重要的操作族，在 PyTypeObject 中，它们是 tp_as_number , tp_as_sequence \
+, tp_as_mapping ，分别执行 PyNumberMethods 、 PySequenceMethods 和 PyMappingMethods 函数\
+族， 看一下 PyNumberMethods 函数族：
+
+.. code-block:: c 
+
+    [Include/object.h]
+    typedef struct {
+        /* For numbers without flag bit Py_TPFLAGS_CHECKTYPES set, all
+        arguments are guaranteed to be of the object's type (modulo
+        coercion hacks -- i.e. if the type's coercion function
+        returns other types, then these are allowed as well).  Numbers that
+        have the Py_TPFLAGS_CHECKTYPES flag bit set should check *both*
+        arguments for proper type and implement the necessary conversions
+        in the slot functions themselves. */
+
+        binaryfunc nb_add;
+        binaryfunc nb_subtract;
+        binaryfunc nb_multiply;
+        binaryfunc nb_divide;
+        binaryfunc nb_remainder;
+        binaryfunc nb_divmod;
+        ternaryfunc nb_power;
+        unaryfunc nb_negative;
+        unaryfunc nb_positive;
+        unaryfunc nb_absolute;
+        inquiry nb_nonzero;
+        unaryfunc nb_invert;
+        binaryfunc nb_lshift;
+        binaryfunc nb_rshift;
+        binaryfunc nb_and;
+        binaryfunc nb_xor;
+        binaryfunc nb_or;
+        coercion nb_coerce;
+        unaryfunc nb_int;
+        unaryfunc nb_long;
+        unaryfunc nb_float;
+        unaryfunc nb_oct;
+        unaryfunc nb_hex;
+        /* Added in release 2.0 */
+        binaryfunc nb_inplace_add;
+        binaryfunc nb_inplace_subtract;
+        binaryfunc nb_inplace_multiply;
+        binaryfunc nb_inplace_divide;
+        binaryfunc nb_inplace_remainder;
+        ternaryfunc nb_inplace_power;
+        binaryfunc nb_inplace_lshift;
+        binaryfunc nb_inplace_rshift;
+        binaryfunc nb_inplace_and;
+        binaryfunc nb_inplace_xor;
+        binaryfunc nb_inplace_or;
+
+        /* Added in release 2.2 */
+        /* The following require the Py_TPFLAGS_HAVE_CLASS flag */
+        binaryfunc nb_floor_divide;
+        binaryfunc nb_true_divide;
+        binaryfunc nb_inplace_floor_divide;
+        binaryfunc nb_inplace_true_divide;
+
+        /* Added in release 2.5 */
+        unaryfunc nb_index;
+    } PyNumberMethods;
+
+在 PyNumberMethods 中，定义了作为一个数值对象应该支持的操作。如果一个对象呗视为数值对象，\
+那么其对象的类型对象 PyInt_Type 中， tp_as_number.nb_add 就指定了对该对象进行加法操作时\
+的具体行为。同样， PySequenceMethods 和 PyMappingMethods 中分别定义了作为一个序列对象和\
+关联对象应该支持的行为，这两种对象的典型例子是 list 和 dict 。
+
+未完待续...
