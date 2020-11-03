@@ -1,4 +1,4 @@
-Python 源码阅读系列 1
+Python 源码阅读系列 2
 ---------------------------------
 
 前言
@@ -241,6 +241,78 @@ Python 对象的多态性
 和 C# 。垃圾回收机制使开发人员从维护内存分配和清理的繁重工作中解放出来，但同时也剥夺了程序\
 员与内存亲密接触的机会，并付出了一定的运行效率作为代价。 Python 同样内建了垃圾回收机制，代\
 替程序员进行繁重的内存管理工作，而引用计数正是 Python 垃圾回收集中的一部分。
+
+Python 通过对一个对象的引用计数的管理来维护对象在内存中存在与否。Python 中每个东西都是一\
+个对象，都有一个 ob_refcnt 变量。这个变量维护着该对象的引用计数，从而也决定着该对象的创建\
+与消亡。
+
+在 Python 中，主要是通过 Py_INCREF(op) 和 PyDECREF(op) 两个宏来增加和减少一个对象的引用\
+计数。当一个对象的引用计数减少到 0 后， PyDECREF 将调用该对象的析构函数来释放该对象所占用\
+的内存和系统资源。这里的 ‘析构函数’ 借用了 C++ 的词汇，实际上这个析构动作是通过在对象对应\
+的类型对象中顶一个的一个函数指针来指定的，就是 tp_dealloc 。
+
+在 ob_refcnt 减为 0 后，将触发对象销毁的事件。在 Python 的对象体系中来看，各个对象提供了\
+不同的事件处理函数，而事件的注册动作正是在各个对象对应的类型对象中静态完成的。
+
+PyObject 中的 ob_refcnt 是一个 32 位的整型变量，实际蕴含着 Python 所做的一个假设，即对\
+一个对象的引用不会超过一个整型变量的最大值。一般情况下，如果不是恶意代码，这个假设是成立的。
+
+需要注意的是，在 Python 的各个对象中，类型对象是超越引用计数规则的。类型对象永远不会被析\
+构。每个对象中指向类型对象的指针被视为类型对象的引用。
+
+在每个对象创建的时候，Python 提供了一个 _Py_NewReference(op) 宏来将对象的引用计数初始化为\
+1 。
+
+在 Python 的源代码中可以看到，在不同的编译选项下 (Py_REF_DEBUG, Py_TRACE_REFS), 引用计数\
+的宏还要做许多额外的工作。 以下是 Python 最终发行时这些宏对应的实际代码
+
+.. code-block:: c 
+
+    [Include/object.h]
+
+    #define _Py_NewReference(op) ((op)->ob_refcnt = 1)
+
+    #define _Py_ForgetReference(op) _Py_INC_TPFREES(op)
+
+    #define _Py_Dealloc(op) ((*(op)->ob_type->tp_dealloc)((PyObject *)(op)))
+
+    #define Py_INCREF(op) ((op)->ob_refcnt++)
+
+    #define Py_DECREF(op)					\
+        if (--(op)->ob_refcnt != 0)			\
+            ;			\
+        else						\
+            _Py_Dealloc((PyObject *)(op))
+
+    #define Py_XINCREF(op) if ((op) == NULL) ; else Py_INCREF(op)
+    #define Py_XDECREF(op) if ((op) == NULL) ; else Py_DECREF(op)
+
+在每个对象的引用计数减为 0 时，与该对象对应的析构函数就会被调用，但是要特别注意的是，调用\
+析构函数并不意味着最终一定会调用 free 释放内存空间，频繁地申请和释放内存空间会使 Python \
+的执行效率大打折扣。一般来说， Python 中大量采用了内存对象池的技术，使用这种技术可以避免\
+频繁申请和释放内存。因此在析构时，通常都是将对象占用的空间归还到内存池中。这一点在 Python \
+内建对象的实现中可以看得一清二楚。
+
+Python 对象的分类
+===============================
+
+将 Python 的对象从概念上大致分为 5 类：
+
+- Fundamental 对象： 类型对象
+- Numeric 对象： 数值对象
+- Sequence 对象： 容纳其他对象的序列集合对象
+- Mapping 对象： 类似于 C++ 中 map 的关联对象
+- Internal 对象： Python 虚拟机在运行使内部使用的对象
+
+.. image:: img/1-7.png
+
+图 1-7 Python 中对象的分类
+
+Python 中的整数对象
+=======================
+
+初识 PyIntObject 对象
++++++++++++++++++++++++++++
 
 
 
