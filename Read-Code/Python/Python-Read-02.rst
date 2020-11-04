@@ -314,5 +314,190 @@ Python 中的整数对象
 初识 PyIntObject 对象
 +++++++++++++++++++++++++++
 
+除了 “定长对象” 和 “变长对象” 这种对象的二分法，根据对象维护数据的可变性可将对象分为 \
+"可变对象 (mutable)" 和 "不可变对象 (immutable)" 。 PyIntObject 对象就是一个不可\
+变对象，也就是创建一个 PyIntObject 对象之后，就无法更改该对象的值了。字符串对象也是。
 
+整数对象池是整数对象的缓冲池机制。在此基础上，运行时的整数对象并非一个个对立的对象，而\
+是如同自然界的蚂蚁一般，已经是通过一定的结构联结在一起的庞大的整数对象系统了。静态的整\
+数对象的定义 -- PyIntObject：
 
+.. code-block:: c 
+
+    typedef struct {
+        PyObject_HEAD
+        long ob_ival;
+    } PyIntObject;
+
+PyIntObject 实际上就是对 C 中原生类型 long 的一个简单包装。 Python 对象中与对象相\
+关的元信息实际上都是保存在与对象对应的类型对象中的，对于 PyIntObject 的类型对象是 \
+PyInt_Type：
+
+.. code-block:: c
+
+    [Objects/intobject.c]
+
+    PyTypeObject PyInt_Type = {
+        PyObject_HEAD_INIT(&PyType_Type)
+        0,
+        "int",
+        sizeof(PyIntObject),
+        0,
+        (destructor)int_dealloc,		/* tp_dealloc */
+        (printfunc)int_print,			/* tp_print */
+        0,					/* tp_getattr */
+        0,					/* tp_setattr */
+        (cmpfunc)int_compare,			/* tp_compare */
+        (reprfunc)int_repr,			/* tp_repr */
+        &int_as_number,				/* tp_as_number */
+        0,					/* tp_as_sequence */
+        0,					/* tp_as_mapping */
+        (hashfunc)int_hash,			/* tp_hash */
+            0,					/* tp_call */
+            (reprfunc)int_repr,			/* tp_str */
+        PyObject_GenericGetAttr,		/* tp_getattro */
+        0,					/* tp_setattro */
+        0,					/* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES |
+            Py_TPFLAGS_BASETYPE,		/* tp_flags */
+        int_doc,				/* tp_doc */
+        0,					/* tp_traverse */
+        0,					/* tp_clear */
+        0,					/* tp_richcompare */
+        0,					/* tp_weaklistoffset */
+        0,					/* tp_iter */
+        0,					/* tp_iternext */
+        int_methods,				/* tp_methods */
+        0,					/* tp_members */
+        0,					/* tp_getset */
+        0,					/* tp_base */
+        0,					/* tp_dict */
+        0,					/* tp_descr_get */
+        0,					/* tp_descr_set */
+        0,					/* tp_dictoffset */
+        0,					/* tp_init */
+        0,					/* tp_alloc */
+        int_new,				/* tp_new */
+        (freefunc)int_free,           		/* tp_free */
+    };
+
+PyIntObject 支持的操作：
+
+==============   ============================
+操作              描述
+==============   ============================
+int_dealloc       PyIntObject 对象的析构操作
+int_free          PyIntObject 对象的释放操作
+int_repr          转化成 PyStringObject 对象
+int_hash          获得 HASH 值
+int_print         打印 PyIntObject 对象
+int_compare       比较操作
+int_as_number     数值操作集合
+int_methods       成员函数集合
+==============   ============================
+
+下面这个例子看一下如何比较两个整数对象的大小。
+
+.. code-block:: c 
+
+    [Objects/intobject.c]
+
+    static int
+    int_compare(PyIntObject *v, PyIntObject *w)
+    {
+        register long i = v->ob_ival;
+        register long j = w->ob_ival;
+        return (i < j) ? -1 : (i > j) ? 1 : 0;
+    }
+
+显然 PyIntObject 对象的比较操作实际上就是简单地将他所维护的 long 值进行比较。需要特别注\
+意 int_as_number
+
+.. code-block:: c 
+
+    [Objects/intobject.c]
+
+    static PyNumberMethods int_as_number = {
+        (binaryfunc)int_add,	/*nb_add*/
+        (binaryfunc)int_sub,	/*nb_subtract*/
+        (binaryfunc)int_mul,	/*nb_multiply*/
+        (binaryfunc)int_classic_div, /*nb_divide*/
+        (binaryfunc)int_mod,	/*nb_remainder*/
+        (binaryfunc)int_divmod,	/*nb_divmod*/
+        (ternaryfunc)int_pow,	/*nb_power*/
+        (unaryfunc)int_neg,	/*nb_negative*/
+        (unaryfunc)int_pos,	/*nb_positive*/
+        (unaryfunc)int_abs,	/*nb_absolute*/
+        (inquiry)int_nonzero,	/*nb_nonzero*/
+        (unaryfunc)int_invert,	/*nb_invert*/
+        (binaryfunc)int_lshift,	/*nb_lshift*/
+        (binaryfunc)int_rshift,	/*nb_rshift*/
+        (binaryfunc)int_and,	/*nb_and*/
+        (binaryfunc)int_xor,	/*nb_xor*/
+        (binaryfunc)int_or,	/*nb_or*/
+        int_coerce,		/*nb_coerce*/
+        (unaryfunc)int_int,	/*nb_int*/
+        (unaryfunc)int_long,	/*nb_long*/
+        (unaryfunc)int_float,	/*nb_float*/
+        (unaryfunc)int_oct,	/*nb_oct*/
+        (unaryfunc)int_hex, 	/*nb_hex*/
+        0,			/*nb_inplace_add*/
+        0,			/*nb_inplace_subtract*/
+        0,			/*nb_inplace_multiply*/
+        0,			/*nb_inplace_divide*/
+        0,			/*nb_inplace_remainder*/
+        0,			/*nb_inplace_power*/
+        0,			/*nb_inplace_lshift*/
+        0,			/*nb_inplace_rshift*/
+        0,			/*nb_inplace_and*/
+        0,			/*nb_inplace_xor*/
+        0,			/*nb_inplace_or*/
+        (binaryfunc)int_div,	/* nb_floor_divide */
+        int_true_divide,	/* nb_true_divide */
+        0,			/* nb_inplace_floor_divide */
+        0,			/* nb_inplace_true_divide */
+        (unaryfunc)int_int,	/* nb_index */
+    };
+
+这个 PyNumberMethods 中定义了一个对象作为数值对象时所有可选的操作信息。再 Python 2.5 中\
+PyNumberMethods 中一共有 39 个函数指针，即其中定义了 39 种可选的操作，包括加法，减法，乘\
+法, 模运算等。
+
+再 int_as_number 中，确定了对于一个整数对象，这些数值操作应该如何进行。当然，并非所有的操\
+作都要求一定要被实现。下面看一下加法操作的实现：
+
+.. code-block:: c 
+
+    [Include/intobject.h]
+
+    #define PyInt_AS_LONG(op) (((PyIntObject *)(op))->ob_ival)
+
+    [Objects/intobject.c]
+
+    #define CONVERT_TO_LONG(obj, lng)		\
+        if (PyInt_Check(obj)) {			\
+            lng = PyInt_AS_LONG(obj);	\
+        }					\
+        else {					\
+            Py_INCREF(Py_NotImplemented);	\
+            return Py_NotImplemented;	\
+        }
+
+    static PyObject *
+    int_add(PyIntObject *v, PyIntObject *w)
+    {
+        register long a, b, x;
+        CONVERT_TO_LONG(v, a);
+        CONVERT_TO_LONG(w, b);
+        x = a + b;
+        // [1]: 检查加法结果是否溢出
+        if ((x^a) >= 0 || (x^b) >= 0)
+            return PyInt_FromLong(x);
+        return PyLong_Type.tp_as_number->nb_add((PyObject *)v, (PyObject *)w);
+    }
+
+PyIntObject 对象所实现的加法操作是直接在其维护的 long 值上进行的，在完成加法操作后，代码\
+中进行了溢出检查，如果没有溢出就返回一个新的 PyIntObject ，这个 PyIntObject 所拥有的值正\
+好是加法操作的结果。
+
+未完待续...
