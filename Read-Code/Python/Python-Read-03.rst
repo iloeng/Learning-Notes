@@ -142,4 +142,141 @@ long 值， 从字符串以及 Py_UNICODE 对象生成 PyIntObject 对象。
 2.2.2 小整数对象
 ++++++++++++++++++++++++
 
+在 Python 中，对于小整数对象使用了对象池技术。
+
+.. code-block:: c 
+
+    [Objects/intobject.c]
+
+    #ifndef NSMALLPOSINTS
+        #define NSMALLPOSINTS		257
+    #endif
+    #ifndef NSMALLNEGINTS
+        #define NSMALLNEGINTS		5
+    #endif
+    #if NSMALLNEGINTS + NSMALLPOSINTS > 0
+        /* References to small integers are saved in this array so that they
+        can be shared.
+        The integers that are saved are those in the range
+        -NSMALLNEGINTS (inclusive) to NSMALLPOSINTS (not inclusive).
+        */
+        static PyIntObject *small_ints[NSMALLNEGINTS + NSMALLPOSINTS];
+    #endif
+
+这个毫不起眼的 small_ints 就是举足轻重的小整数对象的对象池，准确地说，是 PyIntObject * \
+池， 不过一般称其为小整数对象池。在 Python 2.5 中，将小整数集合的范围默认为 [-5, 257)。\
+可以通过修改 NSMALLPOSINTS 和 NSMALLNEGINTS 重新编译 Python ，从而将这个范围向两端\
+伸展或收缩。
+
+2.2.3 大整数对象
++++++++++++++++++++++++++++
+
+对于小整数，在小整数对象池中完全缓存了 PyIntObject 对象。而对于其他整数， Python 运行\
+环境提供了一块内存空间，由大整数轮流使用。在 Python 中， 有一个 PyIntBlock 结构，在这\
+基础上，实现了一个单向列表。
+
+.. code-block:: c
+
+    [Objects/intobject.c]
+
+    #define BLOCK_SIZE	1000	/* 1K less typical malloc overhead */
+    #define BHEAD_SIZE	8	/* Enough for a 64-bit pointer */
+    #define N_INTOBJECTS	((BLOCK_SIZE - BHEAD_SIZE) / sizeof(PyIntObject))
+
+    struct _intblock {
+        struct _intblock *next;
+        PyIntObject objects[N_INTOBJECTS];
+    };
+
+    typedef struct _intblock PyIntBlock;
+
+    static PyIntBlock *block_list = NULL;
+    static PyIntObject *free_list = NULL;
+
+PyIntBlock 这个结构里维护了一块内存 (block)，其中保存了一些 PyIntObject 对象。从定义中\
+可以看出一个 PyIntBlock 中维护着 N_INTOBJECTS 个对象，计算后是 82 个。这里也可以动态调整。
+
+PyIntBlock 的单向列表通过 block_list 维护，每个 block 中都维护了一个 PyIntObject 数组\
+-- objects ， 这就是真正用于存储被缓存的 PyIntObject 对象的内存。 Python 使用一个单向\
+链表来管理全部 block 的 objects 中所有的空闲内存，这个自由内存链表的表头就是 free_list 。 
+最开始时，两个指针都被设置为空指针。
+
+.. image:: img/2-3.png
+
+2.2.4 添加和删除
+++++++++++++++++++++++++
+
+下面通过 PyInt_FromLong 进行细致入微的考察，真实展现一个个 PyIntObject 对象的产生。
+
+.. code-block:: c
+
+    [Objects/intobject.c]
+
+    PyObject *
+    PyInt_FromLong(long ival)
+    {
+        register PyIntObject *v;
+    #if NSMALLNEGINTS + NSMALLPOSINTS > 0
+    // [1] ：尝试使用小整数对象池
+        if (-NSMALLNEGINTS <= ival && ival < NSMALLPOSINTS) {
+            v = small_ints[ival + NSMALLNEGINTS];
+            Py_INCREF(v);
+    #ifdef COUNT_ALLOCS
+            if (ival >= 0)
+                quick_int_allocs++;
+            else
+                quick_neg_int_allocs++;
+    #endif
+            return (PyObject *) v;
+        }
+    #endif
+    // [2]： 为通用整数对象池申请新的内存空间
+        if (free_list == NULL) {
+            if ((free_list = fill_free_list()) == NULL)
+                return NULL;
+        }
+        /* Inline PyObject_New */
+        // [3] ： (inline) 内联 PyObject_New 的行为
+        v = free_list;
+        free_list = (PyIntObject *)v->ob_type;
+        PyObject_INIT(v, &PyInt_Type);
+        v->ob_ival = ival;
+        return (PyObject *) v;
+    }
+
+PyIntObject 对象的创建通过两步完成(上述代码是 Python 2.5 代码，与书中有出入)：
+
+.. code-block::
+
+    PyObject *
+    PyInt_FromLong(long ival)
+    {
+        register PyIntObject *v;
+    #if NSMALLNEGINTS + NSMALLPOSINTS > 0
+    // [1] ：尝试使用小整数对象池
+        if (-NSMALLNEGINTS <= ival && ival < NSMALLPOSINTS) {
+            v = small_ints[ival + NSMALLNEGINTS];
+            Py_INCREF(v);
+            return (PyObject *) v;
+        }
+    #endif
+    // [2]： 为通用整数对象池申请新的内存空间
+        if (free_list == NULL) {
+            if ((free_list = fill_free_list()) == NULL)
+                return NULL;
+        }
+        /* Inline PyObject_New */
+        // [3] ： (inline) 内联 PyObject_New 的行为
+        v = free_list;
+        free_list = (PyIntObject *)v->ob_type;
+        PyObject_INIT(v, &PyInt_Type);
+        v->ob_ival = ival;
+        return (PyObject *) v;
+    }
+
+- 如果小整数对象池机制被激活，则尝试使用小整数对象池；
+- 如果不能使用小整数对象池，则使用通用的整数对象池。
+
+2.2.4.1 使用小整数对象池
+**********************************
 
