@@ -386,4 +386,124 @@ PyIntObject 对象时应该使用 PyIntBlock1 中的这块内存。倘若不然�
             v->ob_type->tp_free((PyObject *)v);
     }
 
+当一个 PyIntObject 对象被销毁时， 它所占用的内存并不会被释放，而是继续被 Python 保留着。\
+但是这块内存在整数对象被销毁后变为了自由内存，将来可供别的 PyIntObject 使用，所以 Python \
+应该将其链入了 free_list 所维护的自由内存链表。 int_dealloc 完成的就是着么一个简单的指针\
+维护工作。这些动作是在销毁的对象确实是一个 PyIntObject 对象时发生的。如果删掉的对象是一个\
+整数的派生类的对象，那么 int_dealloc 不做任何动作，只是简单地调用派生类型中指定的 tp_free 。
 
+在图 2-7 中相继创建和删除 PyIntObject 对象，并展示了内存中的 PyIntObject 对象以及 free_list \
+指针的变化情况。在实际 Python 行为中，创建 2，3，4 这样的整数对象，使用的实际上是 small_ints \
+这样的小整数对象池，在这里仅仅是为了展示通用整数对象池的动态变化，没有考虑实际使用的内存。
+
+.. image:: img/2-7.png
+
+不同 PyIntBlock 对象中空闲内存的互联也是在 int_dealloc 被调用时实现的（白色表示空闲内存）：
+
+.. image:: img/2-8.png
+
+当一个整数对象的引用计数变为 0 时，就会被 Python 回收，但是在 int_dealloc 中，仅仅是将\
+该整数对象的内存重新加入到自由内存链表中。也就是说，在 int_dealloc 中，永远不会向系统堆\
+交换任何内存。一旦系统堆中某块内存被 Python 申请用于整数对象，那么这块内存在 Python 结束\
+之前永远不会被释放。
+
+2.2.5 小整数对象池的初始化
++++++++++++++++++++++++++++++
+
+小整数对象池 small_ints 维护的只是 PyIntObject 的指针，完成小整数对象的创建和初始化的\
+函数是 _PyInt_Init 。
+
+.. code-block:: c 
+
+    [Objects/intobject.c]
+
+    int
+    _PyInt_Init(void)
+    {
+        PyIntObject *v;
+        int ival;
+    #if NSMALLNEGINTS + NSMALLPOSINTS > 0
+        for (ival = -NSMALLNEGINTS; ival < NSMALLPOSINTS; ival++) {
+                if (!free_list && (free_list = fill_free_list()) == NULL)
+                return 0;
+            /* PyObject_New is inlined */
+            v = free_list;
+            free_list = (PyIntObject *)v->ob_type;
+            PyObject_INIT(v, &PyInt_Type);
+            v->ob_ival = ival;
+            small_ints[ival + NSMALLNEGINTS] = v;
+        }
+    #endif
+        return 1;
+    }
+
+从小整数的创建过程中可以看到，这些小整数对象也是生存在 block_list 所维护的内存上。在 Python \
+初始化的时候， _PyInt_Init 被调用，内存被申请，小整数对象被创建。
+
+.. image:: img/2-9.png
+
+2.3 Hack PyIntObject
+=================================
+
+修改 int_print 行为，使其打印关于 block_list 和 free_list 的信息，以及小整数缓冲池的\
+信息：
+
+.. code-block:: c 
+
+    [Objects/intobject.c]
+
+    static int
+    int_print(PyIntObject *v, FILE *fp, int flags)
+        /* flags -- not used but required by interface */
+    {
+        fprintf(fp, "%ld", v->ob_ival);
+        return 0;
+    }
+
+    [修改后]
+
+    static int values[10];
+    static int refcounts[10];
+    static int int_print(PyIntObject *v, FILE *fp, int flags)
+    {
+        PyIntObject* intObjectPtr;
+        PyIntBlock *p = block_list;
+        PyIntBlock *last = NULL;
+        int count = 0;
+        int i;
+
+        while (p!= NULL)
+        {
+            ++count;
+            last = p;
+            p = p->next;
+        }
+
+        intObjectPtr = last->objects;
+        intObjectPtr += N_INTOBJECTS - 1;
+        printf(" address @%p\n", v);
+
+        for (i=0; i<10; ++i, --intObjectPtr)
+        {
+            values[i] = intObjectPtr->ob_ival;
+            refcounts[i] = intObjectPtr->ob_refcnt;
+        }
+        printf("  value : ");
+        for (i=0; i<8; ++i)
+        {
+            printf("%d\t", values[i]);
+        }
+        printf("\n");
+
+        printf("  refcnt : ");
+        for (i=0; i<8; ++i)
+        {
+            printf("%d\t", refcounts[i]);
+        }
+        printf("\n");
+
+        printf(" block_list count : %d\n", count);
+        printf(" free_list : %p\n", free_list);
+
+        return 0;
+    }
