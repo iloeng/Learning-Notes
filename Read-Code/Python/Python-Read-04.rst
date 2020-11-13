@@ -59,4 +59,8 @@ PyIntObject 对象，这点儿可以从内存地址上看清楚。
 3.1 PyStringObject 与 PyString_Type
 +++++++++++++++++++++++++++++++++++++++
 
-
+在 Python 中， PyStringObject 是对字符串对象的实现。 PyStringObject 是一个拥有可变长度内\
+存的对象。对于两个不同的 PyStringObject 对象， 其内部所需的保存字符串内容的内存空间显然是\
+不同的。同时， PyStringObject 对象是一个不变对象。当创建了一个 PyStringObject 对象之后，该\
+对象内部维护的字符串就不能在被改变了。这一特点使得 PyStringObject 对象可作为 dict 的键值，\
+但也使得一些字符串操作的效率大大降低，比如多个字符串的链接
