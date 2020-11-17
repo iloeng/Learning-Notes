@@ -186,3 +186,118 @@ PyStringObject 的 intern 机制，在后面会详细介绍，在 Python 源码�
 这个 tp_itemsize 和 ob_size 共同决定了应该额外申请的内存总大小是多少。 tp_as_number, \
 tp_as_sequence, tp_as_mapping 三个域都被设置了，表示 PyStringObject 对数值操作，序\
 列操作和映射操作都支持。
+
+3.2 创建 PyStringObject 对象
+++++++++++++++++++++++++++++++++++++++++
+
+Python 提供了两条路径，从 C 中原生的字符串创建 PyStringObject 对象。 先看一下最一般的 \
+PyString_FromString 
+
+.. code-block:: c 
+
+    [Objects/stringobject.c]
+
+    PyObject *
+    PyString_FromString(const char *str)
+    {
+        register size_t size;
+        register PyStringObject *op;
+
+        assert(str != NULL);
+        size = strlen(str);
+        if (size > PY_SSIZE_T_MAX) {
+            PyErr_SetString(PyExc_OverflowError,
+                "string is too long for a Python string");
+            return NULL;
+        }
+        if (size == 0 && (op = nullstring) != NULL) {
+    #ifdef COUNT_ALLOCS
+            null_strings++;
+    #endif
+            Py_INCREF(op);
+            return (PyObject *)op;
+        }
+        if (size == 1 && (op = characters[*str & UCHAR_MAX]) != NULL) {
+    #ifdef COUNT_ALLOCS
+            one_strings++;
+    #endif
+            Py_INCREF(op);
+            return (PyObject *)op;
+        }
+
+        /* Inline PyObject_NewVar */
+        op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
+        if (op == NULL)
+            return PyErr_NoMemory();
+        PyObject_INIT_VAR(op, &PyString_Type, size);
+        op->ob_shash = -1;
+        op->ob_sstate = SSTATE_NOT_INTERNED;
+        Py_MEMCPY(op->ob_sval, str, size+1);
+        /* share short strings */
+        if (size == 0) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            nullstring = op;
+            Py_INCREF(op);
+        } else if (size == 1) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            characters[*str & UCHAR_MAX] = op;
+            Py_INCREF(op);
+        }
+        return (PyObject *) op;
+    }
+
+    上述代码是 Python 2.5 源码，以下是书中的代码
+
+    PyObject *
+    PyString_FromString(const char *str)
+    {
+        register size_t size;
+        register PyStringObject *op;
+
+        // [1]: 判断字符串长度
+        size = strlen(str);
+        if (size > PY_SSIZE_T_MAX) {
+            return NULL;
+        }
+
+        // [2]: 处理 NULL string
+        if (size == 0 && (op = nullstring) != NULL) {
+            return (PyObject *)op;
+        }
+
+        // [3]: 处理字符
+        if (size == 1 && (op = characters[*str & UCHAR_MAX]) != NULL) {
+            return (PyObject *)op;
+        }
+
+        /* Inline PyObject_NewVar */
+        // [4]: 创建新的 PyStringObject 对象， 并初始化
+        op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
+        PyObject_INIT_VAR(op, &PyString_Type, size);
+        op->ob_shash = -1;
+        op->ob_sstate = SSTATE_NOT_INTERNED;
+        Py_MEMCPY(op->ob_sval, str, size+1);
+        /* share short strings */
+        if (size == 0) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            nullstring = op;
+            Py_INCREF(op);
+        } else if (size == 1) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            characters[*str & UCHAR_MAX] = op;
+            Py_INCREF(op);
+        }
+        return (PyObject *) op;
+    }
+
+显然，传给 PyString_FromString 的参数必须是一个指向 NUL ('\0') 结尾的字符串指针。在\
+从一个原生字符串创建 PyStringObject 时， 首先 [1] 处检查该字符数组的长度，如果长度大\
+于了 PY_SSIZE_T_MAX ， 
