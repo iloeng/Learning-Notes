@@ -300,4 +300,15 @@ PyString_FromString
 
 显然，传给 PyString_FromString 的参数必须是一个指向 NUL ('\0') 结尾的字符串指针。在\
 从一个原生字符串创建 PyStringObject 时， 首先 [1] 处检查该字符数组的长度，如果长度大\
-于了 PY_SSIZE_T_MAX ， 
+于了 PY_SSIZE_T_MAX ， Python 将不会创建对应的 PyStringObject 对象。 PY_SSIZE_T_MAX \
+是一个与平台相关的值， 在 Win32 系统下， 该值为 2 147 483 647 ， 即 2 GB 。 
+
+在 [2] 处， 检查传入的字符串是否是一个空串， 对于空串， Python 并不是每次都会创建相应\
+的 PyStringObject 。 Python 运行时有一个 PyStringObject 对象指针 nullstring 专门负责\
+处理空的字符数组。 如果第一次在一个空字符串基础上创建 PyStringObject ， 由于 nullstring \
+指针被初始化为 NULL ， 所以 Python 会为这个空字符建立一个 PyStringObject 对象， 将这个 \
+PyStringObject 对象通过 intern 机制进行共享， 然后将 nullstring 指向这个被共享的对象。\
+如果在以后 Python 检查到需要为一个空字符串创建 PyStringObject 对象， 这时 nullstring \
+已经存在了，就直接返回 nullstring 引用。
+
+
