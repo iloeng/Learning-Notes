@@ -311,4 +311,8 @@ PyStringObject 对象通过 intern 机制进行共享， 然后将 nullstring �
 如果在以后 Python 检查到需要为一个空字符串创建 PyStringObject 对象， 这时 nullstring \
 已经存在了，就直接返回 nullstring 引用。
 
-
+如果不是创建空字符串对象， 接下来的进行的动作就是申请内存， 创建 PyStringObject 对象。 \
+[4] 处申请的内存除了 PyStringObject 的内存， 还有为字符数组内的元素申请的额外内存。然后\
+将 hash 缓存值设为 -1 ， 将 intern 标志设为 SSTATE_NOT_INTERNED 。 最后将参数 str 指向\
+字符数组内的字符拷贝到 PyStringObject 所维护的空间中， 在拷贝的过程中， 将字符数组最后的 \
+'\0' 字符也拷贝了。 假如对字符数组 "Python" 建立 PyStringObject 对象
