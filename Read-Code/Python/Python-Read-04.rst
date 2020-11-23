@@ -315,4 +315,173 @@ PyStringObject 对象通过 intern 机制进行共享， 然后将 nullstring �
 [4] 处申请的内存除了 PyStringObject 的内存， 还有为字符数组内的元素申请的额外内存。然后\
 将 hash 缓存值设为 -1 ， 将 intern 标志设为 SSTATE_NOT_INTERNED 。 最后将参数 str 指向\
 字符数组内的字符拷贝到 PyStringObject 所维护的空间中， 在拷贝的过程中， 将字符数组最后的 \
-'\0' 字符也拷贝了。 假如对字符数组 "Python" 建立 PyStringObject 对象
+'\0' 字符也拷贝了。 假如对字符数组 "Python" 建立 PyStringObject 对象， 那么对象建立完成\
+后在内存中的状态如图：
+
+.. image:: img/3-1.png
+
+在 PyString_FromString 之外， 还有一条创建 PyStringObject 对象的途径 - PyString_FromStringAndSize :
+
+.. code-block:: c 
+
+    [Objects/stringobject.c]
+    
+    [书中的代码]
+
+    PyObject* PyString_FromStringAndSize(const char *str, Py_ssize_t size)
+    {
+        register PyStringObject *op;
+        // 处理 null string
+        if (size == 0 && (op = nullstring) != NULL) {
+            return (PyObject *)op;
+        }
+        // 处理字符
+        if (size == 1 && str != NULL &&
+            (op = characters[*str & UCHAR_MAX]) != NULL)
+        {
+            return (PyObject *)op;
+        }
+        // 创建新的 PyStringObject 对象， 并初始化
+        /* Inline PyObject_NewVar */
+        op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
+        if (op == NULL)
+            return PyErr_NoMemory();
+        PyObject_INIT_VAR(op, &PyString_Type, size);
+        op->ob_shash = -1;
+        op->ob_sstate = SSTATE_NOT_INTERNED;
+        if (str != NULL)
+            Py_MEMCPY(op->ob_sval, str, size);
+        op->ob_sval[size] = '\0';
+        /* share short strings */
+        if (size == 0) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            nullstring = op;
+            Py_INCREF(op);
+        } else if (size == 1 && str != NULL) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            characters[*str & UCHAR_MAX] = op;
+            Py_INCREF(op);
+        }
+        return (PyObject *) op;
+    }
+
+    [代码包中的代码]    
+
+    PyObject *
+    PyString_FromStringAndSize(const char *str, Py_ssize_t size)
+    {
+        register PyStringObject *op;
+        assert(size >= 0);
+        if (size == 0 && (op = nullstring) != NULL) {
+    #ifdef COUNT_ALLOCS
+            null_strings++;
+    #endif
+            Py_INCREF(op);
+            return (PyObject *)op;
+        }
+        if (size == 1 && str != NULL &&
+            (op = characters[*str & UCHAR_MAX]) != NULL)
+        {
+    #ifdef COUNT_ALLOCS
+            one_strings++;
+    #endif
+            Py_INCREF(op);
+            return (PyObject *)op;
+        }
+
+        /* Inline PyObject_NewVar */
+        op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
+        if (op == NULL)
+            return PyErr_NoMemory();
+        PyObject_INIT_VAR(op, &PyString_Type, size);
+        op->ob_shash = -1;
+        op->ob_sstate = SSTATE_NOT_INTERNED;
+        if (str != NULL)
+            Py_MEMCPY(op->ob_sval, str, size);
+        op->ob_sval[size] = '\0';
+        /* share short strings */
+        if (size == 0) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            nullstring = op;
+            Py_INCREF(op);
+        } else if (size == 1 && str != NULL) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            characters[*str & UCHAR_MAX] = op;
+            Py_INCREF(op);
+        }
+        return (PyObject *) op;
+    }
+
+PyString_FromStringAndSize 的操作过程和 PyString_FromString 一般无二， 只是有一点， \
+PyString_FromString 传入的参数必须是以 NUL ('\0') 结尾的字符数组的指针， 而 \
+PyString_FromStringAndSize 没有这样的要求， 因为通过传入的 size 参数就可以确定需要拷贝\
+的字符的个数。
+
+3.3 字符串对象的 intern 机制
+++++++++++++++++++++++++++++++++++++++++
+
+无论是 PyString_FromString 还是 PyString_FromStringAndSize ， 当字符数组的长度为 0 或 \
+1 时， 需要进行一个特别的动作： PyString_InternInPlace 。 就是前文中提到的 intern 机制。
+
+.. code-block:: c 
+
+    PyObject *
+    PyString_FromString(const char *str)
+    {
+        register size_t size;
+        register PyStringObject *op;
+
+        // [1]: 判断字符串长度
+        size = strlen(str);
+        if (size > PY_SSIZE_T_MAX) {
+            return NULL;
+        }
+
+        // [2]: 处理 NULL string
+        if (size == 0 && (op = nullstring) != NULL) {
+            return (PyObject *)op;
+        }
+
+        // [3]: 处理字符
+        if (size == 1 && (op = characters[*str & UCHAR_MAX]) != NULL) {
+            return (PyObject *)op;
+        }
+
+        /* Inline PyObject_NewVar */
+        // [4]: 创建新的 PyStringObject 对象， 并初始化
+        op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
+        PyObject_INIT_VAR(op, &PyString_Type, size);
+        op->ob_shash = -1;
+        op->ob_sstate = SSTATE_NOT_INTERNED;
+        Py_MEMCPY(op->ob_sval, str, size+1);
+        /* share short strings */
+        // intern (共享) 长度较短的 PyStringObject 对象
+        if (size == 0) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            nullstring = op;
+            Py_INCREF(op);
+        } else if (size == 1) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            characters[*str & UCHAR_MAX] = op;
+            Py_INCREF(op);
+        }
+        return (PyObject *) op;
+    }
+
+PyStringObject 对象的 intern 机制的目的是： 对于被 intern 之后的字符串， 比如 "Ruby" ， \
+在整个 Python 的运行期间， 系统中都只有唯一的一个与字符串 "Ruby" 对应的 PyStringObject 对象。 \
+这样当判断两个 PyStringObject 对象是否相同时， 如果他们都被 intern 了， 那么只需要简单地检\
+查它们对用的 PyObject* 是否相同即可。 这个机制既节省了空间， 又简化了对 PyStringObject 对象\
+的比较。
