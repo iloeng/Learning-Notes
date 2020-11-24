@@ -484,4 +484,83 @@ PyStringObject 对象的 intern 机制的目的是： 对于被 intern 之后的
 在整个 Python 的运行期间， 系统中都只有唯一的一个与字符串 "Ruby" 对应的 PyStringObject 对象。 \
 这样当判断两个 PyStringObject 对象是否相同时， 如果他们都被 intern 了， 那么只需要简单地检\
 查它们对用的 PyObject* 是否相同即可。 这个机制既节省了空间， 又简化了对 PyStringObject 对象\
-的比较。
+的比较。 PyString_InternInPlace负责完成对一个对象进行 intern 操作的函数。
+
+.. code-block:: c
+
+    [Objects/stringobject.c]
+
+    void
+    PyString_InternInPlace(PyObject **p)
+    {
+        register PyStringObject *s = (PyStringObject *)(*p);
+        PyObject *t;
+        if (s == NULL || !PyString_Check(s))
+            Py_FatalError("PyString_InternInPlace: strings only please!");
+        /* If it's a string subclass, we don't really know what putting
+        it in the interned dict might do. */
+        if (!PyString_CheckExact(s))
+            return;
+        if (PyString_CHECK_INTERNED(s))
+            return;
+        if (interned == NULL) {
+            interned = PyDict_New();
+            if (interned == NULL) {
+                PyErr_Clear(); /* Don't leave an exception */
+                return;
+            }
+        }
+        t = PyDict_GetItem(interned, (PyObject *)s);
+        if (t) {
+            Py_INCREF(t);
+            Py_DECREF(*p);
+            *p = t;
+            return;
+        }
+
+        if (PyDict_SetItem(interned, (PyObject *)s, (PyObject *)s) < 0) {
+            PyErr_Clear();
+            return;
+        }
+        /* The two references in interned are not counted by refcnt.
+        The string deallocator will take care of this */
+        s->ob_refcnt -= 2;
+        PyString_CHECK_INTERNED(s) = SSTATE_INTERNED_MORTAL;
+    }
+
+    [上述代码是代码包中的代码，下面的是书中的代码]
+
+    void
+    PyString_InternInPlace(PyObject **p)
+    {
+        register PyStringObject *s = (PyStringObject *)(*p);
+        PyObject *t;
+        // 对 PyStringObject 进行类型和状态检查
+        if (!PyString_CheckExact(s))
+            return;
+        if (PyString_CHECK_INTERNED(s))
+            return;
+        // 创建记录经 intern 机制处理后的 PyStringObject 的 dict
+        if (interned == NULL) {
+            interned = PyDict_New();
+        }
+        // [1] : 检查 PyStringObject 对象 S 是否存在对应的 intern 后的 PyStringObject 对象
+        t = PyDict_GetItem(interned, (PyObject *)s);
+        if (t) {
+            // 注意这里对引用计数的调整
+            Py_INCREF(t);
+            Py_DECREF(*p);
+            *p = t;
+            return;
+        }
+
+        // [2] : 在 interned 中记录检查 PyStringObject 对象 S 
+        PyDict_SetItem(interned, (PyObject *)s, (PyObject *)s);
+
+        /* The two references in interned are not counted by refcnt.
+        The string deallocator will take care of this */
+        // [3] : 注意这里对引用计数的调整
+        s->ob_refcnt -= 2;
+        // [4] : 调整 S 中的 intern 状态标志
+        PyString_CHECK_INTERNED(s) = SSTATE_INTERNED_MORTAL;
+    }
