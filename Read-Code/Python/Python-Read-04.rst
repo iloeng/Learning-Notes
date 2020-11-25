@@ -484,7 +484,7 @@ PyStringObject 对象的 intern 机制的目的是： 对于被 intern 之后的
 在整个 Python 的运行期间， 系统中都只有唯一的一个与字符串 "Ruby" 对应的 PyStringObject 对象。 \
 这样当判断两个 PyStringObject 对象是否相同时， 如果他们都被 intern 了， 那么只需要简单地检\
 查它们对用的 PyObject* 是否相同即可。 这个机制既节省了空间， 又简化了对 PyStringObject 对象\
-的比较。 PyString_InternInPlace负责完成对一个对象进行 intern 操作的函数。
+的比较。 PyString_InternInPlace 负责完成对一个对象进行 intern 操作的函数。
 
 .. code-block:: c
 
@@ -564,3 +564,25 @@ PyStringObject 对象的 intern 机制的目的是： 对于被 intern 之后的
         // [4] : 调整 S 中的 intern 状态标志
         PyString_CHECK_INTERNED(s) = SSTATE_INTERNED_MORTAL;
     }
+
+PyString_InternInPlace 首先会进行一系列的检查， 其中包括：
+
+- 检查传入的对象是否是一个 PyStringObject 对象， intern 机制只能应用在 PyStringObject 对象\
+  上， 甚至对于他的派生类对象系统都不会应用 intern 机制。
+- 检查传入的 PyStringObject 对象是否已经被 intern 机制处理过了， Python 不会对同一个 \
+  PyStringObject 对象进行一次以上的 intern 操作 。 
+
+intern 机制的核心在于 interned ， interned 在 stringobject.c 中被定义为 ： \
+`static PyObject *interned`
+
+在代码中 interned 实际指向的是 PyDict_New 创建的一个对象 。 PyDict_New 实际上创建了一\
+个 PyDictObject 对象 ， 即 Python 中常用的 dict 。 可以看作是 C++ 中的 map ， 即 \
+map<PyObject*, PyObject*> 。 C++ 我不懂，先记下笔记。
+
+interned 机制的关键就是在系统中有一个 key value 映射关系的集合 ， 集合的名称叫做 \
+interned 。 其中记录着被 intern 机制处理过的 PyStringObject 对象 。 当对一个 \
+PyStringObject 对象 a 应用 intern 机制时， 首先会在 interned 这个 dict 中检查是否有满足\
+以下条件的对象 b ： b 中维护的原生字符串与 a 相同 。 如果确实存在对象 b ， 那么指向 a 的 \
+PyObject 指针会指向 b ， 而 a 的引用计数减 1 ， 而 a 只是一个被临时创建的对象 。 如果 \
+interned 中不存在这样的 b ， 那么就在 [2] 处将 a 记录到 interned 中 。 
+
