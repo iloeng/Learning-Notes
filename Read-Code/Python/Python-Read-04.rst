@@ -586,3 +586,46 @@ PyStringObject 对象 a 应用 intern 机制时， 首先会在 interned 这个 
 PyObject 指针会指向 b ， 而 a 的引用计数减 1 ， 而 a 只是一个被临时创建的对象 。 如果 \
 interned 中不存在这样的 b ， 那么就在 [2] 处将 a 记录到 interned 中 。 
 
+下图展示了如果 interned 中存在这样的对象 b ， 再对 a 进行 intern 操作时， 原本指向 a \
+的 PyObject* 指针的变化：
+
+.. image:: img/3-2.png
+
+对于被 intern 机制处理的 PyStringObject 对象 ， Python 采用了特殊的引用计数机制 。 在\
+将一个 PyStringObject 对象 a 的 PyObject 指针作为 key 和 value 添加到 interned 中时\
+PyDictObject 对象会通过这两个指针对 a 的引用计数进行两次加 1 的操作 。 但是 Python 的设\
+计者规定在 interned 中 a 的指针不能被视为对象 a 的有效引用 ， 因为如果是有效引用的话 ， \
+那么 a 的引用计数在 Python 结束之前永远不能为 0 ， 因为 interned 中至少有两个指针引用了 \
+a ， 那么删除 a 就永远不可能了 。
+
+因此 interned 中的指针不能作为 a 的有效引用 。 这就是代码中 [3] 处会将引用计数减 2 的原\
+因 。 在 A 的引用计数在某个时刻减为 0 之后 ， 系统将会销毁对象 a ， 同时会在 interned 中\
+删除指向 a 的指针， 在 string_dealloc 代码中得到验证：
+
+.. code-block:: c 
+
+    [Objects/stringobject.c]
+
+    static void
+    string_dealloc(PyObject *op)
+    {
+        switch (PyString_CHECK_INTERNED(op)) {
+            case SSTATE_NOT_INTERNED:
+                break;
+
+            case SSTATE_INTERNED_MORTAL:
+                /* revive dead object temporarily for DelItem */
+                op->ob_refcnt = 3;
+                if (PyDict_DelItem(interned, op) != 0)
+                    Py_FatalError(
+                        "deletion of interned string failed");
+                break;
+
+            case SSTATE_INTERNED_IMMORTAL:
+                Py_FatalError("Immortal interned string died.");
+
+            default:
+                Py_FatalError("Inconsistent interned string state.");
+        }
+        op->ob_type->tp_free(op);
+    }
