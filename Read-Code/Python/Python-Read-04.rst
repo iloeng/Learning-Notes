@@ -630,4 +630,4 @@ a ， 那么删除 a 就永远不可能了 。
         op->ob_type->tp_free(op);
     }
 
-Python 在创建一个字符串的时候 ， 会首先在 interned 
+Python 在创建一个字符串的时候 ， 会首先在 interned [55 页待续]
