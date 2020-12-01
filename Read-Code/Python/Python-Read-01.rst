@@ -14,52 +14,90 @@ Python 提供的大量的模块 、 库以及用户自定义的模块 。 图右
 包括对象/类型系统 (Object/Type structure) 、 内存分配器 (Memory Allocator) 和运行\
 时状态信息 (Current State of Python) 。 
 
+.. image:: img/0-1.png
+
 运行时状态维护了解释器在执行字节码是不同的状态 (如正常状态和异常状态) 之间的切换动作 \
 ， 将之视为一个巨大而复杂的又穷状态机。 
 
+内存分配器则全权负责 Python 中创建对象时 ， 对内存的申请工作 ， 实际上就是 Python \
+运行时与 C 中 malloc 的一层接口 。
 
-Python 源代码组织
+对象/类型系统包含了 Python 中存在的各种内建对象 ， 如整数 、 list 和 dict 以及各种\
+用户自定义的类型和对象 。
+
+中间部分是 Python 的核心 -- 解释器 (interpreter) 或称为虚拟机 。 在解释器中 ， 箭\
+头的方向指示了 Python 运行过程中的数据流方向 。 其中 Scanner 对应词法分析 ， 将文件\
+输入的 Python 源代码或从命令行输入的一行行 Python 代码切分为一个个的 token ; \
+Parser 对应语法分析 ， 在 Scanner 的分析结果上进行语法分析 ， 建立抽象语法树 (AST) \
+; Complier 是根据建立的 AST 生成指令集合 -- Python 字节码 (Byte Code) ， 就像 \
+Java 编译器和 C# 编译器所做的工作 ； 最后由 Code Evaluator 执行字节码 。 因此 Code \
+Evaluator 又被称为虚拟机 。
+
+图中 ， 在解释器与右边的对象/类型系统 、 内存分配器之间的箭头表示 "使用" 关系 ； 而\
+与运行时状态之间的箭头表示 "修改" 关系 ； 即 Python 在执行的过程中会不断修改当前解释\
+器所处的状态 ， 在不同的状态之间切换 。 
+
+0.2 Python 源代码组织
 ==============================================================================
 
 Python 2.5 的代码结构如下：
 
-.. image:: img/code-structure.png
+.. image:: img/0-3-code-structure.png
 
-- **Include** : 该目录下包含了 Python 提供的所有头文件，如果用户需要自己用 \
-  C 或 C++ 来编写自定义模块拓展 Python ，那么久需要用到这里提供的文件。
+- **Include** : 该目录下包含了 Python 提供的所有头文件 ， 如果用户需要自己用 C 或 \
+  C++ 来编写自定义模块拓展 Python ， 那么久需要用到这里提供的文件 。
 
-- **Lib** : 该目录包含了 Python 自带的所有标准库， Lib 中的库都是用 Python \
-  语言编写的。
+- **Lib** : 该目录包含了 Python 自带的所有标准库 ， Lib 中的库都是用 Python 语言编\
+  写的 。
 
-- **Modules** : 该目录中包含了所有用 C 语言编写的模块，比如 ``random`` 、 \
-  ``cStringIO`` 等。 ``Modules`` 中的模块是那些对速度要求非常严格的模块，而\
-  有一些对速度没有太严格要求的模块，比如 ``os`` ，就是用 Python 编写， 而且\
-  放在 Lib 目录下。
+- **Modules** : 该目录中包含了所有用 C 语言编写的模块 ， 比如 ``random`` 、 \
+  ``cStringIO`` 等 。 ``Modules`` 中的模块是那些对速度要求非常严格的模块 ， 而有一\
+  些对速度没有太严格要求的模块 ， 比如 ``os`` ， 就是用 Python 编写 ， 而且放在 Lib \
+  目录下 。
 
-- **Parser** : 该目录中包含了 Python 解释器中的 Scanner 和 Parser 部分，即\
-  对 Python 源代码进行词法分析和语法分析的部分，。除了这些， Parser 目录下还\
-  包含了一些有用的工具，这些工具能够根据 Python 语言的语法自动生成 Python 语\
-  言的词法和语法分析器，于 YACC 非常类似。
+- **Parser** : 该目录中包含了 Python 解释器中的 Scanner 和 Parser 部分 ， 即对 \
+  Python 源代码进行词法分析和语法分析的部分，。除了这些， Parser 目录下还包含了一些\
+  有用的工具，这些工具能够根据 Python 语言的语法自动生成 Python 语言的词法和语法分\
+  析器，于 YACC 非常类似。
 
-- **Objects** : 该目录中包含了所有 Python 的内建对象，包括整数、List、Dict\
-  等。同时，该目录还包括了 Python 在运行时所需要的所有的内部使用对象的实现。
+- **Objects** : 该目录中包含了所有 Python 的内建对象 ， 包括整数 、 List 、 Dict \
+  等 。 同时 ， 该目录还包括了 Python 在运行时所需要的所有的内部使用对象的实现 。
 
-- **Python** : 该目录下包含了 Python 解释器中的 Compiler 和执行引擎部分，是\
-  Python 运行的核心所在。
+- **Python** : 该目录下包含了 Python 解释器中的 Compiler 和执行引擎部分 ， 是\
+  Python 运行的核心所在 。
 
-- **PCBuild** : 包含了 Visual Studio 2003 的工程文件，研究 Python 源代码就\
-  从这里开始（书中使用 VS2003 对 Python 进行编译）
+- **PCBuild** : 包含了 Visual Studio 2003 的工程文件 ， 研究 Python 源代码就\
+  从这里开始 （书中使用 VS2003 对 Python 进行编译） 。 
 
 - **PCBuild8** : 包含了 Visual Studio 2005 使用的工程文件
 
-编译的时候只选择 ``pythoncore`` 和 ``python`` 子工程，但是编译的时候仍然会报\
-错，缺少了一个必要文件，源码包中没有提供，需要编译 ``make_buildinfo`` 和 \
-``make_versioninfo`` 子工程生成。
+编译的时候只选择 ``pythoncore`` 和 ``python`` 子工程 ， 但是编译的时候仍然会报错 ， \
+缺少了一个必要文件 ， 源码包中没有提供 ， 需要编译 ``make_buildinfo`` 和 \
+``make_versioninfo`` 子工程生成 。
 
-编译成功后，结果都在 build 文件夹下，主要有两个： python25.dll 和 python.exe 。\
-Python 解释器的全部代码都在 python25.dll 中。对于 WinXP 系统，安装 python \
-时，python25.dll 会被拷贝到 ``C:\Windows\system32`` 下。（此结果来自与书中，后\
-续我会尝试在本地编译一次试试）
+编译成功后 ， 结果都在 build 文件夹下 ， 主要有两个 ： python25.dll 和 python.exe \
+。 Python 解释器的全部代码都在 python25.dll 中 。 对于 WinXP 系统 ， 安装 python \
+时 ， python25.dll 会被拷贝到 ``C:\Windows\system32`` 下 。 （此结果来自与书中，后\
+续我会尝试在本地编译一次试试） 。
+
+0.3 Windows 环境下编译 Python 
+==============================================================================
+
+首先配置工程 ， 如图 0-4 所示：
+
+.. image:: img/0-4.png
+
+在配置对话框中 ， 首先修改 Startup Project ， Python 2.5 中默认设置的是 _bsddb ， \
+需要改为 Python 如图 0-5 所示
+
+.. image:: img/0-5.png
+
+只剖析 Python 的 核心部分 ， 不会涉及工程中的一些标准库和其他模块 ， 所以将其从编译列\
+表中删除 。 点击配置对话框中的 "Configuration Properties" 后 ， 出现当前配置为需要编\
+译的子工程 ， 取消多余的子工程的选中状态 ， 只保留 pythoncore 和 Python 的选中状态 ， \
+如图 0-6 所示 ：
+
+.. image:: img/0-6.png
 
 修改 Python 源代码
 --------------------------
