@@ -52,8 +52,8 @@ Python 2.5 的代码结构如下：
 
 - **Modules** : 该目录中包含了所有用 C 语言编写的模块 ， 比如 ``random`` 、 \
   ``cStringIO`` 等 。 ``Modules`` 中的模块是那些对速度要求非常严格的模块 ， 而有一\
-  些对速度没有太严格要求的模块 ， 比如 ``os`` ， 就是用 Python 编写 ， 而且放在 Lib \
-  目录下 。
+  些对速度没有太严格要求的模块 ， 比如 ``os`` ， 就是用 Python 编写 ， 而且放在 \
+  Lib 目录下 。
 
 - **Parser** : 该目录中包含了 Python 解释器中的 Scanner 和 Parser 部分 ， 即对 \
   Python 源代码进行词法分析和语法分析的部分，。除了这些， Parser 目录下还包含了一些\
@@ -71,14 +71,14 @@ Python 2.5 的代码结构如下：
 
 - **PCBuild8** : 包含了 Visual Studio 2005 使用的工程文件
 
-编译的时候只选择 ``pythoncore`` 和 ``python`` 子工程 ， 但是编译的时候仍然会报错 ， \
-缺少了一个必要文件 ， 源码包中没有提供 ， 需要编译 ``make_buildinfo`` 和 \
+编译的时候只选择 ``pythoncore`` 和 ``python`` 子工程 ， 但是编译的时候仍然会报错 \
+， 缺少了一个必要文件 ， 源码包中没有提供 ， 需要编译 ``make_buildinfo`` 和 \
 ``make_versioninfo`` 子工程生成 。
 
 编译成功后 ， 结果都在 build 文件夹下 ， 主要有两个 ： python25.dll 和 python.exe \
 。 Python 解释器的全部代码都在 python25.dll 中 。 对于 WinXP 系统 ， 安装 python \
-时 ， python25.dll 会被拷贝到 ``C:\Windows\system32`` 下 。 （此结果来自与书中，后\
-续我会尝试在本地编译一次试试） 。
+时 ， python25.dll 会被拷贝到 ``C:\Windows\system32`` 下 。 （此结果来自与书中 ， \
+后续我会尝试在本地编译一次试试） 。
 
 0.3 Windows 环境下编译 Python 
 ==============================================================================
@@ -99,8 +99,35 @@ Python 2.5 的代码结构如下：
 
 .. image:: img/0-6.png
 
-修改 Python 源代码
---------------------------
+做完这些改动之后 ， 不能直接编译 ， 否则仍会失败 。 
+
+.. image:: img/0-7.png
+
+这是因为需要一个必要的文件 ， 这个文件需要通过编译 make_buildinfo 和 \
+make_versioninfo 子工程 (如图 0-8所示) 才能完成 ：
+
+.. image:: img/0-8.png
+
+编译的结果都放在 build 文件夹下 ， 主要有两个 ： python25.dll 和 Python.exe 。 实\
+际 python.exe 非常小 ， Python 解释器的全部代码都在 python25.dll 中 。 对于 WinXP \
+操作系统 ， 在安装时 ， python25.dll 会被拷贝到 C:\Windows\system32 目录下 。 
+
+0.4 Unix/Linux 环境下编译 Python
+==============================================================================
+
+- ./configure --prefix=<期望 Python 安装的目录路径>
+
+- make 
+
+- make install
+
+三个步骤执行完毕后 ， 指定的路径下会显示 Python 安装的结果 。 bin 下存放的是可执行文\
+件 ； 目录 lib 下存放的是 Python 的标准库 ； lib/python2.5/config 下存放的是 \
+libpython2.5.a ， 用 C 语言对 Python 进行拓展时需要用到这个静态库 。 
+
+
+0.5 修改 Python 源代码
+==============================================================================
 
 书中修改了一个函数的源代码，它的原始代码在 Objects/intobject.c 里面，代码如下：
 
@@ -108,7 +135,7 @@ Python 2.5 的代码结构如下：
 
     static int
     int_print(PyIntObject *v, FILE *fp, int flags)
-        /* flags -- not used but required by interface */
+    /* flags -- not used but required by interface */
     {
         fprintf(fp, "%ld", v->ob_ival);
         return 0;
