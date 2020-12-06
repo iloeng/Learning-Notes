@@ -1,3 +1,10 @@
+..
+    # with overline, for parts
+    * with overline, for chapters
+    =, for sections
+    -, for subsections
+    ^, for subsubsections
+    ", for paragraphs
 
 ##############################################################################
 Python 源码阅读系列 2
