@@ -357,4 +357,56 @@ interned 中删除指向 a 的指针 ， 在 string_dealloc 代码中得到验�
 Python 在创建一个字符串的时候 ， 会首先在 interned 中检查是否已经有改字符串对应的 \
 PyStringObject 对象了 ， 如有 ， 则不用创建新的 。 这样会节省内存空间 ， 但是 \
 Python 并不是在创建 PyStringObject 时就通过 interned 实现了节省空间的目的 。 事实\
-上
+上 ， 从 PyString_FromString 中可以看到 ， 无论如何 ， 一个合法的 PyStringObject \
+对象是会被创建的 ， 同样 ， PyString_InternInPlace 也只对 PyStringObject 起作用 \
+。 Python 始终会为字符串 s 创建 PyStringObject 对象 ， 尽管 s 中维护的原生字符数组\
+在 interned 中已经有一个与之对应的 PyStringObject 对象了 。 而 intern 机制是在 s \
+被创建后才起作用的 ， 通常 Python 在运行时创建了一个 PyStringObject 对象 temp 后 \
+， 基本上都会调用 PyString_InternInPlace 对 temp 进行处理 ， intern 机制会减少 \
+temp 的引用计数 ， temp 对象会由于引用计数减为 0 而被销毁 。 
+
+Python 提供了一个以 char* 为参数的 intern 机制相关的函数用来直接对 C 原生字符串上\
+做 intern 操作 ： 
+
+.. code-block:: c 
+
+    PyObject *
+    PyString_InternFromString(const char *cp)
+    {
+        PyObject *s = PyString_FromString(cp);
+        if (s == NULL)
+            return NULL;
+        PyString_InternInPlace(&s);
+        return s;
+    }
+
+临时对象仍然被创建出来 ， 实际上 ， 在 Python 中 ， 必须创建一个临时的 \
+PyStringObject 对象来完成 interne 操作 。 因为 PyDictObject 必须以 PyObject * 指\
+针作为键 。 
+
+实际上 ， 被 intern 机制处理后的 PyStringObject 对象分为两类 ， 一类处于 \
+SSTATE_INTERNED_IMMORTAL 状态 ， 而另一类则处于 SSTATE_INTERNED_MORTAL 状态 ， \
+这两种状态的区别在 string_dealloc 中可以清晰地看到 ， 显然 \
+SSTATE_INTERNED_IMMORTAL 状态的 PyStringObject 对象是永远不会被销毁的 ， 它将与 \
+Python 虚拟机共存 ， 即同年同月同日死 。 
+
+PyString_InternInPlace 只能创建 SSTATE_INTERNED_MORTAL 状态的 PyStringObject 对\
+象 ， 如果想创建 SSTATE_INTERNED_IMMORTAL 状态的对象 ， 必须通过另一个接口 ， 在调\
+用 PyString_InternInPlace 后 ， 强制改变 PyStringObject 的 intern 状态 。 
+
+.. code-block:: c 
+
+    void
+    PyString_InternImmortal(PyObject **p)
+    {
+        PyString_InternInPlace(p);
+        if (PyString_CHECK_INTERNED(*p) != SSTATE_INTERNED_IMMORTAL) {
+            PyString_CHECK_INTERNED(*p) = SSTATE_INTERNED_IMMORTAL;
+            Py_INCREF(*p);
+        }
+    }
+
+3.4 字符缓冲池
+==============================================================================
+
+Python 为 PyStringObject 中的一个字节的字符对于
