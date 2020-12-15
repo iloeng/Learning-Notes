@@ -409,4 +409,48 @@ PyString_InternInPlace 只能创建 SSTATE_INTERNED_MORTAL 状态的 PyStringObj
 3.4 字符缓冲池
 ==============================================================================
 
-Python 为 PyStringObject 中的一个字节的字符对于
+Python 为 PyStringObject 中的一个字节的字符对应的 PyStringObject 对象也设计了一个\
+对象池 characters :
+
+.. code-block:: c 
+
+    [Objects/stringobject.c]
+
+    static PyStringObject *characters[UCHAR_MAX + 1];
+
+UCHAR_MAX 是在系统头文件中定义的常量 ， 这是一个平台相关的常量 ， 在 Win32 平台下 ： 
+
+.. code-block:: c 
+
+    #define UCHAR_MAX    0xff   
+
+这个被定义在 C 语言的 limits.h 头文件中 。 
+
+在 Python 的整数对象体系中 ， 小整数的缓冲池是在 Python 初始化的时候被创建的 ， 而\
+字符串对象体系中的字符缓冲池则是以静态变量的形式存在 。 在 Python 初始化完成之后 ， \
+缓冲池中的所有 PyStringObject 指针都为空 。 
+
+创建一个 PyStringObject 对象时 ， 无论是通过调用 PyString_FromString 还是通过调用\
+PyString_FromStringAndSize ， 若字符串实际就一个字符 ， 则会进行如下操作 ： 
+
+.. code-block:: c 
+
+    PyObject *
+    PyString_FromStringAndSize(const char *str, Py_ssize_t size)
+    {
+        ...
+        else if (size == 1 && str != NULL) {
+            PyObject *t = (PyObject *)op;
+            PyString_InternInPlace(&t);
+            op = (PyStringObject *)t;
+            characters[*str & UCHAR_MAX] = op;
+            Py_INCREF(op);
+        }
+        return (PyObject *) op;
+    }
+
+先对所创建的字符串 (字符) 对象进行 intern 操作 ， 在将 intern 的结果缓存到字符缓冲\
+池 characters 中 。 图 3-3 演示了缓存一个字符到对应的 PyStringObject 对象的过程 。
+
+.. image:: img/3-3.png
+
