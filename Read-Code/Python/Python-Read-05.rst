@@ -454,3 +454,44 @@ PyString_FromStringAndSize ， 若字符串实际就一个字符 ， 则会进�
 
 .. image:: img/3-3.png
 
+3 条带有标号的曲线既代表指针 ， 有代表进行操作的顺序 ： 
+
+1. 创建 PyStringObject 对象 <string p> ；
+
+2. 对对象 <string p> 进行 intern 操作 ；
+
+3. 将对象 <string p> 缓存至字符串缓冲池中 。 
+
+在创建 PyStringObject 时 ， 会首先检查所要创建的是否是一个字符对象 ， 然后检查字符\
+缓冲池中是否包含这个字符的字符对象的缓冲 ， 若有直接返回这个缓冲对象即可 ：
+
+.. code-block:: c 
+
+    [Objects/stringobject.c]
+
+    PyObject *
+    PyString_FromStringAndSize(const char *str, Py_ssize_t size)
+    {
+        register PyStringObject *op;
+        ...
+        if (size == 1 && str != NULL &&
+            (op = characters[*str & UCHAR_MAX]) != NULL)
+        {
+            return (PyObject *)op;
+        }
+
+       ...
+    }
+
+3.5 PyStringObject 效率相关问题
+==============================================================================
+
+Python 的字符串连接时严重影响 Python 程序执行效率 ， Python 通过 "+" 进行字符串连\
+接的方法极其低下 ， 根源在于 Python 中的 PyStringObject 对象是一个不可变对象 。 这\
+意味着进行字符串连接时 ， 必须创建一个新的 PyStringObject 对象 。 这样如果要连接 N \
+个 PyStringObject 对象 ， 就必须进行 N - 1 次的内存申请及搬运工作 。 
+
+推荐的做法是通过利用 PyStringObject 对象的 join 操作来对存储在 list 或 tuple 中的\
+一组 PyStringObject 对象进行连接操作 ， 这样只需分配一次内存 ， 执行效率大大提高 。 
+
+未完待续 ...
