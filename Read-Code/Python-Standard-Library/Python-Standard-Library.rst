@@ -382,4 +382,51 @@ Windows 版本的 Python 安装程序通常包含整个标准库 ， 往往还�
 1.1 ``sting`` 常用字符串操作 
 ==============================================================================
 
+1.1.1 字符串常量
+------------------------------------------------------------------------------
+
+此模块中定义的常量为 ：
+
+- string.ascii_letters
+  
+  英文大小写 ASCII 字符 ， 下文所述 ascii_lowercase 和 ascii_uppercase 常量的拼\
+  连 。 该值不依赖于语言区域 。
+
+- string.ascii_lowercase
+
+  小写字母 'abcdefghijklmnopqrstuvwxyz' 。 该值不依赖于语言区域 ， 不会发生改变 。
+
+- string.ascii_uppercase
+
+  大写字母 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 。 该值不依赖于语言区域 ， 不会发生改变 。
+
+- string.digits
+  
+  数字字符串 '0123456789' 。
+
+- string.hexdigits
+
+  十六进制字符串 '0123456789abcdefABCDEF' 。
+
+- string.octdigits
+  
+  八进制字符串 '01234567' 。
+
+- string.punctuation
+  
+  由在 C 语言区域中被视为标点符号的 ASCII 字符组成的字符串 。
+
+- string.printable
+
+  由被视为可打印符号的 ASCII 字符组成的字符串 。 这是 digits ， ascii_letters ， \
+  punctuation 和 whitespace 的集合 。
+
+- string.whitespace
+  
+  由被视为空白符号的 ASCII 字符组成的字符串 。 其中包括空格 、 制表 、 换行 、 回车 \
+  、 进纸和纵向制表符 。
+
+
+1.1.2 自定义字符串格式化
+------------------------------------------------------------------------------
 
