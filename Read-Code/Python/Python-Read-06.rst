@@ -77,6 +77,8 @@ PyStringObject 对象进行连接) ：
     string_join(PyStringObject *self, PyObject *orig)
     {
         char *sep = PyString_AS_STRING(self);
+        // 假设调用 "abc".join(list) ， 那么 self 就是 "abc" 对应的 PyStringObject 
+        // 对象 ， 所以 seplen 中存储着 abc 的长度 。 
         const Py_ssize_t seplen = PyString_GET_SIZE(self);
         PyObject *res = NULL;
         char *p;
@@ -89,7 +91,8 @@ PyStringObject 对象进行连接) ：
         if (seq == NULL) {
             return NULL;
         }
-
+        
+        // 获取 list 中 PyStringObject 对象的个数， 保存在 seqlen 中
         seqlen = PySequence_Size(seq);
         if (seqlen == 0) {
             Py_DECREF(seq);
@@ -110,8 +113,10 @@ PyStringObject 对象进行连接) ：
         * need (sz), see whether any argument is absurd, and defer to
         * the Unicode join if appropriate.
         */
+        // 遍历 list 中每个字符串 ， 累加获得 连接 list 中所有字符串后的长度
         for (i = 0; i < seqlen; i++) {
             const size_t old_sz = sz;
+            // seq为python 中的 list 对象 ， 这里获取其中第 i 个字符串 。
             item = PySequence_Fast_GET_ITEM(seq, i);
             if (!PyString_Check(item)){
     #ifdef Py_USING_UNICODE
@@ -146,6 +151,7 @@ PyStringObject 对象进行连接) ：
         }
 
         /* Allocate result space. */
+        // 创建长度为 sz 的 PyStringObject 对象 
         res = PyString_FromStringAndSize((char*)NULL, sz);
         if (res == NULL) {
             Py_DECREF(seq);
@@ -153,6 +159,7 @@ PyStringObject 对象进行连接) ：
         }
 
         /* Catenate everything. */
+        // 将 list 中的字符串拷贝到新创建的 PyStringObject 对象中 
         p = PyString_AS_STRING(res);
         for (i = 0; i < seqlen; ++i) {
             size_t n;
@@ -169,3 +176,9 @@ PyStringObject 对象进行连接) ：
         Py_DECREF(seq);
         return res;
     }
+
+执行 join 操作时 ， 会先统计 list 中共有多少个 PyStringObject 对象 ， 并统计这些 \
+PyStringObject 对象所维护的字符串一共的长度 ， 然后申请内存 ， 将 list 中所有的 \
+PyStringObject 对象维护的字符串都拷贝到新开辟的内存空间中 。 这里只进行了一次内存申\
+请就完成了 N 个 PyStringObject 对象的连接操作 。 相比于 "+" 提升了效率 。
+
