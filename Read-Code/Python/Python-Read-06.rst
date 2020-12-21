@@ -182,3 +182,71 @@ PyStringObject 对象所维护的字符串一共的长度 ， 然后申请内存
 PyStringObject 对象维护的字符串都拷贝到新开辟的内存空间中 。 这里只进行了一次内存申\
 请就完成了 N 个 PyStringObject 对象的连接操作 。 相比于 "+" 提升了效率 。
 
+通过在 string_concat 和 string_join 中添加输出代码 ， 可以清晰看到两种字符串连接的\
+的区别 ：
+
+.. image:: img/3-4.png
+
+3.6 Hack PyStringObject
+==============================================================================
+
+对 PyStringObject 对象的运行时的行为进行两项观察 。 首先观察 intern 机制 ， 在 \
+Python Interactive 环境中 ， 创建一个 PyStringObject 对象后 ， 会对这个 \
+PyStringObject 对象进行 intern 操作 ， 因此期望内容相同的 PyStringObject 对象在 \
+intern 后应该是同一个对象 ， 观察结果 ：
+
+.. image:: img/3-5.png
+
+通过在 string_length 中添加打印地址和引用计数的代码 ， 可以在 Python 运行期间获得\
+每一个 PyStringObject 对象的地址及引用计数 (在 address 下一行输出的不是字符串的长\
+度信息 ， 已将其更换为引用计数信息) 。 归于一般的字符串及单个字符 ， intern 机制最终\
+会使不同的 PyStringObject* 指针指向相同的对象 。 
+
+观察进行缓冲处理的字符对象 ， 同样在 string_length 中添加代码 ， 打印出缓冲池中从 \
+a 到 e 的字符对象的引用计数信息 。 为了避免执行 len() 对引用计数的影响 ， 不会对 a \
+到 e 的字符对象调用 len 操作 ， 而是对另外的 PyStringObject 对象调用 len 操作 ： 
+
+.. code-block:: c 
+
+    static Py_ssize_t
+    string_length(PyStringObject *a)
+    {
+        return a->ob_size;
+    }
+
+上述代码是 string_length 函数的原始代码 ， 修改为如下 ：
+
+.. code-block:: c 
+
+    static void ShowCharacter()
+    {
+        char chA = 'a';
+        PyStringObject** posA = characters + (unsigned short)chA;
+        int i;
+        char value[5];
+        int refcnts[5];
+        for (i=0; i<5; ++i)
+        {
+            PyStringObject* strObj = posA[i];
+            value[i] = strObj->ob_sval[0];
+            refcnts[i] = strObj->ob_refcnt;
+        }
+        printf(" value: ");
+        for (i=0;i<5;++i)
+        {
+            printf("%c\t", value[i]);
+        }
+        printf("\nrefcnt: ");
+        for (i=0;i<5;++i)
+        {
+            printf("%d\t", refcnts[i]);
+        }
+        printf("\n");
+    }
+
+图 3-6 展示了观察的结果 ， 在创建字符对象时 ， Python 确实只使用了缓冲池里的对象 ， \
+没有创建新的对象 。 
+
+.. image:: img/3-6.png
+
+
