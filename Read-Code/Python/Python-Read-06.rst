@@ -249,4 +249,132 @@ a 到 e 的字符对象的引用计数信息 。 为了避免执行 len() 对引
 
 .. image:: img/3-6.png
 
+******************************************************************************
+第 4 章  Python 中的 List 对象
+******************************************************************************
+
+PyListObject 是 Python 提供的对列表的抽象 ， 与 STL 中的 vector 神似 。 
+
+4.1 PyListObject 对象
+==============================================================================
+
+PyListObject 对象可以有效地支持元素的插入 、 添加 、 删除等操作 ， 在 Python 的列\
+表中 ， 无一例外存放的都是 PyObject* 指针 。 因此可以这样看待 Python 中的 \
+PyListObject : vector<PyObject*> 。 
+
+PyListObject 是一个变长对象 ， 因为不同的 list 中存储的元素个数会是不同的 。 与 \
+PyStringObject 不同的是 ， PyListObject 对象支持插入删除等操作 ， 可以在运行时动态\
+调整它所维护的内存和元素 ， 是一个可变对象 。 PyListObject 定义如下 ： 
+
+.. code-block:: c 
+
+    [Include/listobject.h]
+
+    typedef struct {
+        PyObject_VAR_HEAD
+        /* Vector of pointers to list elements.  list[0] is ob_item[0], etc. */
+        PyObject **ob_item;
+        // ob_item 为指向元素列表的指针 ， 实际上 ， python 中的 list[0] 就是 
+        // ob_item[0]
+        /* ob_item contains space for 'allocated' elements.  The number
+        * currently in use is ob_size.
+        * Invariants:
+        *     0 <= ob_size <= allocated
+        *     len(list) == ob_size
+        *     ob_item == NULL implies ob_size == allocated == 0
+        * list.sort() temporarily sets allocated to -1 to detect mutations.
+        *
+        * Items must normally not be NULL, except during construction when
+        * the list is not yet visible outside the function that builds it.
+        */
+        Py_ssize_t allocated;   //书中为 int allocated;
+    } PyListObject;
+
+PyListObject 的头部是一个 PyObject_VAR_HEAD ， 随后是一个类型为 PyObject** 的 \
+ob_item ， 这个指针和紧接着的 allocated 数值正是维护元素列表 (PyObject* 列表) 的\
+关键 。 指针指向了元素列表所在的内存块的首地址 ， 而 allocated 中则维护了当前列表中\
+可容纳元素的总数 。 
+
+PyObject_VAR_HEAD 中的 ob_size 和 allocated 都与 PyListObject 对象的内存管理有\
+关 ， PyListObject 所采用的内存管理策略和 C++ 中 vector 采取的内存管理策略是一样\
+的 。 并不是存多少东西就申请对应大小的内存 ， 每次需要申请内存的时候 ， \
+PyListObject 总会申请一大块内存 ， 其大小记录在 allocated 中 ， 而其中实际被是用\
+了的内存的数量则记录在 ob_size 中 。 如一个能容纳 10 个元素的 PyListObject 对象已\
+经装入 5 个元素 ， 那么其 ob_size 为 5 ， allocated 为 10 。
+
+一个 PyListObject 对象一定存在下列关系 ：
+
+::
+
+    0 <= ob_size <= allocated
+    len(list) == ob_size
+    ob_item == NULL 意味着 ob_size == allocated == 0
+
+4.2 PyListObject 对象的创建与维护
+==============================================================================
+
+4.2.1 创建对象
+------------------------------------------------------------------------------
+
+Python 只提供了唯一的途径去创建一个列表 -- PyList_New 。 这个函数接受一个 size 参\
+数 ， 运行可以创建一个 PyListObject 对象的同时指定该列表初始的元素个数 。 仅仅指定\
+了元素的个数 ， 并没有指定元素是什么 。 看一下创建过程 。 
+
+.. code-block:: c 
+
+    [Objects/listobject.c]
+
+    PyObject *
+    PyList_New(Py_ssize_t size)
+    {
+        PyListObject *op;
+        size_t nbytes;
+
+        if (size < 0) {
+            PyErr_BadInternalCall();
+            return NULL;
+        }
+        // [1] : 内存数量计算 ， 溢出检查
+        nbytes = size * sizeof(PyObject *);
+        /* Check for overflow */
+        if (nbytes / sizeof(PyObject *) != (size_t)size)
+            return PyErr_NoMemory();
+        
+        // [2] : 为 PyListObject 对象申请空间
+        if (num_free_lists) {
+            // 缓冲池可用
+            num_free_lists--;
+            op = free_lists[num_free_lists];
+            _Py_NewReference((PyObject *)op);
+        } else {
+            // 缓冲池不可用
+            op = PyObject_GC_New(PyListObject, &PyList_Type);
+            if (op == NULL)
+                return NULL;
+        }
+
+        // [3] : 为 PyListObject 对象中维护的元素列表申请空间
+        if (size <= 0)
+            op->ob_item = NULL;
+        else {
+            op->ob_item = (PyObject **) PyMem_MALLOC(nbytes);
+            if (op->ob_item == NULL) {
+                Py_DECREF(op);
+                return PyErr_NoMemory();
+            }
+            memset(op->ob_item, 0, nbytes);
+        }
+        op->ob_size = size;
+        op->allocated = size;
+        _PyObject_GC_TRACK(op);
+        return (PyObject *) op;
+    }
+
+在 [1] 处会计算需要使用的内存总量 ， 因为 PyList_New 指定的仅仅是元素个数 ， 而不是\
+元素实际将占用的内存空间 。 在此 Python 会检查指定的元素个数是否会大到使所需内存数量\
+产生溢出的程度 ， 如果会产生溢出 ， 那么 Python 不会进行任何动作 。 
+
+接着就是 Python 对列表对象的创建动作 。 Python 中的列表对象实际上是分为两部分的 ， \
+一是 PyListObject 对象本身 ， 二是 PyListObject 对象维护的元素列表 。 这是两块分离\
+的内存 ， 它们通过 ob_item 建立联系 。 
 
