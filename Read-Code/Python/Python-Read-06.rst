@@ -381,4 +381,73 @@ Python 只提供了唯一的途径去创建一个列表 -- PyList_New 。 这个
 [2] 处创建新的 PyListObject 对象时 ， 使用了 Python 对象级缓冲池技术 。 创建 \
 PyListObject 对象时 ， 首先检查缓冲池 free_lists 中是否有可用的对象 ， 如有则直接\
 使用该可用对象 。 如果缓冲池中所有对象都不可用 ， 会通过 PyObject_GC_New 在系统堆\
-中申请内存 ， 创建新的 PyListObject 对象 。 
+中申请内存 ， 创建新的 PyListObject 对象 。 PyObject_GC_New 除了申请内存 ， 还会\
+为 Python 中的自动垃圾收集机制做准备工作 ， 在这里只需将它看做 malloc 即可 。 在 \
+Python 2.5 中 ， 默认情况小 ， free_lists 中最多会维护 80 个 PyListObject 对象 。
+
+.. code-block:: c 
+
+    /* Empty list reuse scheme to save calls to malloc and free */
+    #define MAXFREELISTS 80
+    static PyListObject *free_lists[MAXFREELISTS];
+    static int num_free_lists = 0;
+
+当 Python 创建新的 PyListObject 对象之后 ， [3] 处会立即根据调用 PyList_New 时传\
+递的 size 参数创建 PyListObject 对象所维护的元素列表 。 在创建的 PyListObject* 列\
+表中 ， 每个元素都会被初始化为 NULL 值 。 
+
+完成 PyListObject 对象及其维护的列表创建后 ， Python 会调整 PyListObject 对象 ， \
+用于维护元素列表中元素数量的 ob_size 和 allocated 变量 。 
+
+[2] 处提及的 PyListObject 对象缓冲池实际上有个奇特的地方 。 在 free_lists 中缓存的\
+只是 PyListObject* ， 那么这个缓冲池例的 PyListObject* 究竟指向什么地方 ？ 或者这\
+些 PyListObject* 指向的 PyListObject 对象是何时何地被创建的 ？
+
+4.2.2 设置元素
+------------------------------------------------------------------------------
+
+在第一个 PyListObject 创建的时候 ， 这时的 num_free_lists 是 0 ， 所以 [2] 处会绕\
+过对象缓冲池 ， 转而调用 PyObject_GC_New 在系统堆创建一个新的 PyListObject 对象 ， \
+假设创建的 PyListObject 对象是包含 6 个元素的 PyListObject ， 即通过 \
+PyList_New(6) 来创建 PyListObject 对象 ， 在 PyList_New 完成之后 ， 第一个 \
+PyListObject 对象的情形如图 4-1 ：
+
+.. image:: img/4-1.png
+
+注意 ， Python 交互环境或 .py 源文件中创建一个 list 时 ， 内存中的 PyListObject \
+对象中元素列表中的元素不可能是 NULL 。 这里只是为了演示元素列表的变化 。
+
+把一个整数对象 100 放到第 4 个位置上去 ， 即 list[3] = 100
+
+.. code-block:: c 
+
+    [Objects/listobject.c]
+
+    int
+    PyList_SetItem(register PyObject *op, register Py_ssize_t i,
+                register PyObject *newitem)
+    {
+        register PyObject *olditem;
+        register PyObject **p;
+        if (!PyList_Check(op)) {
+            Py_XDECREF(newitem);
+            PyErr_BadInternalCall();
+            return -1;
+        }
+        // [1]: 索引检查
+        if (i < 0 || i >= ((PyListObject *)op) -> ob_size) {
+            Py_XDECREF(newitem);
+            PyErr_SetString(PyExc_IndexError,
+                    "list assignment index out of range");
+            return -1;
+        }
+        // [2]: 设置元素
+        p = ((PyListObject *)op) -> ob_item + i;
+        olditem = *p;
+        *p = newitem;
+        Py_XDECREF(olditem);
+        return 0;
+    }
+
+Python 中运行 list[3] = 100 时 ， 在 Python 内部就是调用 PyList_SetItem 完成的 \
+。 首先会进行类型检查 ， 随后在 [1] 处 ， 会进行索引的有效性检查 [2]
