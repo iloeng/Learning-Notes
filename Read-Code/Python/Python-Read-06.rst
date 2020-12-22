@@ -378,3 +378,7 @@ Python 只提供了唯一的途径去创建一个列表 -- PyList_New 。 这个
 一是 PyListObject 对象本身 ， 二是 PyListObject 对象维护的元素列表 。 这是两块分离\
 的内存 ， 它们通过 ob_item 建立联系 。 
 
+[2] 处创建新的 PyListObject 对象时 ， 使用了 Python 对象级缓冲池技术 。 创建 \
+PyListObject 对象时 ， 首先检查缓冲池 free_lists 中是否有可用的对象 ， 如有则直接\
+使用该可用对象 。 如果缓冲池中所有对象都不可用 ， 会通过 PyObject_GC_New 在系统堆\
+中申请内存 ， 创建新的 PyListObject 对象 。 
