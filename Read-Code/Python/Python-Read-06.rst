@@ -450,4 +450,72 @@ PyListObject 对象的情形如图 4-1 ：
     }
 
 Python 中运行 list[3] = 100 时 ， 在 Python 内部就是调用 PyList_SetItem 完成的 \
-。 首先会进行类型检查 ， 随后在 [1] 处 ， 会进行索引的有效性检查 [2]
+。 首先会进行类型检查 ， 随后在 [1] 处 ， 会进行索引的有效性检查 。 当类型检查和索引\
+有效性检查都顺利通过后 ， [2] 处将待加入的 PyObject* 指针放到特定的位置 ， 然后调整\
+引用计数 ， 将这个位置原来存放的对象的引用计数减 1 。 olditem 很可能会是 NULL ， 比\
+如向一个新创建的 PyListObject 对象加入元素 ， 就会碰到这样的情况 ， 所以这里必须使\
+用 Py_XDECREF 。
+
+.. image:: img/4-2.png
+
+4.2.3 插入元素
+------------------------------------------------------------------------------
+
+设置元素和插入元素的动作是不同的 ， 设置元素不会导致 ob_item 指向的内存发生变化 ， \
+而插入元素的动作可能会导致 ob_item 指向的内存发生变化 。 如图它们的区别 ： 
+
+.. image:: img/4-3.png
+
+lst[3] = 100 就是上节讨论的设置元素的动作 ， 而 lst.insert(3, 99) 则是插入元素动\
+作 ， 从途中看到 ， 这个插入动作导致了元素列表的内存变化 。 \
+
+.. code-block:: c 
+
+    [Objects/listobject.c]
+
+    int
+    PyList_Insert(PyObject *op, Py_ssize_t where, PyObject *newitem)
+    {
+        // 类型检查
+        if (!PyList_Check(op)) {
+            PyErr_BadInternalCall();
+            return -1;
+        }
+        return ins1((PyListObject *)op, where, newitem);
+    }
+
+    static int
+    ins1(PyListObject *self, Py_ssize_t where, PyObject *v)
+    {
+        Py_ssize_t i, n = self->ob_size;
+        PyObject **items;
+        if (v == NULL) {
+            PyErr_BadInternalCall();
+            return -1;
+        }
+        if (n == PY_SSIZE_T_MAX) {
+            PyErr_SetString(PyExc_OverflowError,
+                "cannot add more objects to list");
+            return -1;
+        }
+        // [1]: 调整列表容量
+        if (list_resize(self, n+1) == -1)
+            return -1;
+        // [2]: 确定插入点
+        if (where < 0) {
+            where += n;
+            if (where < 0)
+                where = 0;
+        }
+        if (where > n)
+            where = n;
+        // [3]: 插入元素
+        items = self->ob_item;
+        for (i = n; --i >= where; )
+            items[i+1] = items[i];
+        Py_INCREF(v);
+        items[where] = v;
+        return 0;
+    }
+
+未完待续 ...
