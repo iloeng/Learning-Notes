@@ -92,4 +92,54 @@ lst[n] ， 那么 lst[-1] 就是 lst[n-1] 。
 值得注意的是 ， 通过与 vector 类似的内存管理机制 ， PyListObject 的 allocated 已\
 经变成 10 了 ， 而 ob_size 却只有 7 。
 
+在 Python 中 ， list 还有另一个被广泛使用的插入操作 append 。 与上面的插入操作类\
+似 ： 
+
+.. code-block:: c 
+
+    [Objects/listobject.c]
+
+    // Python 提供的 C API
+    int
+    PyList_Append(PyObject *op, PyObject *newitem)
+    {
+        if (PyList_Check(op) && (newitem != NULL))
+            return app1((PyListObject *)op, newitem);
+        PyErr_BadInternalCall();
+        return -1;
+    }
+
+    // 与 append 对对应的 C 函数
+    static PyObject *
+    listappend(PyListObject *self, PyObject *v)
+    {
+        if (app1(self, v) == 0)
+            Py_RETURN_NONE;
+        return NULL;
+    }
+
+    static int
+    app1(PyListObject *self, PyObject *v)
+    {
+        Py_ssize_t n = PyList_GET_SIZE(self);
+
+        assert (v != NULL);
+        if (n == PY_SSIZE_T_MAX) {
+            PyErr_SetString(PyExc_OverflowError,
+                "cannot add more objects to list");
+            return -1;
+        }
+
+        if (list_resize(self, n+1) == -1)
+            return -1;
+
+        Py_INCREF(v);
+        PyList_SET_ITEM(self, n, v);  // 设置操作
+        return 0;
+    }
+
+在进行 append 动作的时候 ， 添加的元素是添加在第 ob_size + 1 个位置上的 (即 \
+list[ob_size] 处) ， 而不是第 allocated 个位置上 。 
+
+.. image:: img/4-5.png
 
