@@ -301,3 +301,90 @@ list_ass_slice 实际上并不是一个专用于删除操作的函数 ， 它的
 
 图 4-7 list_ass_slice 的不同语义
 
+当执行 l[1:3] = ['a', 'b'] 时 ， Python 内部就调用了 list_ass_slice ， 而其参数\
+为 ilow=1 ， ihigh=3 ， v=['a', 'b'] 。
+
+而当 list_ass_slice 的参数 v 为 NULL 时 ， Python 会将默认的 replace 语义替换为 \
+remove 语义 ， 删除 [ilow, ihigh] 范围内的元素 ， 正是 listremove 期望的动作 。 \
+
+在 list_ass_slice 中 ， 当进行元素的删除动作时 ， 实际上时通过 memmove 简单地搬移\
+内存实现的 。 当调用 list 的 remove 操作删除 list 中的元素时 ， 一定会触发内存搬移\
+的动作 。
+
+.. image:: img/4-8.png
+
+4.3 PyListObject 对象缓冲池
+==============================================================================
+
+free_lists 中所缓冲的 PyListObject 对象是在一个 PyListObject 被销毁的过程中 。 
+
+.. code-block:: c 
+
+    static void
+    list_dealloc(PyListObject *op)
+    {
+        Py_ssize_t i;
+        PyObject_GC_UnTrack(op);
+        Py_TRASHCAN_SAFE_BEGIN(op)
+        // [1]: 销毁 PyListObject 对象维护的元素列表
+        if (op->ob_item != NULL) {
+            /* Do it backwards, for Christian Tismer.
+            There's a simple test case where somehow this reduces
+            thrashing when a *very* large list is created and
+            immediately deleted. */
+            i = op->ob_size;
+            while (--i >= 0) {
+                Py_XDECREF(op->ob_item[i]);
+            }
+            PyMem_FREE(op->ob_item);
+        }
+        // [2]: 释放 PyListObject 自身
+        if (num_free_lists < MAXFREELISTS && PyList_CheckExact(op))
+            free_lists[num_free_lists++] = op;
+        else
+            op->ob_type->tp_free((PyObject *)op);
+        Py_TRASHCAN_SAFE_END(op)
+    }
+
+在创建一个新的 list 时 ， 过程实际分离为两步 ， 首先创建 PyListObject 对象 ， 然后\
+创建 PyListObject 对象所维护的元素列表 。 相应的销毁一个 list 首先销毁 \
+PyListObject 对象维护的元素列表 ， 然后释放 PyListObject 对象自身 。 
+
+[1] 处的工作是为了 list 中的每个原始改变其引用计数 ， 然后释放内存 ； [2] 处 \
+PyListObject 对象的缓冲池出现了 。 在删除 PyListObject 自身时 ， Python 会检查 \
+free_lists ， 检查其中缓存的 PyListObject 的数量是否已经满了 。 如未满 ， 将该待删\
+除的 PyListObject 对象放到缓冲池中 ， 以备后用 。 
+
+在 Python 启动时空荡荡的缓冲池都是被本应该死去的 PyListObject 对象给填充了 ， 在创\
+建新的 PyListObject 的时候 ， Python 会优先唤醒这些已经 "死去" 的 PyListObject \
+。 需要注意的是 ， 这里缓存的仅仅是 PyListObject 对象 ， 没有这个对象曾经拥有的 \
+PyObject* 元素列表 ， 因为它们的引用计数已经减少了 ， 这些指针所指的对象不再被 \
+PyListObject 所给予的那个引用计数所束缚 。 PyListObject 如果继续维护一个指向这些指\
+针的列表 ， 就可能产生空悬指针的问题 。 所以 PyObject* 列表占用的空间必须还给系统 。 
+
+.. image:: img/4-9.png
+
+图中显示了如果删除前面创建的那个 list ， PyListObject 对象的缓冲池示意图 。 
+
+在 Python 下一次创建新的 list 时 ， 这个 PyListObject 对象将重新被唤醒 ， 重新分\
+配 PyObject* 元素列表占用的内存 ， 重新拥抱新的对象 。 
+
+4.4 Hack PyListObject 
+==============================================================================
+
+在 PyListObject 的输出操作 list_print 中 ， 添加如下代码 ， 以观察 PyListObject \
+对内存的管理 ：
+
+.. code-block:: c 
+
+    printf("\nallocated=%d, ob_size=%d\n", op->allocated, op->ob_size);
+
+观察结果如图所示 。
+
+.. image:: img/4-10.png
+
+首先创建一个包含一个元素的 list ， 这时 ob_size 和 allocated 都是 1 。 list 中用\
+有的所有内存空间都已经使用完毕 ， 下一次插入元素就一定会调整 list 的内存空间 。 
+
+在 list 末尾追加元素 2 ， 调整内存空间的动作发生了 。 allocated 变成了 5 ， 而 \
+ob_size 则变成了 2 ， 
