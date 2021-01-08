@@ -387,4 +387,18 @@ PyListObject 所给予的那个引用计数所束缚 。 PyListObject 如果继�
 有的所有内存空间都已经使用完毕 ， 下一次插入元素就一定会调整 list 的内存空间 。 
 
 在 list 末尾追加元素 2 ， 调整内存空间的动作发生了 。 allocated 变成了 5 ， 而 \
-ob_size 则变成了 2 ， 
+ob_size 则变成了 2 ，  继续在 list 末尾追加 3 、 4 、 5 ， 在追加了元素 5 之后 \
+， list 所拥有的内存空间又被使用完了 ， 下一次再追加或插入元素时 ， 内存空间调整的\
+动作又会再一次发生 。 如果在追加元素 3 之后就删除元素 2 ， 可以看到 ob_size 发生了\
+变化 ， 而 allocated 则不发生变化 ， 它始终如一地维护着当前 list 所拥有的全部内存\
+数量 。
+观察 PyListObject 对象的创建和删除对于 Python 维护的 PyListObject 对象缓冲池的影\
+响 。 
+
+.. image:: img/4-11.png
+
+为消除 Python 交互环境执行时对 PyListObject 对象缓冲池的影响 ， 通过执行 py 脚本\
+文件来观察 。 从图中可以看到 ， 当创建新的 PyListObject 对象时 ， 如果缓冲池中有可\
+用的 PyListObject 对象 ， 则会使用缓冲池中的对象 ； 而销毁一个 PyListObject 对象\
+时 ， 确实将这个对象放到缓冲池中 。 
+
