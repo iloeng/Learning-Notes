@@ -214,4 +214,40 @@ Formatter 类提供的方法有 ：
 
             return ''.join(result), auto_arg_index
 
-这个私有方法一共有 6 个参数 ， 其中 5 个必选参数 ， 一个可选参数 。 
+这个私有方法一共有 6 个参数 ， 其中 5 个必选参数 ， 一个可选参数 。 分别是 ： 
+
+- format_string : 格式化字符串
+
+- args : 待定
+
+- kwargs : 待定
+
+- used_args : 待定
+
+- recursion_depth : 递归深度
+
+- auto_arg_index : 待定
+
+进入方法内部 ， 首先判断 recursion_depth 的值 ， 如果小于 0 ， 抛出值异常 。 然后\
+创建一个空 result list 存放结果 。 接着进行 for 循环解析 format_string 格式化字符\
+串 ， 对解析结果进行拆包 。 解析格式化字符串时调用了 `parse` 函数 。 拆解之后又 4 \
+个结果 ， 分别是 ： literal_text ， field_name ， format_spec ， conversion
+
+然后判断 literal_text 值是否存在 ， 如果存在就将 literal_text 追加到 result ； 接\
+着判断 field_name 字段名是否为空 ：
+
+1. 当 field_name 为空值时 
+    1. 判断 auto_arg_index 是否为 False ， 如为 False ， 则抛出值异常
+    
+    2. 将 auto_arg_index 转换为字符串并赋值给 field_name ， 同时 auto_arg_index \
+       增加 1 
+
+2. 如果 field_name 为数字
+    1. 如果 auto_arg_index 值是正常的 ， 抛出值异常
+
+    2. 将 auto_arg_index 赋值为 False
+
+
+
+
+
