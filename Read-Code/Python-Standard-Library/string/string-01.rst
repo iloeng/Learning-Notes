@@ -233,6 +233,8 @@ Formatter 类提供的方法有 ：
 串 ， 对解析结果进行拆包 。 解析格式化字符串时调用了 `parse` 函数 。 拆解之后又 4 \
 个结果 ， 分别是 ： literal_text ， field_name ， format_spec ， conversion
 
+进入 `parse` 函数看看 ： `1.1.2.4 parse 方法`_ 
+
 然后判断 literal_text 值是否存在 ， 如果存在就将 literal_text 追加到 result ； 接\
 着判断 field_name 字段名是否为空 ：
 
@@ -247,7 +249,64 @@ Formatter 类提供的方法有 ：
 
     2. 将 auto_arg_index 赋值为 False
 
+接下来用 obj, arg_used 变量存储 `get_field` 函数的返回结果 ， 并将 arg_used 添加\
+到 used_args 参数中 ， 接着将 obj 赋值为转换字段 `convert_field` 函数的处理结果 \
+， 然后是递归处理 ， 再次执行 `_vformat` 方法 ， 其结果存储为 format_spec ， \
+auto_arg_index 。 然后对 obj 和 format_spec 变量进行格式化字段 `format_field` 方\
+法处理 ， 并将结果追加到 result 列表中 。 
+
+最终返回一个含有两个元素元组 ： 1. result 列表拼接后的字符串 ； 2. auto_arg_index 。
+
+进入 `get_field` 方法查看 ： `1.1.2.5 get_field 方法`_
+
+进入 `convert_field` 方法查看 ： `1.1.2.6 convert_field 方法`_
+
+进入 `format_field` 方法查看 ： `1.1.2.7 format_field 方法`_
 
 
+1.1.2.4 parse 方法
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+代码很简短 ： 
+
+.. code-block:: python  
+
+    class Formatter:
+
+        def parse(self, format_string):
+            return _string.formatter_parser(format_string)
+
+该函数返回了 `_string.formatter_parser` 函数执行结果 。 而 \
+`_string.formatter_parser` 函数是 string 的内置方法 ， 暂时不知道其作用 ， 先放下 \
+。
+
+1.1.2.5 get_field 方法
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+源码如下 ： 
+
+.. code-block:: python 
+
+    class Formatter:
+
+        def get_field(self, field_name, args, kwargs):
+            first, rest = _string.formatter_field_name_split(field_name)
+
+            obj = self.get_value(first, args, kwargs)
+
+            # loop through the rest of the field_name, doing
+            #  getattr or getitem as needed
+            for is_attr, i in rest:
+                if is_attr:
+                    obj = getattr(obj, i)
+                else:
+                    obj = obj[i]
+
+            return obj, first
+
+1.1.2.6 convert_field 方法
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+1.1.2.7 format_field 方法
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
