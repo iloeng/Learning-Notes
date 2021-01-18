@@ -484,6 +484,8 @@ entry 的定义如下 ：
 
 .. code-block:: c 
 
+    [Include/dictobject.h]
+
     typedef struct {
         /* Cached hash code of me_key.  Note that hash codes are C longs.
         * We have to use Py_ssize_t instead because dict_popitem() abuses
