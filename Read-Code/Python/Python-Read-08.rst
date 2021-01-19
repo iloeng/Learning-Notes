@@ -72,3 +72,21 @@ Python 源码阅读系列 8
         PyDictEntry ma_smalltable[PyDict_MINSIZE];
     };
 
+从注释中可以清楚看到 ma_fill 域中维护着从 PyDictObject 对象创建开始直到现在 ， 曾\
+经及正处于 Active 态的 entry 个数 ， 而 ma_used 则维护者当前正处于 Active 态的 \
+entry 的数量 。 
+
+在 PyDictObject 定义的最后 ， 有一个名为 ma_smalltable 的 PyDictEntry 数组 。 这\
+个数组意味着当创建一个 PyDictObject 对象时 ， 至少有 PyDict_MINSIZE 个 entry 被同\
+时创建 。 在 dictobject.h 中 ， 这个值被设定为 8 ， 这个值被认为是通过大量的实验得\
+出的最佳值 。 既不会太浪费内存空间 ， 又能很好地满足 Python 内部大量使用 \
+PyDictObject 的环境需求 ， 不需要在使用的过程中再次调用 malloc 申请内存空间 。
+
+PyDictObject 中的 ma_table 域是关联对象的关键所在 ， 这个类型为 PyDictEntry* 的变\
+量指向一片作为 PyDictEntry 集合的内存的开始位置 。 当一个 PyDictObject 对象是一个\
+比较小的 dict 时 ， 即 entry 数量少于 8 个 ， ma_table 域将指向 ma_smalltable 这\
+个与生俱来的 8 个 entry 的起始地址 。 当 PyDictObject 中 entry 数量大于 8 个时 \
+， Python 认为是一个大 dict 将会申请额外的内存空间 ， 并将 ma_table 指向这块空间 \
+。 无论何时 ， ma_table 域都不会为 NULL ， 总是有效的 。 
+
+
