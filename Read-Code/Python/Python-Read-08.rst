@@ -89,4 +89,79 @@ PyDictObject 中的 ma_table 域是关联对象的关键所在 ， 这个类型�
 ， Python 认为是一个大 dict 将会申请额外的内存空间 ， 并将 ma_table 指向这块空间 \
 。 无论何时 ， ma_table 域都不会为 NULL ， 总是有效的 。 
 
+下图分别显示了 Python 中的 "大" ， "小" 两种 dict :
+
+.. image:: img/5-3.png
+
+最后 ， PyDictObject 中的 ma_mask 实际上记录了一个 PyDictObject 对象中所拥有的 \
+entry 的数量 。 
+
+5.3 PyDictObject 的创建和维护
+==============================================================================
+
+5.3.1 PyDictObject 对象创建
+------------------------------------------------------------------------------
+
+Python 内部通过 PyDict_New 来创建一个新的 dict 对象 。 
+
+.. code-block:: c 
+
+    typedef PyDictEntry dictentry;
+    typedef PyDictObject dictobject;
+
+    #define INIT_NONZERO_DICT_SLOTS(mp) do {				\
+      (mp)->ma_table = (mp)->ma_smalltable;				\
+      (mp)->ma_mask = PyDict_MINSIZE - 1;				\
+        } while(0)
+
+    #define EMPTY_TO_MINSIZE(mp) do {					\
+      memset((mp)->ma_smalltable, 0, sizeof((mp)->ma_smalltable));	\
+      (mp)->ma_used = (mp)->ma_fill = 0;				\
+      INIT_NONZERO_DICT_SLOTS(mp);					\
+        } while(0)
+
+    PyObject *
+    PyDict_New(void)
+    {
+      register dictobject *mp;
+      //[1] : 自动创建 dummy 对象
+      if (dummy == NULL) { /* Auto-initialize dummy */
+        dummy = PyString_FromString("<dummy key>");
+        if (dummy == NULL)
+          return NULL;
+    #ifdef SHOW_CONVERSION_COUNTS
+        Py_AtExit(show_counts);
+    #endif
+      }
+      if (num_free_dicts) {
+        // [2]: 使用缓冲池
+        mp = free_dicts[--num_free_dicts];
+        assert (mp != NULL);
+        assert (mp->ob_type == &PyDict_Type);
+        _Py_NewReference((PyObject *)mp);
+        if (mp->ma_fill) {
+          EMPTY_TO_MINSIZE(mp);
+        }
+        assert (mp->ma_used == 0);
+        assert (mp->ma_table == mp->ma_smalltable);
+        assert (mp->ma_mask == PyDict_MINSIZE - 1);
+      } else {
+        // [3]: 创建 PyDictObject 对象
+        mp = PyObject_GC_New(dictobject, &PyDict_Type);
+        if (mp == NULL)
+          return NULL;
+        EMPTY_TO_MINSIZE(mp);
+      }
+      mp->ma_lookup = lookdict_string;
+    #ifdef SHOW_CONVERSION_COUNTS
+      ++created;
+    #endif
+      _PyObject_GC_TRACK(mp);
+      return (PyObject *)mp;
+    }
+
+第一次调用 PyDict_New 时 ， 在 [1] 处会创建前文中的 dummy 对象 。 它是一个 \
+PyStringObject 对象 ， 实际上用来作为一种指示标志 ， 表明该 entry 曾被使用过 ， 且\
+探测序列下一个位置的 entry 有可能是有效的 ， 从而防止探测序列中断 。 
+
 
