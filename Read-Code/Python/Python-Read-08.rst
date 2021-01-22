@@ -164,4 +164,25 @@ Python 内部通过 PyDict_New 来创建一个新的 dict 对象 。
 PyStringObject 对象 ， 实际上用来作为一种指示标志 ， 表明该 entry 曾被使用过 ， 且\
 探测序列下一个位置的 entry 有可能是有效的 ， 从而防止探测序列中断 。 
 
+从 num_free_dicts 可以看出 Python 中 dict 的实现同样适用了缓冲池 。 
+
+如果 PyDictObject 对象的缓冲池不可用 ， 那么 Python 将首先从系统堆中为新的 \
+PyDictObject 对象申请合适的内存空间 ， 然后通过两个宏完成对新生的 PyDictObject 对\
+象的初始化工作 ：
+
+- EMPTY_TO_MINSIZE : 将 ma_smalltable 清零 ， 同时设置 ma_size 和 ma_fill ， 当\
+  然在一个 PyDictObject 对象刚被创建的时候 ， 这两个变量都应该是 0 。
+
+- INIT_NONZERO_DICT_SLOTS : 将 ma_table 指向 ma_smalltable ， 并设置 ma_mask \
+  为 7 。
+
+ma_mask 的初始化值为 PyDict_MINSIZE - 1 ， 确实与一个 PyDictObject 对象中的 \
+entry 的数量有关 。 在创建过程的最后 ， 将 lookdict_string 赋给 ma_lookup 。 正\
+是 ma_lookup 指向了 PyDictObject 在 entry 集合中搜索某一特定 entry 时需要进行的动\
+作 ， 在 ma_lookup 中包含了散列函数和发生冲突时二次探测函数的具体实现 ， 它是 \
+PyDictObject 的搜索策略 。 
+
+5.3.2 PyDictObject 中的元素搜索
+------------------------------------------------------------------------------
+
 
