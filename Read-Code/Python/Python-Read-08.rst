@@ -185,4 +185,96 @@ PyDictObject 的搜索策略 。
 5.3.2 PyDictObject 中的元素搜索
 ------------------------------------------------------------------------------
 
+Python 为 PyDictObject 对象提供了两种搜索策略 ， lookdict 和 lookdict_string 。 \
+实际上这两种策略使用的是相同的算法 ， lookdict_string 只是 lookdict 的一种针对 \
+PyStringObject 对象的特殊形式 。 PyStringObject 对象作为 PyDictObject 对象中 \
+entry 的键在 Python 中很广泛 ， 所以 lookdict_string 也就成为 PyDictObject 创建\
+时默认采用的搜索策略 。 
+
+首先分析一下通用搜索策略 lookdict ， 一旦清晰地了解了通用搜索策略 ， \
+lookdict_string 也就一目了然 。 
+
+.. code-block:: c 
+
+    [Objects/dictobject.c]
+
+    static dictentry *
+    lookdict(dictobject *mp, PyObject *key, register long hash)
+    {
+      register size_t i;
+      register size_t perturb;
+      register dictentry *freeslot;
+      register size_t mask = (size_t)mp->ma_mask;
+      dictentry *ep0 = mp->ma_table;
+      register dictentry *ep;
+      register int cmp;
+      PyObject *startkey;
+      // [1]: 散列， 定位冲突探测链的第一个entry
+      i = (size_t)hash & mask;
+      ep = &ep0[i];
+
+      // [2]:
+      // 1. entry处于 Unused 态
+      // 2. entry中的key与待搜索的key匹配
+      if (ep->me_key == NULL || ep->me_key == key)
+        return ep;
+
+      // [3]: 第一个 entry 处于 Dummy 态 ， 设置 freeslot
+      if (ep->me_key == dummy)
+        freeslot = ep;
+      else {
+        // [4]： 检查 Active 态 entry 
+        if (ep->me_hash == hash) {
+          startkey = ep->me_key;
+          cmp = PyObject_RichCompareBool(startkey, key, Py_EQ);
+          if (cmp < 0)
+            return NULL;
+          if (ep0 == mp->ma_table && ep->me_key == startkey) {
+            if (cmp > 0)
+              return ep;
+          }
+          else {
+            /* The compare did major nasty stuff to the
+            * dict:  start over.
+            * XXX A clever adversary could prevent this
+            * XXX from terminating.
+            */
+            return lookdict(mp, key, hash);
+          }
+        }
+        freeslot = NULL;
+      }
+
+      /* In the loop, me_key == dummy is by far (factor of 100s) the
+        least likely outcome, so test for that last. */
+      for (perturb = hash; ; perturb >>= PERTURB_SHIFT) {
+        i = (i << 2) + i + perturb + 1;
+        ep = &ep0[i & mask];
+        if (ep->me_key == NULL)
+          return freeslot == NULL ? ep : freeslot;
+        if (ep->me_key == key)
+          return ep;
+        if (ep->me_hash == hash && ep->me_key != dummy) {
+          startkey = ep->me_key;
+          cmp = PyObject_RichCompareBool(startkey, key, Py_EQ);
+          if (cmp < 0)
+            return NULL;
+          if (ep0 == mp->ma_table && ep->me_key == startkey) {
+            if (cmp > 0)
+              return ep;
+          }
+          else {
+            /* The compare did major nasty stuff to the
+            * dict:  start over.
+            * XXX A clever adversary could prevent this
+            * XXX from terminating.
+            */
+            return lookdict(mp, key, hash);
+          }
+        }
+        else if (ep->me_key == dummy && freeslot == NULL)
+          freeslot = ep;
+      }
+    }
+
 
