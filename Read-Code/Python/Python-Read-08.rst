@@ -277,4 +277,20 @@ lookdict_string 也就一目了然 。
       }
     }
 
+这里列出的只是 Python 对冲突链上第一个 entry 所进行的动作 。 PyDictObject 中维护\
+的 entry 的数量是有限的 ， 而传入 lookdict 中的 key 的 hash 值却并不一定会在这个范\
+围内 ， 所以这就要求 lookdict 将 hash 值映射到某个 entry 上去 。 lookdict 采取的\
+策略很简单 ， 直接将 hash 值与 entry 的数量做一个与操作 ， 结果自然落到 entry 的数\
+量之下 。 [1] 处实现了这个过程 ， 由于 ma_mask 会被用来进行大量的与操作 ， 所以这个\
+与 entry 数量相关的变量被命名为 ma_mask 而不是 ma_size 。 
+
+无论是 lookdict_string 还是 lookdict 都不会返回 NULL ， 如果在 PyDictObject 中搜\
+索不到待查找的 key ， 同样会返回一个 entry ， 这个 entry 的 me_value 为 NULL 。 \
+这个 entry 指示搜索失败 ， 而且该 entry 是一个空闲的 entry ， 马上就可以被 Python \
+所使用 。 
+
+在搜索的过程中 ， [3] 处所操纵的 freeslot 是一个重要的变量 。 如果在探测链中的某个\
+位置上 ， entry 处于 Dummy 态 ， 那么如果在这个序列中搜索不成功 ， 就会返回这个处\
+于 Dummy 态的 entry 。 处于 Dummy 态的 entry 其 me_value 是为 NULL ， 所以这个返\
+回结果指示了搜索失败 ； 同时返回的 entry 也是一个可以立即\
 
