@@ -277,8 +277,8 @@ auto_arg_index 。 然后对 obj 和 format_spec 变量进行格式化字段 `fo
             return _string.formatter_parser(format_string)
 
 该函数返回了 `_string.formatter_parser` 函数执行结果 。 而 \
-`_string.formatter_parser` 函数是 string 的内置方法 ， 暂时不知道其作用 ， 先放下 \
-。
+`_string.formatter_parser` 函数是 string 的内置方法 ， 暂时不知道其作用 ， 先放\
+下 。 继续向下阅读 get_field 方法 。
 
 1.1.2.5 get_field 方法
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -304,8 +304,28 @@ auto_arg_index 。 然后对 obj 和 format_spec 变量进行格式化字段 `fo
 
             return obj, first
 
+首先其参数是 3 个 ， 分别是 field_name : 字段名称
+
 1.1.2.6 convert_field 方法
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+源码如下 ： 
+
+.. code-block:: python 
+
+    class Formatter:
+
+        def convert_field(self, value, conversion):
+            # do any conversion on the resulting object
+            if conversion is None:
+                return value
+            elif conversion == 's':
+                return str(value)
+            elif conversion == 'r':
+                return repr(value)
+            elif conversion == 'a':
+                return ascii(value)
+            raise ValueError("Unknown conversion specifier {0!s}".format(conversion))
 
 1.1.2.7 format_field 方法
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
