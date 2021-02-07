@@ -11,4 +11,4 @@
 
 ## 目录
 
-[Building a BitTorrent client from the ground up in Go](/BitTorrent-in-Go/Go-BitTorrent.rst)
+[Building a BitTorrent client from the ground up in Go](Go-Doc/BitTorrent-in-Go/Go-BitTorrent.rst)
