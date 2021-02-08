@@ -162,3 +162,103 @@ WSGI 服务器会在调用这个可调用对象时传入这两个参数 。 另�
 __call__ 方法的类实例 ， 下面我们分别借助简单的实例来了解最主要的两种实现 ： 函数和\
 类 。 
 
+使用 Python 函数或 class 实现的 WSGI 程序 ：
+
+.. code-block:: python
+
+    from wsgiref.simple_server import make_server
+
+
+    def hello(environ, start_response):
+        status = '200 OK'
+        response_headers = [('Content-type', 'text/html')]
+        start_response(status, response_headers)
+        name = environ['PATH_INFO'][1:] or 'web'
+        return [b'<h1>Hello, %s!</h1>' % name]
+
+
+    class AppClass:
+
+        def __init__(self, environ, start_response):
+            self.environ = environ
+            self.start = start_response
+
+        def __iter__(self):
+            status = '200 OK'
+            response_headers = [('Content-type', 'text/html')]
+            self.start(status, response_headers)
+            yield b'<h1>Hello, Web!</h1>'
+
+
+    # server = make_server('localhost', 5000, hello)
+    server = make_server('localhost', 5000, AppClass)
+    server.serve_forever()
+
+这里的 hello() 函数就是我们的可调用对象 ， 也就是我们的 Web 程序 。 hello() 的末尾\
+返回一行问候字符串 ， 注意这是一个列表 。 
+
+根据 WSGI 的定义 ， 请求和响应的主体应该为字节串 (bytestrings) ， 即 Python 2 中\
+的 str 类型 。 在 Python 3 中字符串默认为 unicode 类型 ， 因此需要在字符串前添加 \
+b 前缀 ， 将字符串声明为 bytes 类型 。 这里为了兼容两者 ， 统一添加了 b 前缀 。 
+
+类形式的可调用对象如代码中的 AppClass ， 注意 ， 类中实现了 __iter__ 方法 （类被迭\
+代时将调用这个方法） ， 它返回 yield 语句 。 如果想以类的实例作为 WSGI 程序 ， 那么\
+这个类必须实现 __call__ 方法 。
+
+在上面我们创建了两个简单的 WSGI 程序 ， 你应该感觉很熟悉吧 ！ 事实上 ， 这两个程序\
+的实际功能和书开始介绍的 Flask 程序 hello 完全相同 。 
+
+Flask 也是 Python Web 框架 ， 自然也要遵循 WSGI 规范 ， 所以 Flask 中也会实现类似\
+的 WSGI 程序 ， 只不过对请求和响应的处理要丰富完善得多 。 在 Flask 中 ， 这个可调用\
+对象就是我们的程序实例 app ， 我们创建 app 实例时调用的 Flask 类就是另一种可调用对\
+象形式 —— 实现了 __call__ 方法的类 ： 
+
+.. code-block:: python 
+
+    class Flask(_PackageBoundObject):
+        ...
+        def wsgi_app(self, environ, start_response):
+            with self.request_context(environ):
+            rv = self.preprocess_request()
+            if rv is None:
+                rv = self.dispatch_request()
+            response = self.make_response(rv)
+            response = self.process_response(response)
+            return response(environ, start_response)
+
+        def __call__(self, environ, start_response):
+        """Shortcut for :attr:`wsgi_app`."""
+            return self.wsgi_app(environ, start_response)
+
+这个 __call__ 方法内部调用了 wsgi_app() 方法 ， 请求进入和响应的返回就发生在这里 \
+， WSGI 服务器通过调用这个方法来传入请求数据 ， 获取返回的响应 ， 后面会详细介绍 。 
+
+程序编写好了 ， 现在需要一个 WSGI 服务器来运行它 。 作为 WSGI 服务器的实现示例 ， \
+Python 提供了一个 wsgiref 库 ， 可以在开发时使用 。 以 hello() 函数为例 ， 在函数\
+定义的下面添加上述代码 。  
+
+这里使用 make_server(host, port, application) 方法创建了一个本地服务器 ， 分别传\
+入主机地址 、 端口和可调用对象 （即 WSGI 程序） 作为参数 。 最后使用 \
+serve_forever() 方法运行它 。 WSGI 服务器启动后 ， 它会监听本地机的对应端口 （我们\
+设置的 5000） 。 当接收到请求时 ， 它会把请求报文解析为一个 environ 字典 ， 然后调\
+用 WSGI 程序提供的可调用对象 ， 传递这个字典作为参数 ， 同时传递的另一个参数是一个 \
+start_response 函数 。 目前对于 start_response 函数有些不太理解 。 
+
+在命令行使用 Python 解释器执行 hello.py ， 这会启动我们创建的 WSGI 服务器 ： 
+
+.. code-block:: bash
+
+    python hello.py
+
+然后像以前一样在浏览器中访问 http://localhost:5000 时 ， 这个 WSGI 服务器接收到这\
+个请求 ， 接着调用 hello() 函数 ， 并传递 environ 和 start_response 参数 ， 最后\
+把 hello() 函数的返回值处理为 HTTP 响应返回给客户端 。 这一系列工作完成后 ， 我们就\
+会在浏览器看到一行 "Hello，Web！" 。
+
+到此 ， 大概了解了 wsgi 的相关信息 ， 如下是我的总结 ： 
+
+- 函数式 ： 接收两个参数 ， 并返回一个 list
+- 类形式 ： 必须实现 __call__ 方法
+
+wsgi 也大致了解了一下 ， 继续阅读源代码 。 
+
