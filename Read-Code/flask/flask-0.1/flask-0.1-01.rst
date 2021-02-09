@@ -32,7 +32,11 @@ Python 2.7 环境 ， 然后激活该环境 ， 并在命令行中执行 ：
 
 .. _`requirements.txt`: /requirements.txt
 
-1.3 本地上下文
+******************************************************************************
+第 2 部分  源码阅读准备 
+******************************************************************************
+
+2.1 本地上下文
 ==============================================================================
 
 在多线程环境下 ， 要想让所有视图函数都获取请求对象 。 最直接的方法就是在调用视图函数\
@@ -133,7 +137,7 @@ current_app 、 g ， 这些对象被称为本地上下文对象 （context loca
 。 大概了解了 _request_ctx_stack ， current_app ， request ， session 和 g 的数\
 据结构 ， 那么就接着阅读源代码 。 当然有个前提是先了解一下 wsgi 。
 
-1.4 WSGI 相关信息
+2.2 WSGI 相关信息
 ==============================================================================
 
 Flask 的核心扩展 Werkzeug 是一个 WSGI 工具库 。 WSGI 指 Python Web Server \
@@ -260,5 +264,149 @@ start_response 函数 。 目前对于 start_response 函数有些不太理解 �
 - 函数式 ： 接收两个参数 ， 并返回一个 list
 - 类形式 ： 必须实现 __call__ 方法
 
-wsgi 也大致了解了一下 ， 继续阅读源代码 。 
+wsgi 也大致了解了一下 ， 继续了解 Flask 的工作流程 。
 
+2.3 Flask 工作流程
+==============================================================================
+
+2.3.1 Flask 中的请求相应循环
+------------------------------------------------------------------------------
+
+对于 Flask 的工作流程 ， 最好的了解方法是从启动程序的脚本开始 ， 跟着程序调用的脚步\
+一步步深入代码的内部 。 在本节 ， 我们会了解请求 - 响应循环在 Flask 中是如何处理的 \
+： 从程序开始运行 ， 第一个请求进入 ， 再到返回生成的响应 。 
+
+为了方便进行单步调试 ， 在这里先创建一个简单的 Flask 程序 :
+
+.. code-block:: python
+
+    from flask import Flask
+    app = Flask(__name__)
+
+    @app.route('/')
+    def hello():
+        return 'Hello, Flask!' # 在这一行设置断点
+
+不管是哪种方式启动 Flask 最后调用了 werkzeug.serving 模块中的 run_simple() 函数 \
+， 其代码如下 ：
+
+.. code-block:: python
+
+    def run_simple(hostname, port, application, use_reloader=False,
+                use_debugger=False, use_evalex=True,
+                extra_files=None, reloader_interval=1, threaded=False,
+                processes=1, request_handler=None, static_files=None,
+                passthrough_errors=False, ssl_context=None):
+        if use_debugger: # 判断是否使用调试器
+            from werkzeug.debug import DebuggedApplication
+            application = DebuggedApplication(application, use_evalex)
+        if static_files:
+            from werkzeug.wsgi import SharedDataMiddleware
+            application = SharedDataMiddleware(application, static_files)
+
+        def inner():
+            make_server(hostname, port, application, threaded,
+                        processes, request_handler,
+                        passthrough_errors, ssl_context).serve_forever()
+
+        if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+            display_hostname = hostname != '*' and hostname or 'localhost'
+            if ':' in display_hostname:
+                display_hostname = '[%s]' % display_hostname
+            _log('info', ' * Running on %s://%s:%d/', ssl_context is None
+                and 'http' or 'https', display_hostname, port)
+        if use_reloader: # 判断是否使用重载器
+            # Create and destroy a socket so that any exceptions are raised before
+            # we spawn a separate Python interpreter and lose this ability.
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            test_socket.bind((hostname, port))
+            test_socket.close()
+            run_with_reloader(inner, extra_files, reloader_interval)
+        else:
+            inner()
+
+在这里使用了两个 Werkzeug 提供的中间件 ， 如果 use_debugger 为 Ture ， 也就是开启\
+调试模式 ， 那么就使用 DebuggedApplication 中间件为程序添加调试功能 。 如果 \
+static_files 为 True ， 就使用 SharedDataMiddleware 中间件为程序添加提供 \
+（serve） 静态文件的功能 。 
+
+这个方法最终会调用 inner() 函数 ， 函数中的代码和之前创建的 WSGI 程序末尾很像 。 它\
+使用 make_server() 方法创建服务器 ， 然后调用 serve_forever() 方法运行服务器 。 \
+为了避免偏离重点 ， 中间在 Werkzeug 和其他模块的调用我们不再分析 。 我们在前面学习\
+过 WSGI 的内容 ， 当接收到请求时 ， WSGI 服务器会调用 Web 程序中提供的可调用对象 \
+， 这个对象就是我们的程序实例 app 。 现在 ， 第一个请求进入了 。 
+
+2.3.2 请求 In
+------------------------------------------------------------------------------
+
+Flask类实现了 __call__() 方法 ， 当程序实例被调用时会执行这个方法 ， 而这个方法内\
+部调用了 Flask.wsgi_app() 方法 ， 如下所示 。 
+
+.. code-block:: python 
+
+    class Flask(object):
+
+        def wsgi_app(self, environ, start_response):
+            with self.request_context(environ):
+                rv = self.preprocess_request()
+                if rv is None:
+                    rv = self.dispatch_request()
+                response = self.make_response(rv)
+                response = self.process_response(response)
+                return response(environ, start_response)
+
+        def __call__(self, environ, start_response):
+            """Shortcut for :attr:`wsgi_app`"""
+            return self.wsgi_app(environ, start_response)
+
+通过 wsgi_app() 方法接收的参数可以看出来 ， 这个 wsgi_app() 方法就是隐藏在 Flask \
+中的那个 WSGI 程序 。 这里将 WSGI 程序实现在单独的方法中 ， 而不是直接实现在 \
+__call__() 方法中 ， 主要是为了在方便附加中间件的同时保留对程序实例的引用 。 \
+
+
+
+******************************************************************************
+第 3 部分  源码阅读之测试用例
+******************************************************************************
+
+3.1 BasicFunctionality
+==============================================================================
+
+首先阅读基础功能方面的测试用例 ， 按照源码中的 Test 依次阅读 。 
+
+3.1.1 Request Dispatching
+------------------------------------------------------------------------------
+
+第一个是请求转发功能 ， 详情看测试用例代码 。 
+
+.. code-block:: python
+
+    class BasicFunctionality(unittest.TestCase):
+
+        def test_request_dispatching(self):
+            app = flask.Flask(__name__)
+
+            @app.route('/')
+            def index():
+                return flask.request.method
+            
+            @app.route('/more', methods=['GET', 'POST'])
+            def more():
+                return flask.request.method
+
+            c = app.test_client()
+            assert c.get('/').data == 'GET'
+            rv = c.post('/')
+            assert rv.status_code == 405
+            assert sorted(rv.allow) == ['GET', 'HEAD']
+            rv = c.head('/')
+            assert rv.status_code == 200
+            assert not rv.data # head truncates
+            assert c.post('/more').data == 'POST'
+            assert c.get('/more').data == 'GET'
+            rv = c.delete('/more')
+            assert rv.status_code == 405
+            assert sorted(rv.allow) == ['GET', 'HEAD', 'POST']
+
+首先初始化一个 Flask 对象 -> app ； 
