@@ -269,6 +269,9 @@ wsgi 也大致了解了一下 ， 继续了解 Flask 的工作流程 。
 2.3 Flask 工作流程
 ==============================================================================
 
+本节深入到 Flask 的源码来了解请求 、 响应 、 路由处理等功能是如何实现的 。 首先 ， \
+我们会对 Flask 应用启动流程和请求响应循环进行分析 。 
+
 2.3.1 Flask 中的请求相应循环
 ------------------------------------------------------------------------------
 
@@ -287,10 +290,20 @@ wsgi 也大致了解了一下 ， 继续了解 Flask 的工作流程 。
     def hello():
         return 'Hello, Flask!' # 在这一行设置断点
 
-不管是哪种方式启动 Flask 最后调用了 werkzeug.serving 模块中的 run_simple() 函数 \
+首先在 hello 程序的 index 视图中渲染模板这一行设置断点 ， 然后 PyCharm 中运行调试 。
+
+2.3.1.1 程序启动
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+目前有两种方法启动开发服务器 ， 一种是在命令行中使用 flask run 命令 （会调用 \
+flask.cli.run_command() 函数） ， 另一种是使用在新版本中被弃用的 \
+flask.Flask.run() 方法 。 不论是 run_command() 函数 ， 还是新版本中用于运行程序\
+的 run() 函数 ， 它们都在最后调用了 werkzeug.serving 模块中的 run_simple() 函数 \
 ， 其代码如下 ：
 
 .. code-block:: python
+
+    [werkzeug/serving.py]
 
     def run_simple(hostname, port, application, use_reloader=False,
                 use_debugger=False, use_evalex=True,
@@ -337,13 +350,15 @@ static_files 为 True ， 就使用 SharedDataMiddleware 中间件为程序添�
 过 WSGI 的内容 ， 当接收到请求时 ， WSGI 服务器会调用 Web 程序中提供的可调用对象 \
 ， 这个对象就是我们的程序实例 app 。 现在 ， 第一个请求进入了 。 
 
-2.3.2 请求 In
-------------------------------------------------------------------------------
+2.3.1.2 请求 In
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Flask类实现了 __call__() 方法 ， 当程序实例被调用时会执行这个方法 ， 而这个方法内\
 部调用了 Flask.wsgi_app() 方法 ， 如下所示 。 
 
 .. code-block:: python 
+
+    [flask.py]
 
     class Flask(object):
 
@@ -362,51 +377,163 @@ Flask类实现了 __call__() 方法 ， 当程序实例被调用时会执行这�
 
 通过 wsgi_app() 方法接收的参数可以看出来 ， 这个 wsgi_app() 方法就是隐藏在 Flask \
 中的那个 WSGI 程序 。 这里将 WSGI 程序实现在单独的方法中 ， 而不是直接实现在 \
-__call__() 方法中 ， 主要是为了在方便附加中间件的同时保留对程序实例的引用 。 \
+__call__() 方法中 ， 主要是为了在方便附加中间件的同时保留对程序实例的引用 。 WSGI \
+程序调用了 preprocess_request() 方法对请求进行预处理 （request preprocessing） \
+， 这会执行所有使用 before_request 钩子注册的函数 。 
 
+如果预处理没有结果 ， 即为空 ， 然后执行 dispatch_request ， 用于请求调度 ， 它会\
+匹配并调用对应的视图函数 ， 获取其返回值 ， 在这里赋值给rv 。 请求调度的具体细节我\
+们会在后面了解 。 最后 ， 接收视图函数返回值的 make_response 会使用这个值来生成响\
+应 。 完整的调度在 wsgi_app 中已经写明了 。
 
+2.3.1.3 响应 Out
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-******************************************************************************
-第 3 部分  源码阅读之测试用例
-******************************************************************************
+而最终的处理也是在 wsgi_app 中 ， 如下 ：
 
-3.1 BasicFunctionality
-==============================================================================
+.. code-block:: python 
 
-首先阅读基础功能方面的测试用例 ， 按照源码中的 Test 依次阅读 。 
+    def wsgi_app(self, environ, start_response):
+        with self.request_context(environ):
+            rv = self.preprocess_request()
+            if rv is None:
+                rv = self.dispatch_request()
+            response = self.make_response(rv)
+            response = self.process_response(response)
+            return response(environ, start_response)
 
-3.1.1 Request Dispatching
+在函数的最后三行 ， 使用 Flask 类中的 make_response() 方法生成响应对象 ， 然后调\
+用 process_response() 方法处理响应 。 返回作为响应的 response 后 ， 代码执行流程\
+就回到了 wsgi_app() 方法 ， 最后返回响应对象 ， WSGI 服务器接收这个响应对象 ， 并\
+把它转换成 HTTP 响应报文发送给客户端 。 就这样 ， Flask 中的请求-循环之旅结束了 。 
+
+2.3.2 路由系统
 ------------------------------------------------------------------------------
 
-第一个是请求转发功能 ， 详情看测试用例代码 。 
+2.3.2.1 注册路由
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. code-block:: python
+路由系统内部是由 Werkzeug 实现的 ， 为了更好地了解 Flask 中的相关代码 ， 需要先看一\
+下路由功能在 Werkzeug 中是如何实现的 。 下面的代码用于创建路由表 Map ， 并添加三个 \
+URL 规则 ： 
 
-    class BasicFunctionality(unittest.TestCase):
+.. code-block:: bash
 
-        def test_request_dispatching(self):
-            app = flask.Flask(__name__)
+    >>> from werkzeug.routing import Map, Rule
+    >>> m = Map()
+    >>> rule1 = Rule('/', endpoint='index')
+    >>> rule2 = Rule('/downloads/', endpoint='downloads/index')
+    >>> rule3 = Rule('/downloads/<int:id>', endpoint='downloads/show')
+    >>> m
+    Map([[]])
+    >>> m.add(rule1)
+    >>> m.add(rule2)
+    >>> m.add(rule3)
+    >>> m
+    Map([[<Rule '/' -> index>,
+    <Rule '/downloads/' -> downloads/index>,
+    <Rule '/downloads/<id>' -> downloads/show>]])
+    >>>
 
-            @app.route('/')
-            def index():
-                return flask.request.method
-            
-            @app.route('/more', methods=['GET', 'POST'])
-            def more():
-                return flask.request.method
+在 Flask 中 ， 我们使用 route() 装饰器来将试图函数注册为路由 ： 
 
-            c = app.test_client()
-            assert c.get('/').data == 'GET'
-            rv = c.post('/')
-            assert rv.status_code == 405
-            assert sorted(rv.allow) == ['GET', 'HEAD']
-            rv = c.head('/')
-            assert rv.status_code == 200
-            assert not rv.data # head truncates
-            assert c.post('/more').data == 'POST'
-            assert c.get('/more').data == 'GET'
-            rv = c.delete('/more')
-            assert rv.status_code == 405
-            assert sorted(rv.allow) == ['GET', 'HEAD', 'POST']
+.. code-block:: python  
 
-首先初始化一个 Flask 对象 -> app ； 
+    @app.route('/')
+    def hello():
+        return 'Hello, Flask!'
+
+Flask.route() 是 Flask 类的类方法 ， 如代码清单所示 。 
+
+.. code-block:: python  
+
+    [flask.py]
+
+    class Flask(object):
+
+        def route(self, rule, **options):
+            def decorator(f):
+                self.add_url_rule(rule, f.__name__, **options)
+                self.view_functions[f.__name__] = f
+                return f
+            return decorator
+
+可以看到 route 装饰器的内部调用了 add_url_rule() 来添加 URL 规则 ， 所以注册路由\
+也可以直接使用 add_url_rule 实现 （0.2 版本及之后） 。 add_url_rule() 方法如代码\
+清单所示 ： 
+
+.. code-block:: python  
+
+    [flask.py]
+
+    class Flask(object):
+
+        def add_url_rule(self, rule, endpoint, **options):
+            options['endpoint'] = endpoint
+            options.setdefault('methods', ('GET',))
+            self.url_map.add(Rule(rule, **options))
+
+这个方法的重点是 self.url_map.add(Rule(rule, **options)) ， 这里引入了 url_map \
+。 而在 route 函数中则引入了 view_functions 对象 。 
+
+url_map 是 Werkzeug 的 Map 类实例 （werkzeug.routing.Map） 。 它存储了 URL 规则\
+和相关配置 ， 这里的 rule 是 Werkzeug 提供的 Rule 实例 (werkzeug.routing.Rule) \
+， 其中保存了端点和 URL 规则的映射关系 。
+
+而 view_function 则是 Flask 类中定义的一个字典 ， 它存储了端点和视图函数的映射关\
+系 。 看到这里你大概已经发现端点是如何作为中间人连接起 URL 规则和视图函数的 。 如果\
+回过头看本节开始提供的 Werkzeug 中的路由注册代码 ， 你会发现 add_url_rule() 方法中\
+的这些代码做了同样的事情 ： 
+
+.. code-block:: python  
+
+    [flask.py]
+    self.url_map.add(Rule(rule, **options))
+
+2.3.2.2 URL 匹配
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+在上面的 Werkzeug 路由注册代码示例中 ， 我们创建了路由表 m ， 并使用 add() 方法添\
+加了三个路由规则 。 现在 ， 来看看如何在 Werkzeug 中进行 URL 匹配 ， URL 匹配的示\
+例如下所示 ： 
+
+.. code-block:: bash
+
+    >>> from werkzeug.routing import Map, Rule
+    >>> m = Map()
+    >>> rule1 = Rule('/', endpoint='index')
+    >>> rule2 = Rule('/downloads/', endpoint='downloads/index')
+    >>> rule3 = Rule('/downloads/<int:id>', endpoint='downloads/show')
+    >>> m
+    Map([[]])
+    >>> m.add(rule1)
+    >>> m.add(rule2)
+    >>> m.add(rule3)
+    >>> m
+    Map([[<Rule '/' -> index>,
+    <Rule '/downloads/' -> downloads/index>,
+    <Rule '/downloads/<id>' -> downloads/show>]])
+    >>> urls = m.bind('example.com')
+    >>> urls.match('/', 'GET')
+    ('index', {})
+    >>> urls.match('/downloads/42')
+    ('downloads/show', {'id': 42})
+    >>> urls.match('/downloads')
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    File "C:\Anaconda3\envs\python27\lib\site-packages\werkzeug\routing.py", line 1261, in match
+        url_quote(path_info.lstrip('/'), self.map.charset)
+    werkzeug.routing.RequestRedirect: 301: Moved Permanently
+    >>> urls.match('/missing')
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    File "C:\Anaconda3\envs\python27\lib\site-packages\werkzeug\routing.py", line 1302, in match
+        raise NotFound()
+    werkzeug.exceptions.NotFound: 404: Not Found
+    >>>
+
+未完待续 ...
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`下一篇`: flask-0.1-02.rst

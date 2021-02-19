@@ -43,7 +43,7 @@ Flask Read:
         ☐ wsgi_app
         ☐ request_context
         ☐ test_request_context
-        ☐ __call__
+        ✔ __call__ @done(21-02-19 15:10)
     
     ☐ _request_ctx_stack
     ☐ current_app
