@@ -303,6 +303,15 @@ flask.Flask.run() 方法 。 不论是 run_command() 函数 ， 还是新版本�
 
 .. code-block:: python
 
+    class Flask(object):
+        def run(self, host='localhost', port=5000, **options):
+            from werkzeug import run_simple
+            if 'debug' in options:
+                self.debug = options.pop('debug')
+            options.setdefault('use_reloader', self.debug)
+            options.setdefault('use_debugger', self.debug)
+            return run_simple(host, port, self, **options)    # run_simple
+
     [werkzeug/serving.py]
 
     def run_simple(hostname, port, application, use_reloader=False,
@@ -338,6 +347,11 @@ flask.Flask.run() 方法 。 不论是 run_command() 函数 ， 还是新版本�
             run_with_reloader(inner, extra_files, reloader_interval)
         else:
             inner()
+
+run() 函数最后一行是 ``return run_simple(host, port, self, **options)`` ， 而 \
+run_simple() 函数的第三个参数是 application ， 实际使用的时候是 self ， 指的是 \
+Flask 对象本身 ， 因此会调用当前对象的 __call__() 方法进行请求的处理 ， 这时就会运\
+行 wsgi_app 。 
 
 在这里使用了两个 Werkzeug 提供的中间件 ， 如果 use_debugger 为 Ture ， 也就是开启\
 调试模式 ， 那么就使用 DebuggedApplication 中间件为程序添加调试功能 。 如果 \
@@ -405,7 +419,7 @@ __call__() 方法中 ， 主要是为了在方便附加中间件的同时保留�
 在函数的最后三行 ， 使用 Flask 类中的 make_response() 方法生成响应对象 ， 然后调\
 用 process_response() 方法处理响应 。 返回作为响应的 response 后 ， 代码执行流程\
 就回到了 wsgi_app() 方法 ， 最后返回响应对象 ， WSGI 服务器接收这个响应对象 ， 并\
-把它转换成 HTTP 响应报文发送给客户端 。 就这样 ， Flask 中的请求-循环之旅结束了 。 
+把它转换成 HTTP 响应报文发送给客户端 。 就这样 ， Flask 中的请求 - 循环之旅结束了 。 
 
 2.3.2 路由系统
 ------------------------------------------------------------------------------
@@ -473,8 +487,8 @@ Flask.route() 是 Flask 类的类方法 ， 如代码清单所示 。
             options.setdefault('methods', ('GET',))
             self.url_map.add(Rule(rule, **options))
 
-这个方法的重点是 self.url_map.add(Rule(rule, **options)) ， 这里引入了 url_map \
-。 而在 route 函数中则引入了 view_functions 对象 。 
+这个方法的重点是 ``self.url_map.add(Rule(rule, **options))`` ， 这里引入了 \
+url_map 。 而在 route 函数中则引入了 view_functions 对象 。 
 
 url_map 是 Werkzeug 的 Map 类实例 （werkzeug.routing.Map） 。 它存储了 URL 规则\
 和相关配置 ， 这里的 rule 是 Werkzeug 提供的 Rule 实例 (werkzeug.routing.Rule) \
@@ -489,48 +503,6 @@ url_map 是 Werkzeug 的 Map 类实例 （werkzeug.routing.Map） 。 它存储�
 
     [flask.py]
     self.url_map.add(Rule(rule, **options))
-
-2.3.2.2 URL 匹配
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-在上面的 Werkzeug 路由注册代码示例中 ， 我们创建了路由表 m ， 并使用 add() 方法添\
-加了三个路由规则 。 现在 ， 来看看如何在 Werkzeug 中进行 URL 匹配 ， URL 匹配的示\
-例如下所示 ： 
-
-.. code-block:: bash
-
-    >>> from werkzeug.routing import Map, Rule
-    >>> m = Map()
-    >>> rule1 = Rule('/', endpoint='index')
-    >>> rule2 = Rule('/downloads/', endpoint='downloads/index')
-    >>> rule3 = Rule('/downloads/<int:id>', endpoint='downloads/show')
-    >>> m
-    Map([[]])
-    >>> m.add(rule1)
-    >>> m.add(rule2)
-    >>> m.add(rule3)
-    >>> m
-    Map([[<Rule '/' -> index>,
-    <Rule '/downloads/' -> downloads/index>,
-    <Rule '/downloads/<id>' -> downloads/show>]])
-    >>> urls = m.bind('example.com')
-    >>> urls.match('/', 'GET')
-    ('index', {})
-    >>> urls.match('/downloads/42')
-    ('downloads/show', {'id': 42})
-    >>> urls.match('/downloads')
-    Traceback (most recent call last):
-    File "<stdin>", line 1, in <module>
-    File "C:\Anaconda3\envs\python27\lib\site-packages\werkzeug\routing.py", line 1261, in match
-        url_quote(path_info.lstrip('/'), self.map.charset)
-    werkzeug.routing.RequestRedirect: 301: Moved Permanently
-    >>> urls.match('/missing')
-    Traceback (most recent call last):
-    File "<stdin>", line 1, in <module>
-    File "C:\Anaconda3\envs\python27\lib\site-packages\werkzeug\routing.py", line 1302, in match
-        raise NotFound()
-    werkzeug.exceptions.NotFound: 404: Not Found
-    >>>
 
 未完待续 ...
 
