@@ -30,7 +30,7 @@ Python 2.7 环境 ， 然后激活该环境 ， 并在命令行中执行 ：
 
 这个 `requirements.txt`_ 文件中是 flask 0.1 版本依赖的两个模块 。 
 
-.. _`requirements.txt`: /requirements.txt
+.. _`requirements.txt`: requirements.txt
 
 ******************************************************************************
 第 2 部分  源码阅读准备 
