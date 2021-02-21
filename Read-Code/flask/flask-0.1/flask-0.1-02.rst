@@ -353,49 +353,157 @@ _request_ctx_stack 中 ， 然后在执行处理结束的时候 ， 执行 __exi
 2.3.3.1 本地线程与 Local 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+如果每次只能发送一封电子邮件 （单线程） ， 那么在发送大量邮件时会花费很多时间 ， \
+这时就需要使用多线程技术 。 处理 HTTP 请求的服务器也是这样 ， 当我们的程序需要面对\
+大量用户同时发起的访问请求时 ， 我们显然不能一个个地处理 。 这时就需要使用多线程技\
+术 ， Werkzeug 提供的开发服务器默认会开启多线程支持 。 
 
+在处理请求时使用多线程后 ， 我们会面临一个问题 。 当我们直接导入 request 对象并在\
+视图函数中使用时 ， 如何确保这时的 request 对象包含的请求信息就是我们需要的那一\
+个 ？ 比如 A 用户和 B 用户在同一时间访问 hello 视图 ， 这时服务器分配了两个线程\
+来处理这两个请求 ， 如何确保每个线程内的 request 对象都是各自对应 、 互不干扰的 \
+？ 
 
-******************************************************************************
-第 3 部分  源码阅读之测试用例
-******************************************************************************
+解决办法就是引入本地线程 （Thread Local） 的概念 ， 在保存数据的同时记录下对应的\
+线程 ID ， 获取数据时根据所在线程的 ID 即可获取到对应的数据 。 就像是超市里的存包\
+柜 ， 每个柜子都有一个号码 ， 每个号码对应一份物品 。 
 
-3.1 BasicFunctionality
-==============================================================================
-
-首先阅读基础功能方面的测试用例 ， 按照源码中的 Test 依次阅读 。 
-
-3.1.1 Request Dispatching
-------------------------------------------------------------------------------
-
-第一个是请求转发功能 ， 详情看测试用例代码 。 
+Flask 中的本地线程使用 Werkzeug 提供的 Local 类实现 ， 如代码清单 : 
 
 .. code-block:: python
 
-    class BasicFunctionality(unittest.TestCase):
+    [wekzeug/local.py]
 
-        def test_request_dispatching(self):
-            app = flask.Flask(__name__)
+    try:
+        from greenlet import getcurrent as get_current_greenlet
+    except ImportError: # pragma: no cover
+        try:
+            from py.magic import greenlet
+            get_current_greenlet = greenlet.getcurrent
+            del greenlet
+        except:
+            # catch all, py.* fails with so many different errors.
+            get_current_greenlet = int
 
-            @app.route('/')
-            def index():
-                return flask.request.method
-            
-            @app.route('/more', methods=['GET', 'POST'])
-            def more():
-                return flask.request.method
+    class Local(object):
+        __slots__ = ('__storage__', '__lock__')
 
-            c = app.test_client()
-            assert c.get('/').data == 'GET'
-            rv = c.post('/')
-            assert rv.status_code == 405
-            assert sorted(rv.allow) == ['GET', 'HEAD']
-            rv = c.head('/')
-            assert rv.status_code == 200
-            assert not rv.data # head truncates
-            assert c.post('/more').data == 'POST'
-            assert c.get('/more').data == 'GET'
-            rv = c.delete('/more')
-            assert rv.status_code == 405
-            assert sorted(rv.allow) == ['GET', 'HEAD', 'POST']
+        def __init__(self):
+            object.__setattr__(self, '__storage__', {})
+            object.__setattr__(self, '__lock__', allocate_lock())
 
-首先初始化一个 Flask 对象 -> app ； 
+        def __iter__(self):
+            return self.__storage__.iteritems()
+
+        def __call__(self, proxy):
+            """Create a proxy for a name."""
+            return LocalProxy(self, proxy)
+
+        def __release_local__(self):
+            self.__storage__.pop(get_ident(), None)
+
+        def __getattr__(self, name):
+            self.__lock__.acquire()
+            try:
+                try:
+                    return self.__storage__[get_ident()][name]
+                except KeyError:
+                    raise AttributeError(name)
+            finally:
+                self.__lock__.release()
+
+        def __setattr__(self, name, value):
+            self.__lock__.acquire()
+            try:
+                ident = get_ident()
+                storage = self.__storage__
+                if ident in storage:
+                    storage[ident][name] = value
+                else:
+                    storage[ident] = {name: value}
+            finally:
+                self.__lock__.release()
+
+        def __delattr__(self, name):
+            self.__lock__.acquire()
+            try:
+                try:
+                    del self.__storage__[get_ident()][name]
+                except KeyError:
+                    raise AttributeError(name)
+            finally:
+                self.__lock__.release()
+
+Local 中构造函数定义了两个属性 ， 分别是 __storage__ 属性和 __ident_func__ 属\
+性 。 __storage__ 是一个嵌套的字典 ， 外层的字典使用线程 ID 作为键来匹配内部的字\
+典 ， 内部的字典的值即真实对象 。 它使用 \
+self.__storage__[self.__ident_func__()][name] 来获取数据 ， 一个典型的 Local \
+实例中的 __storage__ 属性可能会是这样 ： 
+
+.. code-block::
+
+    { 线程ID: { 名称: 实际数据}}
+
+在存储数据时也会存入对应的线程 ID 。 这里的线程 ID 使用 __ident_func__ 属性定义\
+的 get_ident() 方法获取 。 这就是为什么全局使用的上下文对象不会在多个线程中产生混\
+乱 。 
+
+这里会优先使用 Greenlet 提供的协程 ID ， 如果 Greenlet 不可用再使用 thread 模块\
+获取线程 ID 。 类中定义了一些魔法方法来改变默认行为 。 比如 ， 当类实例被调用时会\
+创建一个 LocalProxy 对象 ， 我们在后面会详细了解 。 除此之外 ， 类中还定义了用来\
+释放线程/协程的 __release_local__() 方法 ， 它会清空当前线程/协程的数据 。 
+
+在 Python 类中 ， 前后双下划线的方法常被称为魔法方法 （Magic Methods） 。 它们是 \
+Python内置的特殊方法 ， 我们可以通过重写这些方法来改变类的行为 。 比如 ， 我们熟悉\
+的 __init__() 方法 （构造函数） 会在类被实例化时调用 ， 类中的 __repr__() 方法会\
+在类实例被打印时调用 。 Local 类中定义的 __getattr__() 、 __setattr__() 、 \
+__delattr__() 方法分别会在类属性被访问 、 设置 、 删除时调用 ； __iter__() 会在\
+类实例被迭代时调用 ； __call__() 会在类实例被调用时调用 。 完整的列表可以在 \
+Python 文档 （https://docs.python.org/3/reference/datamodel.html） 看到 。 
+
+2.3.3.2 堆栈与 LocalStack 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+堆栈或栈是一种常见的数据结构 ， 它的主要特点就是后进先出 （LIFO，Last In First \
+Out） ， 指针在栈顶 （top） 位置 ， 如图 16-9 所示 。 堆栈涉及的主要操作有 push \
+（推入） 、 pop （取出） 和 peek （获取栈顶条目） 。 其他附加的操作还有获取条目数\
+量 ， 判断堆栈是否为空等 。 使用 Python 列表 （list） 实现的一个典型的堆栈结构如\
+代码清单所示 。 
+
+.. image:: img/2-3.png
+
+.. code-block:: python 
+
+    [stack.py]
+
+    class Stack:
+
+        def __init__(self):
+            self.items = []
+
+        def push(self, item): # 推入条目
+            self.items.append(item)
+
+        def pop(self): # 移除并返回栈顶条目
+            if self.is_empty:
+                return None
+            return self.items.pop()
+
+        @property
+        def is_empty(self): # 判断是否为空
+            return self.items == []
+
+        @property
+        def top(self): # 获取栈顶条目
+            if self.is_empty:
+                return None
+            return self.items[-1]
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: flask-0.1-01.rst
+.. _`下一篇`: flask-0.1-03.rst

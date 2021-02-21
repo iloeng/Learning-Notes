@@ -35,8 +35,8 @@ Flask Read:
         ☐ before_request
         ☐ after_request
         ☐ context_processor
-        ☐ match_request
-        ☐ dispatch_request
+        ✔ match_request @done(21-02-21 11:31)
+        ✔ dispatch_request @done(21-02-21 11:31)
         ☐ make_response
         ☐ preprocess_request
         ☐ process_response
