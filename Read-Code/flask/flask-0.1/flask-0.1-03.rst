@@ -71,7 +71,7 @@ Flask 中的上下文对象正是存储在这一类型的栈结构中 ， flask 
 RequestContext 实例 ， 导入的操作相当于获取堆栈的栈顶 （top） ， 它会返回栈顶的对\
 象 （peek操作） ， 但并不删除它 。 
 
-这两个堆栈对象使用 Werkzeug 提供的 LocalStack 类创建 ， 如代码清单所示 。 
+这个堆栈对象使用 Werkzeug 提供的 LocalStack 类创建 ， 如代码清单所示 。 
 
 .. code-block:: python 
 
@@ -392,7 +392,7 @@ _RequestContext 类的定义如代码清单所示 。
 构造函数中创建了 request 和 session 属性 ， request 对象使用 \
 app.request_class(environ) 创建 ， 传入了包含请求信息的 environ 字典 。 而 \
 session 在构造函数中只是 None ， 它会在 push() 方法中被调用 ， 即在请求上下文被\
-推入请求上下文堆栈时创建 。 
+推入请求上下文堆栈时创建 。  need 修改
 
 和我们前面介绍的栈结构相似 ， push() 方法用于把请求上下文对象推入请求上下文堆栈 \
 (_request_ctx_stack) ， 而 pop() 方法用来移出堆栈 。
