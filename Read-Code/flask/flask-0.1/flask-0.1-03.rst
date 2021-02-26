@@ -355,10 +355,10 @@ LocalProxy 类的构造函数设置了一个 _LocalProxy__local 属性 ， 而�
 2.3.3.4 请求上下文
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-在 Flask 中 ， 请求上下文由 _RequestContext 类表示 。 当请求进入时 ， 被作为 WSGI \
-程序调用的 Flask 类实例 （即我们的程序实例 app） 会在 wsgi_app() 方法中调用 \
-Flask.request_context() 方法 。 这个方法会实例化 _RequestContext 类作为请求上下文\
-对象 ， 接着 wsgi_app() 调用它的 push() 方法来将它推入请求上下文堆栈 。 \
+在 Flask 中 ， 请求上下文由 _RequestContext 类表示 。 当请求进入时 ， 被作为 \
+WSGI 程序调用的 Flask 类实例 （即我们的程序实例 app） 会在 wsgi_app() 方法中调用 \
+Flask.request_context() 方法 。 这个方法会实例化 _RequestContext 类作为请求上下\
+文对象 ， 接着 wsgi_app() 调用它的 push() 方法来将它推入请求上下文堆栈 。 \
 _RequestContext 类的定义如代码清单所示 。 
 
 .. code-block:: python 
@@ -388,12 +388,31 @@ _RequestContext 类的定义如代码清单所示 。
             if tb is None or not self.app.debug:
                 _request_ctx_stack.pop()
 
-**以下 need 修改**
-
-构造函数中创建了 request 和 session 属性 ， request 对象使用 \
+构造函数 __init 中创建了 request 和 session 属性 ， request 对象使用 \
 app.request_class(environ) 创建 ， 传入了包含请求信息的 environ 字典 。 而 \
-session 在构造函数中只是 None ， 它会在 push() 方法中被调用 ， 即在请求上下文被\
+session 在构造函数中是 app.open_session(self.request) 。
+
+.. code-block:: python 
+
+    class Flask(object):
+        def open_session(self, request):
+            """Creates or opens a new session.  Default implementation stores all
+            session data in a signed cookie.  This requires that the
+            :attr:`secret_key` is set.
+
+            :param request: an instance of :attr:`request_class`.
+            """
+            key = self.secret_key
+            if key is not None:
+                return SecureCookie.load_cookie(request, self.session_cookie_name,
+                                                secret_key=key)
+
+当设置 secret_key 后 ， 
+
+它会在 push() 方法中被调用 ， 即在请求上下文被\
 推入请求上下文堆栈时创建 。  need 修改
+
+**以下 need 修改**
 
 和我们前面介绍的栈结构相似 ， push() 方法用于把请求上下文对象推入请求上下文堆栈 \
 (_request_ctx_stack) ， 而 pop() 方法用来移出堆栈 。
