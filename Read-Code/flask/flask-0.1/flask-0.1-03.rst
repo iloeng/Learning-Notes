@@ -407,46 +407,20 @@ session 在构造函数中是 app.open_session(self.request) 。
                 return SecureCookie.load_cookie(request, self.session_cookie_name,
                                                 secret_key=key)
 
-当设置 secret_key 后 ， 
-
-它会在 push() 方法中被调用 ， 即在请求上下文被\
-推入请求上下文堆栈时创建 。  need 修改
-
-**以下 need 修改**
-
-和我们前面介绍的栈结构相似 ， push() 方法用于把请求上下文对象推入请求上下文堆栈 \
-(_request_ctx_stack) ， 而 pop() 方法用来移出堆栈 。
-
-另外 ， pop() 方法中还调用了 do_teardown_request() 方法 ， 这个方法会执行所有使\
-用 teardown_request 钩子注册的函数 。 
+当设置 secret_key 后 ， self.session 值为 load_cookie 的执行结果 ， 否则为空 。 \
+它会在 push() 方法中被调用 ， 即在请求上下文被推入请求上下文堆栈时创建 。  
 
 魔法方法 __enter__() 和 __exit__() 分别在进入和退出 with 语句时调用 ， 这里用来\
 在 with 语句调用前后分别推入和移出请求上下文 ， 具体见 PEP 343 \
 （https://www.python.org/dev/peps/pep-0343/） 。 
 
-请求上下文在 Flask 类的 wsgi_app 方法的开头创建 ， 在这个方法的最后没有直接调用 \
-pop() 方法 ， 而是调用了 auto_pop() 方法来移除 。 也就是说 ， 请求上下文的生命周\
-期开始于请求进入调用 wsgi_app() 时 ， 结束于响应生成后 。 
+请求上下文在 Flask 类的 wsgi_app 方法的开头创建 ， 在这个方法的最后调用 pop() 方法\
+来移除 。 也就是说 ， 请求上下文的生命周期开始于请求进入调用 wsgi_app() 时 ， 结束\
+于响应生成后 。 
 
-auto_pop() 方法在 _RequestContext 类中定义 ，如代码清单所示 。 
-
-.. code-block:: python 
-
-    [flask/ctx.py：RequestContext.auto_pop（）]
-
-    class RequestContext(object):
-    ...
-    def auto_pop(self, exc):
-        if self.request.environ.get('flask._preserve_context') or \
-        (exc is not None and self.app.preserve_context_on_exception):
-            self.preserved = True
-            self._preserved_exc = exc
-        else:
-            self.pop(exc)
-
-这个方法里添加了一个 if 判断 ， 用来确保没有异常发生时才调用
-pop（）方法移除上下文。异常发生时需要保持上下文以便进行相关操
-作，比如在页面的交互式调试器中执行操作或是测试。
+__exit__ 这个方法里添加了一个 if 判断 ， 用来确保没有异常发生时才调用 pop() 方法移\
+除上下文 。 异常发生时需要保持上下文以便进行相关操作 ， 比如在页面的交互式调试器中执\
+行操作或是测试 。 
 
 2.3.3.5 程序上下文
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
