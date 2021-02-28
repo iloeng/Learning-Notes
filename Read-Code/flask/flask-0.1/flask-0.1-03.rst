@@ -425,102 +425,61 @@ __exit__ 这个方法里添加了一个 if 判断 ， 用来确保没有异常�
 2.3.3.5 程序上下文
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-程序上下文对象AppContext类的定义和RequestContext类基本相
-同，但要更简单一些。它的构造函数里创建了current_app变量指向的
-app属性和g变量指向的g属性，如代码清单16-24所示。
+在 v0.1 版本中并没有声明程序上下文的类定义 (以后的版本中出现了) ， 也就是说不存在程\
+序上下文的类 。 但是在代码中有两个全局变量可以认为是程序上下文变量 。 
 
-.. code-block:: python 
+.. image:: img/2-5.png
+    :align: center
+    :alt: http://myndtt.github.io/images/55.png
+    :name: 《Flask Web开发实战：入门、进阶与原理解析》
+    :target: none
 
-    [flask/ctx.py：AppContext]
+也是在请求上下文中进行了初始化 ， current_app 变量指向的 app 属性和 g 变量指向的 \
+g 属性 ， 你也许会困惑代理对象 current_app 和 request 命名的不一致 ， 这是因为如果\
+将当前程序的代理对象命名为 app 会和程序实例的名称相冲突 。 你可以把 request 理解成 \
+current request （当前请求） 。 有两种方式创建程序上下文 ， 一种是自动创建 ， 当请\
+求进入时 ， 程序上下文会随着请求上下文一起被创建 。 在 _RequestContext 类中 ， 程序\
+上下文和请求上下文一起初始化然后推入 ， 在请求上下文移除之后移除 。 
 
-    class AppContext(object):
-        def __init__(self, app):
-            self.app = app
-            self.url_adapter = app.create_url_adapter(None)
-            self.g = app.app_ctx_globals_class()
+用来构建 URL 的 url_for() 函数会使用请求上下文对象提供的 url_adapter 。
 
-        def push(self):
-    ...
-    def pop(self, exc=_sentinel):
+g 使用保存在 _request_ctx_stack.top.g 属性的 _RequestGlobals() 类表示 ， 是一个\
+普通的类字典对象 。 可以把它看作 “增加了本地线程支持的全局变量” 。 有一个常见的疑问\
+是 ， 为什么说每次请求都会重设 g ？ 这是因为 g 保存在程序上下文中 ， 而程序上下文的\
+生命周期是伴随着请求上下文产生和销毁的 。 每个请求都会创建新的请求上下文堆栈 ， 同样\
+也会创建新的程序上下文堆栈 ， 所以 g 会在每个新请求中被重设 。 
 
-你也许会困惑代理对象current_app和request命名的不一致，这是因
-为如果将当前程序的代理对象命名为app会和程序实例的名称相冲突。
-你可以把request理解成current request（当前请求）。
-有两种方式创建程序上下文，一种是自动创建，当请求进入时，程
-序上下文会随着请求上下文一起被创建。在RequestContext类中，程序
-上下文在请求上下文推入之前推入，在请求上下文移除之后移除，如代
-码清单16-25所示。
-
-.. code-block:: python 
-
-    [flask/ctx.py：请求上下文和程序上下文的生命周期关系]
-
-    class RequestContext(object):
-        def __init__(self, app, environ, request=None):
-            self.app = app
-            if request is None:
-                request = app.request_class(environ)
-                self.request = request
-            ...
-        def push(self):
-            ...
-            # 在推入请求上下文前先推入程序上下文
-            app_ctx = _app_ctx_stack.top
-            if app_ctx is None or app_ctx.app != self.app:
-                app_ctx = self.app.app_context() # 获取程序上下文对象
-                app_ctx.push() # 将程序上下文对象推入堆栈（_app_ctx_stack）
-                self._implicit_app_ctx_stack.append(app_ctx)
-            else:
-            ...
-
-而在没有请求处理的时候，你就需要手动创建上下文。你可以使用
-程序上下文对象中的push（）方法，也可以使用with语句。
-我们用来构建URL的url_for（）函数会优先使用请求上下文对象提
-供的url_adapter，如果请求上下文没有被推送，则使用程序上下文提供
-的url_adapter。所以AppContext的构造函数里也同样创建了url_adapter属
-性。
-g使用保存在app_ctx_globals_class属性的_AppCtxGlobals类表示，
-只是一个普通的类字典对象。我们可以把它看作“增加了本地线程支持
-的全局变量”。有一个常见的疑问是，为什么说每次请求都会重设g？这
-是因为g保存在程序上下文中，而程序上下文的生命周期是伴随着请求
-上下文产生和销毁的。每个请求都会创建新的请求上下文堆栈，同样也
-会创建新的程序上下文堆栈，所以g会在每个新请求中被重设。
-程序上下文和请求上下文的联系非常紧密（在代码中就可以看
-出）。如果你在前面阅读了0.1版本的代码，你会发现在flask.py底部，
-全局对象创建时只存在一个请求上下文堆栈。四个全局对象都从请求上
-下文中获取。可以说，程序上下文是请求上下文的衍生物。这样做的原
-因主要是为了更加灵活。程序中确实存在着两种明显的状态，分离开可
-以让上下文的结构更加清晰合理。这也方便了测试等不需要请求存在的
-使用场景，这时只需要单独推送程序上下文，而且这个分离催生出了
-Flask的程序运行状态。
+程序上下文和请求上下文的联系非常紧密 （在代码中就可以看出） 。 阅读 0.1 版本的代码 \
+， 你会发现在 flask.py 底部 ， 全局对象创建时只存在一个请求上下文堆栈 。 四个全局对\
+象都从请求上下文中获取 。 可以说程序上下文是请求上下文的衍生物 。 这样做的原因主要是\
+为了更加灵活 。 程序中确实存在着两种明显的状态 ， 分离开可以让上下文的结构更加清晰合\
+理 。 这也方便了测试等不需要请求存在的使用场景 ， 这时只需要单独推送程序上下文 ， 而\
+且这个分离催生出了 Flask 的程序运行状态 。 
 
 2.3.3.6 总结
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Flask中的上下文由表示请求上下文的RequestContext类实例和表示
-程序上下文的AppContext类实例组成。请求上下文对象存储在请求上下
-文堆栈（_request_ctx_stack）中，程序上下文对象存储在程序上下文堆
-栈（_app_ctx_stack）中。而request、session则是保存在RequestContext
-中的变量，相对地，current_app和g则是保存在AppContext中的变量。当
-然，request、session、current_app、g变量所指向的实际对象都有相应的
-类：
+Flask 中的上下文由表示请求上下文的 _RequestContext 类实例和表示程序上下文的 \
+current_app 和 g 组成 。 请求上下文对象存储在请求上下文堆栈 (_request_ctx_stack) \
+中 ， 程序上下文对象存储在请求上下文堆栈 (_request_ctx_stack) 中 。 request 、 g \
+、 session 和 current_app 都是保存在 _RequestContext 中的变量 。 当然 ， \
+request 、 session 、 current_app 、 g 变量所指向的实际对象都有相应的类 ： 
 
-- request——Request
-- session——SecureCookieSession
-- current_app——Flask
-- g——_AppCtxGlobals
+- request —— Request
+- session —— SecureCookieSession
+- current_app —— Flask
+- g —— _RequestGlobals
 
-看到这里，想必你已经对上下文有了比较深入的认识。现在你再回
-头看globals模块的代码，应该就会非常容易理解了。我们可以来总结一
-下，这一系列事物为什么要存在。当第一个请求发来的时候：
+当第一个请求发来的时候 ： 
 
-1. 需要保存请求相关的信息——有了请求上下文。
-#. 为了更好地分离程序的状态，应用起来更加灵活——有了程序上下文。
-#. 为了让上下文对象可以在全局动态访问，而不用显式地传入视图函数，同时确保线程安全——有了Local（本地线程）。
-#. 为了支持多个程序——有了LocalStack（本地堆栈）。
-#. 为了支持动态获取上下文对象——有了LocalProxy（本地代理）。
-#. ……
-#. 为了让这一切愉快的工作在一起——有了Flask。
+1. 需要保存请求相关的信息 —— 有了请求上下文 。 
+#. 为了更好地分离程序的状态 ， 应用起来更加灵活 —— 有了程序上下文 。 
+#. 为了让上下文对象可以在全局动态访问 ， 而不用显式地传入视图函数 ， 同时确保线程安\
+   全 —— 有了 Local （本地线程） 。 
+#. 为了支持多个程序 —— 有了 LocalStack （本地堆栈） 。
+#. 为了支持动态获取上下文对象 —— 有了 LocalProxy （本地代理） 。
+#. ......
+#. 为了让这一切愉快的工作在一起 —— 有了Flask 。 
 
 2.3.4 请求与响应对象
 ------------------------------------------------------------------------------
