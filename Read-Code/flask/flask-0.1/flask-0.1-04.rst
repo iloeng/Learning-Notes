@@ -199,17 +199,6 @@ load_cookie() 方法 。
 
         @classmethod
         def load_cookie(cls, request, key='session', secret_key=None):
-            """Loads a :class:`SecureCookie` from a cookie in request.  If the
-            cookie is not set, a new :class:`SecureCookie` instanced is
-            returned.
-
-            :param request: a request object that has a `cookies` attribute
-                            which is a dict of all cookie values.
-            :param key: the name of the cookie.
-            :param secret_key: the secret key used to unquote the cookie.
-                            Always provide the value even though it has
-                            no default!
-            """
             data = request.cookies.get(key)
             if not data:
                 return cls(secret_key=secret_key)
@@ -217,12 +206,6 @@ load_cookie() 方法 。
 
         @classmethod
         def unserialize(cls, string, secret_key):
-            """Load the secure cookie from a serialized string.
-
-            :param string: the cookie value to unserialize.
-            :param secret_key: the secret key used to serialize the cookie.
-            :return: a new :class:`SecureCookie`.
-            """
             if isinstance(string, unicode):
                 string = string.encode('utf-8', 'ignore')
             try:
@@ -267,6 +250,152 @@ load_cookie() 方法 。
                 else:
                     items = ()
             return cls(items, secret_key, False)
+
+Werkzeug 提供了很多有用的数据结构 ， 这些数据结构都定义在 \
+werkzeug.datastructures 模块中 。
+
+当我们对 session 进行写入和更新操作时 ， Flask 需要将新的值写入到 cookie 中 ， 这\
+是如何做到的呢 ？ 我们再返回到调用流程 ， wsgi_app 中调用 make_response() 方法来生\
+成响应对象 ， 最后调用了 process_response() 对响应对象进行预处理 ， session 的更新\
+操作就在 process_response() 函数中 ， 如代码清单所示 。 
+
+.. code-block:: python 
+
+    [flask.py]
+
+    class Flask(object):
+
+        def process_response(self, response):
+            """Can be overridden in order to modify the response object
+            before it's sent to the WSGI server.  By default this will
+            call all the :meth:`after_request` decorated functions.
+
+            :param response: a :attr:`response_class` object.
+            :return: a new response object or the same, has to be an
+                    instance of :attr:`response_class`.
+            """
+            session = _request_ctx_stack.top.session
+            if session is not None:
+                self.save_session(session, response)
+            for handler in self.after_request_funcs:
+                response = handler(response)
+            return response
+
+process_response() 方法首先获取请求上下文对象 ， 然后会先检查 session 是不是无效\
+的 。 如果返回 True 就调用 save_session() 方法来保存 session ， 如代码清单所示 。 
+
+.. code-block:: python 
+
+    [flask.py]
+
+    class Flask(object):
+
+        def save_session(self, session, response):
+            """Saves the session if it needs updates.  For the default
+            implementation, check :meth:`open_session`.
+
+            :param session: the session to be saved (a
+                            :class:`~werkzeug.contrib.securecookie.SecureCookie`
+                            object)
+            :param response: an instance of :attr:`response_class`
+            """
+            if session is not None:
+                session.save_cookie(response, self.session_cookie_name)
+
+在 save_session() 方法的最后对传入的请求对象调用 save_cookie 方法设置 cookie ， \
+这个方法的定义在 werkzeug.contrib.SecureCookie 中 ， save_cookie 最后调用了 \
+set_cookie() 函数 ， set_cookie 接收的一系列设置参数都是通过 Flask 内置的配置键设\
+置的 ， 如表所示 。 
+
+.. code-block:: python 
+
+    [werkzeug/contrib/securecookie.py]
+
+    class SecureCookie(ModificationTrackingDict):
+        def save_cookie(self, response, key='session', expires=None,
+                        session_expires=None, max_age=None, path='/', domain=None,
+                        secure=None, httponly=False, force=False):
+            """Saves the SecureCookie in a cookie on response object.  All
+            parameters that are not described here are forwarded directly
+            to :meth:`~BaseResponse.set_cookie`.
+
+            :param response: a response object that has a
+                            :meth:`~BaseResponse.set_cookie` method.
+            :param key: the name of the cookie.
+            :param session_expires: the expiration date of the secure cookie
+                                    stored information.  If this is not provided
+                                    the cookie `expires` date is used instead.
+            """
+            if force or self.should_save:
+                data = self.serialize(session_expires or expires)
+                response.set_cookie(key, data, expires=expires, max_age=max_age,
+                                    path=path, domain=domain, secure=secure,
+                                    httponly=httponly)
+
+.. image:: img/2-9.png
+
+在这些配置键中 ， SESSION_COOKIE_NAME 也可以通过 Flask 类的属性来设置 ， 分别为 \
+session_cookie_name ， 但是 PERMANENT_SESSION_LIFETIME \
+(permanent_session_lifetime) 在 0.1 版本中并不存在 。 session cookie 的值 \
+(value) 由下面这行代码生成 ： 
+
+.. code-block:: python 
+
+    data = self.serialize(session_expires or expires)
+
+    def serialize(self, expires=None):
+        """Serialize the secure cookie into a string.
+
+        If expires is provided, the session will be automatically invalidated
+        after expiration when you unseralize it. This provides better
+        protection against session cookie theft.
+
+        :param expires: an optional expiration date for the cookie (a
+                        :class:`datetime.datetime` object)
+        """
+        if self.secret_key is None:
+            raise RuntimeError('no secret key defined')
+        if expires:
+            self['_expires'] = _date_to_unix(expires)
+        result = []
+        mac = hmac(self.secret_key, None, self.hash_method)
+        for key, value in sorted(self.items()):
+            result.append('%s=%s' % (
+                url_quote_plus(key),
+                self.quote(value)
+            ))
+            mac.update('|' + result[-1])
+        return '%s?%s' % (
+            mac.digest().encode('base64').strip(),
+            '&'.join(result)
+        )
+
+在 0.10 版本以前 ， session 序列化为 cookie 的格式为 pickle 。 之后更换为 JSON \
+格式是为了增强安全性 ， 避免密钥泄露导致的攻击 。 
+
+2.3.5.2 Session 起源
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+在上一节我们知道 ， session 变量在请求上下文中创建 ， 因此为了探寻 session 的起源 \
+， 我们需要将断点设置到创建请求上下文之前 ， 比如在Flask类的 __call__ 方法中 。 不\
+过 ， 这样的话整个过程就掺杂了太多不相关的操作 ， 需要频繁使用 Step Out 按钮 ， 作\
+为替代 ， 可以采取手动探索的方式来探寻 session 的起源 。 
+
+既然 session 变量在 _RequestContext 中创建 ， 那么生成 session 对象的操作也应该在\
+这里 。 打开搜索功能 ， 找到 _RequestContext 的定义后发现相关的代码在 __init__方法\
+中 ， 如代码清单所示 。 
+
+.. code-block:: python 
+
+    class _RequestContext(object):
+
+        def __init__(self, app, environ):
+            self.app = app
+            self.url_adapter = app.url_map.bind_to_environ(environ)
+            self.request = app.request_class(environ)
+            self.session = app.open_session(self.request)
+            self.g = _RequestGlobals()
+            self.flashes = None
 
 ******************************************************************************
 第 3 部分  源码阅读之测试用例
