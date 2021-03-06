@@ -1,0 +1,54 @@
+@startuml Flask 0.1
+
+' https://www.planttext.com/
+
+' https://www.planttext.com/
+package "flask.py" #DDDDDD {
+
+    class Request {
+        +__init__()
+    }
+
+    class _RequestGlobals{
+        +null
+    }
+
+    class Response {
+        +default_mimetype
+    }
+
+    class Flask {
+        +request_class
+        +response_class
+        +static_path
+        +secret_key
+        +session_cookie_name
+        +jinja_options
+        +__init__()
+        +create_jinja_loader()
+        +update_template_context()
+        +run()
+        +test_client()
+        +open_resource()
+        +open_session()
+        +save_session()
+        +add_url_rule()
+        +route()
+        +errorhandler()
+        +before_request()
+        +after_request()
+        +context_processor()
+        +match_request()
+        +dispatch_request()
+        +make_response()
+        +preprocess_request()
+        +process_response()
+        +wsgi_app()
+        +request_context()
+        +test_request_context()
+        +__call__()
+    }
+}
+
+
+@enduml
