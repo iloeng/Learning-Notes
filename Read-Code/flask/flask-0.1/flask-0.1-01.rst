@@ -36,8 +36,76 @@ Python 2.7 环境 ， 然后激活该环境 ， 并在命令行中执行 ：
 第 2 部分  源码阅读准备 
 ******************************************************************************
 
-2.1 本地上下文
+2.1 Flask 的设计理念
 ==============================================================================
+
+2.1.1 "微"框架
+------------------------------------------------------------------------------
+
+在官方介绍中 ， Flask 被称为微框架 ， 这里的 "微" 并不意味着 Flask 功能简陋 ， 而\
+是指其保留核心且易于扩展 。 有许多 Web 程序不需要后台管理 、 用户认证 、 权限管理 \
+， 有些甚至不需要表单或数据库 ， 所以 Flask 并没有内置这类功能 ， 而是把这些功能都\
+交给扩展或用户自己实现 。 正因为如此 ， 从只需要渲染模板的小项目 ， 到需要各种功能的\
+大项目 ， Flask 几乎能够适应各种情况 。 Flask 的这一设计理念正印证了 《Zen of \
+Python》 里的这一句 ： 
+
+    "Simple is better than complex."
+
+2.1.2 两个核心依赖
+------------------------------------------------------------------------------
+
+虽然 Flask 保持简单的核心 ， 但它主要依赖两个库 —— Werkzeug 和 Jinja 。 Python \
+Web 框架都需要处理 WSGI 交互 ， 而 Werkzeug 本身就是一个非常优秀的 WSGI 工具库 ， \
+几乎没有理由不使用它 ， Flask 与 Werkzeug 的联系非常紧密 。 从路由处理 ， 到请求解\
+析 ， 再到响应的封装 ， 以及上下文和各种数据结构都离不开 Werkzeug ， 有些函数 （比\
+如 redirect 、 abort） 甚至是直接从 Werkzeug 引入的 。 如果要深入了解 Flask 的实\
+现原理 ， 必然躲不开 Werkzeug 。 
+
+引入 Jinja2 主要是因为大多数 Web 程序都需要渲染模板 ， 与 Jinja2 集成可以减少大量\
+的工作 。 除此之外 ， Flask 扩展常常需要处理模板 ， 而集成 Jinja2 方便了扩展的开发 \
+。 不过 ， Flask 并不限制你选择其他模板引擎 ， 比如 Mako \
+(http://www.makotemplates.org/) 、 Genshi(http://genshi.edgewall.org/)等 。 
+
+2.1.3 显式程序对象
+------------------------------------------------------------------------------
+
+在一些 Python Web 框架中 ， 一个视图函数可能类似这样 ： 
+
+.. code-block:: python 
+
+    from example_framework import route
+
+    @route('/')
+    def index():
+        return 'Hello World!'
+
+而在 Flask 中，则需要这样 ： 
+
+.. code-block:: python 
+
+    from flask import Flask
+    app = Flask(__name__)
+
+    @app.route('/')
+    def index():
+        return 'Hello World!'
+
+应该看到其中的区别了 ， Flask 中存在一个显式的程序对象 ， 我们需要在全局空间中创建\
+它 。 这样设计主要有下面几个原因 ： 
+
+- 前一种方式(隐式程序对象)在同一时间内只能有一个实例存在 ， 而显式的程序对象允许多个\
+  程序实例存在 。 
+- 允许你通过子类化 Flask 类来改变程序行为 。 
+- Flask 需要通过传入的包名称来定位资源(模板和静态文件) 。
+- 允许通过工厂函数来创建程序实例 ， 可以在不同的地方传入不同的配置来创建不同的程序实\
+  例。
+- 允许通过蓝本来模块化程序。
+
+另外 ， 这个设计也印证了 《Zen of Python》 里的这一条 : "Explicit is better \
+than implicit." 
+
+2.1.4 本地上下文
+------------------------------------------------------------------------------
 
 在多线程环境下 ， 要想让所有视图函数都获取请求对象 。 最直接的方法就是在调用视图函数\
 时将所有需要的数据作为参数传递进去 ， 但这样一来程序逻辑就变得冗余且不易于维护 。 另\
@@ -137,7 +205,39 @@ current_app 、 g ， 这些对象被称为本地上下文对象 （context loca
 。 大概了解了 _request_ctx_stack ， current_app ， request ， session 和 g 的数\
 据结构 ， 那么就接着阅读源代码 。 当然有个前提是先了解一下 wsgi 。
 
-2.2 WSGI 相关信息
+2.1.5 丰富的自定义支持
+------------------------------------------------------------------------------
+
+Flask 的灵活不仅体现在易于扩展 ， 不限制项目结构 ， 也体现在其内部的高度可定制化 。 \
+比如 ， 我们可以子类化用于创建程序实例的 Flask 类 ， 来改变特定的行为 ： 
+
+.. code-block:: python 
+
+    from flask import Flask
+    class MyFlask(Flask)
+        pass
+    app = MyFlask(__name__)
+    ...
+
+除了 Flask 类 ， 还可以自定义请求类和响应类 。 最常用的方式是子类化 Flask 内置的请\
+求类和响应类 ， 然后改变一些默认的属性 。 Flask 内部在使用这些类时并不直接写死 ， \
+而是使用了定义在 Flask 属性上的中间变量 ， 比如请求类存储在 Flask.request_class \
+中 。 如果要使用自己的请求类 ， 那么只需要把请求类赋值给这个属性即可 ： 
+
+.. code-block:: python 
+
+    from flask import Flask, Request
+    class MyRequest(Request):
+        pass
+    app = Flask(__name__)
+    app.request_class = MyRequest
+
+同样 ， Flask 允许你使用自定义的响应类 。 在其内部 ， 创建响应对象的 \
+make_response() 并不是直接实例化 Response 类 ， 而是实例化被存储在 \
+Flask.response_class 属性上的类 ， 默认为 Response 类 。 如果你要自定义响应类 ， \
+创建后只需赋值给程序实例的 response_class 属性即可 。 
+
+2.2 Flask 与 WSGI
 ==============================================================================
 
 Flask 的核心扩展 Werkzeug 是一个 WSGI 工具库 。 WSGI 指 Python Web Server \
@@ -153,6 +253,9 @@ WSGI 的具体定义在 PEP 333 （https://www.python.org/dev/peps/pep-0333/） 
 规定的数据格式 。 WSGI 则可以视为 WSGI 服务器和我们的 Web 程序进行沟通的语言 。 \
 WSGI 是开发 Python Web 程序的标准 ， 所有的 Python Web 框架都需要按照 WSGI 的规范\
 来编写程序 。 
+
+2.2.1 WSGI 程序
+------------------------------------------------------------------------------
 
 根据 WSGI 的规定 ， Web 程序 （或被称为 WSGI 程序） 必须是一个可调用对象 \
 （callable object） 。 这个可调用对象接收两个参数 ：
@@ -171,7 +274,6 @@ __call__ 方法的类实例 ， 下面我们分别借助简单的实例来了解
 .. code-block:: python
 
     from wsgiref.simple_server import make_server
-
 
     def hello(environ, start_response):
         status = '200 OK'
@@ -206,11 +308,11 @@ __call__ 方法的类实例 ， 下面我们分别借助简单的实例来了解
 b 前缀 ， 将字符串声明为 bytes 类型 。 这里为了兼容两者 ， 统一添加了 b 前缀 。 
 
 类形式的可调用对象如代码中的 AppClass ， 注意 ， 类中实现了 __iter__ 方法 （类被迭\
-代时将调用这个方法） ， 它返回 yield 语句 。 如果想以类的实例作为 WSGI 程序 ， 那么\
-这个类必须实现 __call__ 方法 。
+代时将调用这个方法） ， 它返回 yield 语句 。 如果想以类的 **实例** 作为 WSGI 程序 \
+， 那么这个类必须实现 __call__ 方法 。
 
-在上面我们创建了两个简单的 WSGI 程序 ， 你应该感觉很熟悉吧 ！ 事实上 ， 这两个程序\
-的实际功能和书开始介绍的 Flask 程序 hello 完全相同 。 
+在上面创建的两个简单的 WSGI 程序 ， 你应该感觉很熟悉吧 ！ 事实上 ， 这两个程序的实\
+际功能和书开始介绍的 Flask 程序 hello 完全相同 。 
 
 Flask 也是 Python Web 框架 ， 自然也要遵循 WSGI 规范 ， 所以 Flask 中也会实现类似\
 的 WSGI 程序 ， 只不过对请求和响应的处理要丰富完善得多 。 在 Flask 中 ， 这个可调用\
@@ -237,16 +339,31 @@ Flask 也是 Python Web 框架 ， 自然也要遵循 WSGI 规范 ， 所以 Fla
 这个 __call__ 方法内部调用了 wsgi_app() 方法 ， 请求进入和响应的返回就发生在这里 \
 ， WSGI 服务器通过调用这个方法来传入请求数据 ， 获取返回的响应 ， 后面会详细介绍 。 
 
+2.2.2 WSGI 服务器
+------------------------------------------------------------------------------
+
 程序编写好了 ， 现在需要一个 WSGI 服务器来运行它 。 作为 WSGI 服务器的实现示例 ， \
 Python 提供了一个 wsgiref 库 ， 可以在开发时使用 。 以 hello() 函数为例 ， 在函数\
-定义的下面添加上述代码 。  
+定义的下面添加如下代码 。  
+
+.. code-block:: python
+
+    from wsgiref.simple_server import make_server
+
+    def hello(environ, start_response):
+        ...
+
+    server = make_server('localhost', 5000, hello)
+    server.serve_forever()
 
 这里使用 make_server(host, port, application) 方法创建了一个本地服务器 ， 分别传\
 入主机地址 、 端口和可调用对象 （即 WSGI 程序） 作为参数 。 最后使用 \
-serve_forever() 方法运行它 。 WSGI 服务器启动后 ， 它会监听本地机的对应端口 （我们\
-设置的 5000） 。 当接收到请求时 ， 它会把请求报文解析为一个 environ 字典 ， 然后调\
-用 WSGI 程序提供的可调用对象 ， 传递这个字典作为参数 ， 同时传递的另一个参数是一个 \
-start_response 函数 。 目前对于 start_response 函数有些不太理解 。 
+serve_forever() 方法运行它 。 
+
+WSGI 服务器启动后 ， 它会监听本地机的对应端口 （我们设置的 5000） 。 当接收到请求\
+时 ， 它会把请求报文解析为一个 environ 字典 ， 然后调用 WSGI 程序提供的可调用对象 \
+， 传递这个字典作为参数 ， 同时传递的另一个参数是一个 start_response 函数 。 目前对\
+于 start_response 函数有些不太理解 。 
 
 在命令行使用 Python 解释器执行 hello.py ， 这会启动我们创建的 WSGI 服务器 ： 
 
@@ -259,14 +376,89 @@ start_response 函数 。 目前对于 start_response 函数有些不太理解 �
 把 hello() 函数的返回值处理为 HTTP 响应返回给客户端 。 这一系列工作完成后 ， 我们就\
 会在浏览器看到一行 "Hello，Web！" 。
 
+下面是这个程序的变式 ， 通过从 environ 字典获取请求 URL 来修改响应的内容 。 
+
+.. code-block:: python 
+
+    def hello(environ, start_response):
+        status = '200 OK'
+        response_headers = [('Content-type', 'text/html')]
+        start_response(status, response_headers)
+        name = environ['PATH_INFO'][1:] or 'web'
+        return [b'<h1>Hello, %s!</h1>' % name]
+
+从 environ 字典里获取路径中根地址后的字符作为名字 ： environ['PATH_INFO'][1：] \
+， 然后插入到响应的字符串里 。 这时在浏览器中访问 localhost:5000/Grey ， 则会看到\
+浏览器显示一行 "Hello,Grey！" 。 
+
 到此 ， 大概了解了 wsgi 的相关信息 ， 如下是我的总结 ： 
 
 - 函数式 ： 接收两个参数 ， 并返回一个 list
-- 类形式 ： 必须实现 __call__ 方法
+- 类形式 ： 如果以类实例作为 WSGI 程序 ， 类必须实现 __call__ 方法
 
-wsgi 也大致了解了一下 ， 继续了解 Flask 的工作流程 。
+wsgi 也大致了解了一下 ， 继续往下学习 。 
 
-2.3 Flask 工作流程
+2.2.3 中间件
+------------------------------------------------------------------------------
+
+WSGI 允许使用中间件 (Middleware) 包装 (wrap) 程序 ， 为程序在被调用前添加额外的设\
+置和功能 。 当请求发送来后 ， 会先调用包装在可调用对象外层的中间件 。 这个特性经常被\
+用来解耦程序的功能 ， 这样可以将不同功能分开维护 ， 达到分层的目的 ， 同时也根据需要\
+嵌套 。 如下代码是一个简单的例子 。 
+
+.. code-block:: python 
+
+    from wsgiref.simple_server import make_server
+    
+    def hello(environ, start_response):
+        status = '200 OK'
+        response_headers = [('Content-type', 'text/html')]
+        start_response(status, response_headers)
+        return [b'<h1>Hello, web!</h1>']
+    
+    class MyMiddleware(object):
+
+        def __init__(self, app):
+            self.app = app
+    
+        def __call__(self, environ, start_response):
+            def custom_start_response(status, headers, exc_info=None):
+                headers.append(('A-CUSTOM-HEADER', 'Nothing'))
+                return start_response(status, headers)
+            return self.app(environ, custom_start_response)
+    
+    wrapped_app = MyMiddleware(hello)
+    server = make_server('localhost', 5000, wrapped_app)
+    server.serve_forever()
+
+中间件接收可调用对象作为参数 。 这个可调用对象也可以是被其他中间件包装的可调用对象 \
+。 中间件可以层层叠加 ， 形成一个 "中间件堆栈" ， 最后才会调用到实际的可调用对象 。 
+
+使用类定义的中间件必须实现 __call__ 方法 ， 接收 environ 和 start_response 对象作\
+为参数 ， 最后调用传入的可调用对象 ， 并传递这两个参数 。 这个 MyMiddleware 中间件\
+其实并没有做什么 ， 只是向首部添加了一个无意义的自定义字段 。 最后传入可调用对象 \
+hello 函数来实例化这个中间件 ， 获得包装后的程序实例 wrapped_app 。 
+
+因为 Flask 中实际的 WSGI 可调用对象是 Flask.wsgi_app() 方法 ， 因此 ， 如果我们自\
+己实现了中间件 ， 那么最佳的方式是嵌套在这个 wsgi_app 对象上 ， 比如 ： 
+
+.. code-block:: python 
+
+    class MyMiddleware(object):
+        pass
+
+    app = Flask(__name__)
+    app.wsgi_app = MyMiddleware(app.wsgi_app)
+
+作为 WSGI 工具集 ， Werkzeug 内置了许多方便的中间件 ， 可以用来为程序添加额外的功\
+能 。 比如 ， 能够为程序添加性能分析器的 \
+werkzeug.contrib.profiler.ProfilerMiddleware 中间件 ， 这个中间件可以在处理请求\
+时进行性能分析 ， 作用和 Flask-DebugToolbar 提供的分析器基本相同 ； 另外 ， 支持多\
+应用调度的 werkzeug.wsgi.DispatcherMiddleware 中间件则可以让你将多个 WSGI 程序作\
+为一个 "程序集" 同时运行 ， 你需要传入多个程序实例 ， 并为这些程序设置对应的 URL 前\
+缀或子域名来分发请求 。 
+
+2.3 Flask 工作流程与机制
 ==============================================================================
 
 本节深入到 Flask 的源码来了解请求 、 响应 、 路由处理等功能是如何实现的 。 首先 ， \
