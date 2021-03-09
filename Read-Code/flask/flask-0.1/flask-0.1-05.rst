@@ -8,11 +8,185 @@ Python Web 模块之 Flask v0.1
 第 2 部分  源码阅读准备 
 ******************************************************************************
 
-2.3 Flask 工作流程
+2.3 Flask 工作流程与机制
 ==============================================================================
+
+2.3.5 Session 
+------------------------------------------------------------------------------
+
+2.3.5.1 操作 session
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+在这些配置键中 ， SESSION_COOKIE_NAME 也可以通过 Flask 类的属性来设置 ， 分别为 \
+session_cookie_name ， 但是 PERMANENT_SESSION_LIFETIME \
+(permanent_session_lifetime) 在 0.1 版本中并不存在 。 session cookie 的值 \
+(value) 由下面这行代码生成 ： 
+
+.. code-block:: python 
+
+    data = self.serialize(session_expires or expires)
+
+    def serialize(self, expires=None):
+        """Serialize the secure cookie into a string.
+
+        If expires is provided, the session will be automatically invalidated
+        after expiration when you unseralize it. This provides better
+        protection against session cookie theft.
+
+        :param expires: an optional expiration date for the cookie (a
+                        :class:`datetime.datetime` object)
+        """
+        if self.secret_key is None:
+            raise RuntimeError('no secret key defined')
+        if expires:
+            self['_expires'] = _date_to_unix(expires)
+        result = []
+        mac = hmac(self.secret_key, None, self.hash_method)
+        for key, value in sorted(self.items()):
+            result.append('%s=%s' % (
+                url_quote_plus(key),
+                self.quote(value)
+            ))
+            mac.update('|' + result[-1])
+        return '%s?%s' % (
+            mac.digest().encode('base64').strip(),
+            '&'.join(result)
+        )
+
+在 0.10 版本以前 ， session 序列化为 cookie 的格式为 pickle 。 之后更换为 JSON \
+格式是为了增强安全性 ， 避免密钥泄露导致的攻击 。 
+
+2.3.5.2 Session 起源
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+在上一节我们知道 ， session 变量在请求上下文中创建 ， 因此为了探寻 session 的起源 \
+， 我们需要将断点设置到创建请求上下文之前 ， 比如在Flask类的 __call__ 方法中 。 不\
+过 ， 这样的话整个过程就掺杂了太多不相关的操作 ， 需要频繁使用 Step Out 按钮 ， 作\
+为替代 ， 可以采取手动探索的方式来探寻 session 的起源 。 
+
+既然 session 变量在 _RequestContext 中创建 ， 那么生成 session 对象的操作也应该在\
+这里 。 打开搜索功能 ， 找到 _RequestContext 的定义后发现相关的代码在 __init__方法\
+中 ， 如代码清单所示 。 
+
+.. code-block:: python 
+
+    class _RequestContext(object):
+
+        def __init__(self, app, environ):
+            self.app = app
+            self.url_adapter = app.url_map.bind_to_environ(environ)
+            self.request = app.request_class(environ)
+            self.session = app.open_session(self.request)
+            self.g = _RequestGlobals()
+            self.flashes = None
+
+请求上下文的 __init__() 方法中调用了 open_session() 方法来创建 session ， 也就是\
+说 ， 一旦接收到请求 ， 就会创建 session 对象 。 open_session() 方法接收程序实例和\
+请求对象作为参数 ， 我们可以猜想到 ， 程序实例是用来获取密钥验证 session 值 ， 而请\
+求对象参数是用于获取请求中的 cookie 。 open_session() 方法的定义如代码清单所示 。 
+
+.. code-block:: python 
+
+    [flask.py]
+
+    class Flask(object):
+
+        def open_session(self, request):
+            """Creates or opens a new session.  Default implementation stores all
+            session data in a signed cookie.  This requires that the
+            :attr:`secret_key` is set.
+
+            :param request: an instance of :attr:`request_class`.
+            """
+            key = self.secret_key
+            if key is not None:
+                return SecureCookie.load_cookie(request, self.session_cookie_name,
+                                                secret_key=key)
+
+在这个方法中 ， 如果请求的 cookie 里包含 session 数据 ， 就解析数据到 session 对象\
+里 ， 否则就生成一个空的 session 。 这里要注意的是 ， 如果没有设置秘钥 ， \
+open_session() 会返回 None ， 这时在 push() 方法中会调用 make_null_session 来生\
+成一个无效的 session 对象 (NullSession 类) ， 对其执行字典操作时会显示警告 。 最终\
+返回的 session ， 就是我们一开始在视图函数里使用的那个 session 对象 ， 这就是 \
+session 的整个生命轨迹 。 
+
+签名可以确保 session cookie 的内容不被篡改 ， 但这并不意味着没法获取加密前的原始数\
+据 。 事实上 ， session cookie 的值可以轻易地被解析出来 (即使不知道密钥) ， 这就是\
+为什么我们曾频繁提到 session 中不能存入敏感数据 。 下面是使用 itsdangerous 解析 \
+session 内容的示例 ： 
+
+.. code-block:: python 
+
+    >>> from itsdangerous import base64_decode
+    >>> s = 'eyJjc3JmX3Rva2VuIjp7IiBiI...'
+    >>> data, timstamp, secret = s.split('.')
+    >>> base64_decode(data)
+    '{"answer":42}'
+
+Flask 提供的 session 将用户会话存储在客户端 ， 和这种存储在客户端的方式相反 ， 另一\
+种实现用户会话的方式是在服务器端存储用户会话 ， 而客户端只存储一个 session ID 。 当\
+接收到客户端的请求时 ， 可以根据 cookie 中的 session ID 来找到对应的用户会话内容 \
+。 这种方法更为安全和强健 ， 你可以使用扩展 Flask-Session \
+(https://github.com/fengsp/flask-session) 来实现这种方式的 session 。 
 
 2.3.6 模板渲染 
 ------------------------------------------------------------------------------
+
+在视图函数中 ， 我们使用 render_template() 函数来渲染模板 ， 传入模板的名称和需要\
+注入模板的关键词参数 ： 
+
+.. code-block:: python 
+
+    [example]
+
+    from flask import Flask, render_template
+    app = Flask(__name__)
+
+    @app.route('/hello')
+    def hello():
+        name = 'Flask'
+        return render_template('hello.html', name=name)
+
+我们在 return 语句这一行设置断点 ， 程序运行到断点后的第一次步进会调用 \
+render_template() 函数 。 render_template() 函数的定义在脚本中 ， 如下所示 。 
+
+.. code-block:: python 
+
+    [flask]
+
+    def render_template(template_name, **context):
+        """Renders a template from the template folder with the given
+        context.
+
+        :param template_name: the name of the template to be rendered
+        :param context: the variables that should be available in the
+                        context of the template.
+        """
+        current_app.update_template_context(context)
+        return current_app.jinja_env.get_template(template_name).render(context)
+
+这个函数接收的 template_name 参数是文件名 ， 而 ``**context`` 参数是我们调用 \
+render_template() 函数时传入的上下文参数 。 
+
+这个函数先获取程序上下文 ， 然后调用程序实例的 Flask.update_template_context() 方\
+法更新模板上下文 ， update_template_context() 的定义如代码所示 。 
+
+.. code-block:: python 
+
+    [flask.py]
+
+    class Flask(object):
+
+        def update_template_context(self, context):
+            """Update the template context with some commonly used variables.
+            This injects request, session and g into the template context.
+
+            :param context: the context as a dictionary that is updated in place
+                            to add extra variables.
+            """
+            reqctx = _request_ctx_stack.top
+            for func in self.template_context_processors:
+                context.update(func())
 
 承接上文 ， 我们使用 context_processor 装饰器注册模板上下文处理函数 ， 这些处理函数\
 被存储在 Flask.template_context_processors 列表里 ： 

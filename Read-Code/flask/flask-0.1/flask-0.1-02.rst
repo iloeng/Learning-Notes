@@ -8,14 +8,218 @@ Python Web 模块之 Flask v0.1
 第 2 部分  源码阅读准备 
 ******************************************************************************
 
-2.3 Flask 工作流程
+2.3 Flask 工作流程与机制
 ==============================================================================
+
+2.3.1 Flask 中的请求相应循环
+------------------------------------------------------------------------------
+
+2.3.1.1 程序启动
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    class Flask(object):
+        def run(self, host='localhost', port=5000, **options):
+            from werkzeug import run_simple
+            if 'debug' in options:
+                self.debug = options.pop('debug')
+            options.setdefault('use_reloader', self.debug)
+            options.setdefault('use_debugger', self.debug)
+            return run_simple(host, port, self, **options)    # run_simple
+
+    [werkzeug/serving.py]
+
+    def run_simple(hostname, port, application, use_reloader=False,
+                use_debugger=False, use_evalex=True,
+                extra_files=None, reloader_interval=1, threaded=False,
+                processes=1, request_handler=None, static_files=None,
+                passthrough_errors=False, ssl_context=None):
+        if use_debugger: # 判断是否使用调试器
+            from werkzeug.debug import DebuggedApplication
+            application = DebuggedApplication(application, use_evalex)
+        if static_files:
+            from werkzeug.wsgi import SharedDataMiddleware
+            application = SharedDataMiddleware(application, static_files)
+
+        def inner():
+            make_server(hostname, port, application, threaded,
+                        processes, request_handler,
+                        passthrough_errors, ssl_context).serve_forever()
+
+        if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+            display_hostname = hostname != '*' and hostname or 'localhost'
+            if ':' in display_hostname:
+                display_hostname = '[%s]' % display_hostname
+            _log('info', ' * Running on %s://%s:%d/', ssl_context is None
+                and 'http' or 'https', display_hostname, port)
+        if use_reloader: # 判断是否使用重载器
+            # Create and destroy a socket so that any exceptions are raised before
+            # we spawn a separate Python interpreter and lose this ability.
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            test_socket.bind((hostname, port))
+            test_socket.close()
+            run_with_reloader(inner, extra_files, reloader_interval)
+        else:
+            inner()
+
+run() 函数最后一行是 ``return run_simple(host, port, self, **options)`` ， 而 \
+run_simple() 函数的第三个参数是 application ， 实际使用的时候是 self ， 指的是 \
+Flask 对象本身 ， 因此会调用当前对象的 __call__() 方法进行请求的处理 ， 这时就会运\
+行 wsgi_app 。 
+
+在这里使用了两个 Werkzeug 提供的中间件 ， 如果 use_debugger 为 Ture ， 也就是开启\
+调试模式 ， 那么就使用 DebuggedApplication 中间件为程序添加调试功能 。 如果 \
+static_files 为 True ， 就使用 SharedDataMiddleware 中间件为程序添加提供 \
+（serve） 静态文件的功能 。 
+
+这个方法最终会调用 inner() 函数 ， 函数中的代码和之前创建的 WSGI 程序末尾很像 。 它\
+使用 make_server() 方法创建服务器 ， 然后调用 serve_forever() 方法运行服务器 。 \
+为了避免偏离重点 ， 中间在 Werkzeug 和其他模块的调用我们不再分析 。 我们在前面学习\
+过 WSGI 的内容 ， 当接收到请求时 ， WSGI 服务器会调用 Web 程序中提供的可调用对象 \
+， 这个对象就是我们的程序实例 app 。 现在 ， 第一个请求进入了 。 
+
+2.3.1.2 请求 In
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Flask类实现了 __call__() 方法 ， 当程序实例被调用时会执行这个方法 ， 而这个方法内\
+部调用了 Flask.wsgi_app() 方法 ， 如下所示 。 
+
+.. code-block:: python 
+
+    [flask.py]
+
+    class Flask(object):
+
+        def wsgi_app(self, environ, start_response):
+            with self.request_context(environ):
+                rv = self.preprocess_request()
+                if rv is None:
+                    rv = self.dispatch_request()
+                response = self.make_response(rv)
+                response = self.process_response(response)
+                return response(environ, start_response)
+
+        def __call__(self, environ, start_response):
+            """Shortcut for :attr:`wsgi_app`"""
+            return self.wsgi_app(environ, start_response)
+
+通过 wsgi_app() 方法接收的参数可以看出来 ， 这个 wsgi_app() 方法就是隐藏在 Flask \
+中的那个 WSGI 程序 。 这里将 WSGI 程序实现在单独的方法中 ， 而不是直接实现在 \
+__call__() 方法中 ， 主要是为了在方便附加中间件的同时保留对程序实例的引用 。 WSGI \
+程序调用了 preprocess_request() 方法对请求进行预处理 （request preprocessing） \
+， 这会执行所有使用 before_request 钩子注册的函数 。 
+
+如果预处理没有结果 ， 即为空 ， 然后执行 dispatch_request ， 用于请求调度 ， 它会\
+匹配并调用对应的视图函数 ， 获取其返回值 ， 在这里赋值给rv 。 请求调度的具体细节我\
+们会在后面了解 。 最后 ， 接收视图函数返回值的 make_response 会使用这个值来生成响\
+应 。 完整的调度在 wsgi_app 中已经写明了 。
+
+2.3.1.3 响应 Out
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+而最终的处理也是在 wsgi_app 中 ， 如下 ：
+
+.. code-block:: python 
+
+    def wsgi_app(self, environ, start_response):
+        with self.request_context(environ):
+            rv = self.preprocess_request()
+            if rv is None:
+                rv = self.dispatch_request()
+            response = self.make_response(rv)
+            response = self.process_response(response)
+            return response(environ, start_response)
+
+在函数的最后三行 ， 使用 Flask 类中的 make_response() 方法生成响应对象 ， 然后调\
+用 process_response() 方法处理响应 。 返回作为响应的 response 后 ， 代码执行流程\
+就回到了 wsgi_app() 方法 ， 最后返回响应对象 ， WSGI 服务器接收这个响应对象 ， 并\
+把它转换成 HTTP 响应报文发送给客户端 。 就这样 ， Flask 中的请求 - 循环之旅结束了 。 
 
 2.3.2 路由系统
 ------------------------------------------------------------------------------
 
-2.3.2.2 URL 匹配
+2.3.2.1 注册路由
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+路由系统内部是由 Werkzeug 实现的 ， 为了更好地了解 Flask 中的相关代码 ， 需要先看一\
+下路由功能在 Werkzeug 中是如何实现的 。 下面的代码用于创建路由表 Map ， 并添加三个 \
+URL 规则 ： 
+
+.. code-block:: bash
+
+    >>> from werkzeug.routing import Map, Rule
+    >>> m = Map()
+    >>> rule1 = Rule('/', endpoint='index')
+    >>> rule2 = Rule('/downloads/', endpoint='downloads/index')
+    >>> rule3 = Rule('/downloads/<int:id>', endpoint='downloads/show')
+    >>> m
+    Map([[]])
+    >>> m.add(rule1)
+    >>> m.add(rule2)
+    >>> m.add(rule3)
+    >>> m
+    Map([[<Rule '/' -> index>,
+    <Rule '/downloads/' -> downloads/index>,
+    <Rule '/downloads/<id>' -> downloads/show>]])
+    >>>
+
+在 Flask 中 ， 我们使用 route() 装饰器来将试图函数注册为路由 ： 
+
+.. code-block:: python  
+
+    @app.route('/')
+    def hello():
+        return 'Hello, Flask!'
+
+Flask.route() 是 Flask 类的类方法 ， 如代码清单所示 。 
+
+.. code-block:: python  
+
+    [flask.py]
+
+    class Flask(object):
+
+        def route(self, rule, **options):
+            def decorator(f):
+                self.add_url_rule(rule, f.__name__, **options)
+                self.view_functions[f.__name__] = f
+                return f
+            return decorator
+
+可以看到 route 装饰器的内部调用了 add_url_rule() 来添加 URL 规则 ， 所以注册路由\
+也可以直接使用 add_url_rule 实现 （0.2 版本及之后） 。 add_url_rule() 方法如代码\
+清单所示 ： 
+
+.. code-block:: python  
+
+    [flask.py]
+
+    class Flask(object):
+
+        def add_url_rule(self, rule, endpoint, **options):
+            options['endpoint'] = endpoint
+            options.setdefault('methods', ('GET',))
+            self.url_map.add(Rule(rule, **options))
+
+这个方法的重点是 ``self.url_map.add(Rule(rule, **options))`` ， 这里引入了 \
+url_map 。 而在 route 函数中则引入了 view_functions 对象 。 
+
+url_map 是 Werkzeug 的 Map 类实例 （werkzeug.routing.Map） 。 它存储了 URL 规则\
+和相关配置 ， 这里的 rule 是 Werkzeug 提供的 Rule 实例 (werkzeug.routing.Rule) \
+， 其中保存了端点和 URL 规则的映射关系 。
+
+而 view_function 则是 Flask 类中定义的一个字典 ， 它存储了端点和视图函数的映射关\
+系 。 看到这里你大概已经发现端点是如何作为中间人连接起 URL 规则和视图函数的 。 如果\
+回过头看本节开始提供的 Werkzeug 中的路由注册代码 ， 你会发现 add_url_rule() 方法中\
+的这些代码做了同样的事情 ： 
+
+.. code-block:: python  
+
+    [flask.py]
+    self.url_map.add(Rule(rule, **options))
+
 
 在上面的 Werkzeug 路由注册代码示例中 ， 我们创建了路由表 m ， 并使用 add() 方法添\
 加了三个路由规则 。 现在 ， 来看看如何在 Werkzeug 中进行 URL 匹配 ， URL 匹配的示\
@@ -292,212 +496,6 @@ Flask 提供了两种上下文 ， 请求上下文和程序上下文 (新版本�
 
 我们在程序中从 flask 包直接导入的 request 和 session 就是定义在这里的全局对象 ， \
 这两个对象是对实际的 request 变量和 session 变量的代理 。
-
-通过请求栈 _request_ctx_stack 的定义可以看到 ， 确实是一个请求栈 ， 而且是一个多线\
-程隔离的请求中 。 在这边我们简单理解 LocalStack 是一个多线程安全的栈 ， 提供 push \
-, pop , top 的方法 。 而栈中元素必然就是单个请求了 ， 元素类型为 _RequestContext ： 
-
-.. code-block:: python 
-
-    [flask.py]
-
-    class _RequestContext(object):
-
-        def __init__(self, app, environ):
-            self.app = app
-            self.url_adapter = app.url_map.bind_to_environ(environ)
-            self.request = app.request_class(environ)
-            self.session = app.open_session(self.request)
-            self.g = _RequestGlobals()
-            self.flashes = None
-
-        def __enter__(self):
-            _request_ctx_stack.push(self)
-
-        def __exit__(self, exc_type, exc_value, tb):
-            # do not pop the request stack if we are in debug mode and an
-            # exception happened.  This will allow the debugger to still
-            # access the request object in the interactive shell.
-            if tb is None or not self.app.debug:
-                _request_ctx_stack.pop()
-
-看到单个请求使用 app 和 environ 进行初始化 ， 其中 app 就是 Flask 实例 ， \
-environ 为单次请求具体信息 。 其中就包含 url_adapter 属性 ， 前面已经介绍过 ， 就\
-是通过 url_adapter.match() 进行匹配后获取到 endpoint 和 values 的 ， 从而获取到\
-请求处理的视图函数的 ， 从而与前面的解释相互印证 。 那么现在还剩下一个问题 ， \
-flask 是什么时候将 _RequestContext 加入到 _request_ctx_stack 中的呢 ？ 让我们回\
-头看一下 wsgi_app() 方法 ， 使用 with 进行调用 ： 
-
-.. code-block:: python
-
-    class Flask(object):
-
-        def wsgi_app(self, environ, start_response):
-            with self.request_context(environ):
-                rv = self.preprocess_request()
-                if rv is None:
-                    rv = self.dispatch_request()
-                response = self.make_response(rv)
-                response = self.process_response(response)
-                return response(environ, start_response)
-
-        def request_context(self, environ):
-            return _RequestContext(self, environ)
-
-可以看到调用了 request_context() 方法 ， 此方法创建了一个 _RequestContext 对象 \
-， 然后使用 with 的调用方式 ， 会执行 _RequestContext 的 __enter__() 魔术方法 ， \
-即会发现 _request_ctx_stack.push(self) ， 将创建的 _RequestContext 加入请求栈 \
-_request_ctx_stack 中 ， 然后在执行处理结束的时候 ， 执行 __exit__() 方法 ， 将请\
-求从请求栈中移除 。 至此 ， 一切豁然开朗 。 
-
-2.3.3.1 本地线程与 Local 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-如果每次只能发送一封电子邮件 （单线程） ， 那么在发送大量邮件时会花费很多时间 ， \
-这时就需要使用多线程技术 。 处理 HTTP 请求的服务器也是这样 ， 当我们的程序需要面对\
-大量用户同时发起的访问请求时 ， 我们显然不能一个个地处理 。 这时就需要使用多线程技\
-术 ， Werkzeug 提供的开发服务器默认会开启多线程支持 。 
-
-在处理请求时使用多线程后 ， 我们会面临一个问题 。 当我们直接导入 request 对象并在\
-视图函数中使用时 ， 如何确保这时的 request 对象包含的请求信息就是我们需要的那一\
-个 ？ 比如 A 用户和 B 用户在同一时间访问 hello 视图 ， 这时服务器分配了两个线程\
-来处理这两个请求 ， 如何确保每个线程内的 request 对象都是各自对应 、 互不干扰的 \
-？ 
-
-解决办法就是引入本地线程 （Thread Local） 的概念 ， 在保存数据的同时记录下对应的\
-线程 ID ， 获取数据时根据所在线程的 ID 即可获取到对应的数据 。 就像是超市里的存包\
-柜 ， 每个柜子都有一个号码 ， 每个号码对应一份物品 。 
-
-Flask 中的本地线程使用 Werkzeug 提供的 Local 类实现 ， 如代码清单 : 
-
-.. code-block:: python
-
-    [wekzeug/local.py]
-
-    try:
-        from greenlet import getcurrent as get_current_greenlet
-    except ImportError: # pragma: no cover
-        try:
-            from py.magic import greenlet
-            get_current_greenlet = greenlet.getcurrent
-            del greenlet
-        except:
-            # catch all, py.* fails with so many different errors.
-            get_current_greenlet = int
-
-    class Local(object):
-        __slots__ = ('__storage__', '__lock__')
-
-        def __init__(self):
-            object.__setattr__(self, '__storage__', {})
-            object.__setattr__(self, '__lock__', allocate_lock())
-
-        def __iter__(self):
-            return self.__storage__.iteritems()
-
-        def __call__(self, proxy):
-            """Create a proxy for a name."""
-            return LocalProxy(self, proxy)
-
-        def __release_local__(self):
-            self.__storage__.pop(get_ident(), None)
-
-        def __getattr__(self, name):
-            self.__lock__.acquire()
-            try:
-                try:
-                    return self.__storage__[get_ident()][name]
-                except KeyError:
-                    raise AttributeError(name)
-            finally:
-                self.__lock__.release()
-
-        def __setattr__(self, name, value):
-            self.__lock__.acquire()
-            try:
-                ident = get_ident()
-                storage = self.__storage__
-                if ident in storage:
-                    storage[ident][name] = value
-                else:
-                    storage[ident] = {name: value}
-            finally:
-                self.__lock__.release()
-
-        def __delattr__(self, name):
-            self.__lock__.acquire()
-            try:
-                try:
-                    del self.__storage__[get_ident()][name]
-                except KeyError:
-                    raise AttributeError(name)
-            finally:
-                self.__lock__.release()
-
-Local 中构造函数定义了两个属性 ， 分别是 __storage__ 属性和 __ident_func__ 属\
-性 。 __storage__ 是一个嵌套的字典 ， 外层的字典使用线程 ID 作为键来匹配内部的字\
-典 ， 内部的字典的值即真实对象 。 它使用 \
-self.__storage__[self.__ident_func__()][name] 来获取数据 ， 一个典型的 Local \
-实例中的 __storage__ 属性可能会是这样 ： 
-
-.. code-block::
-
-    { 线程ID: { 名称: 实际数据}}
-
-在存储数据时也会存入对应的线程 ID 。 这里的线程 ID 使用 __ident_func__ 属性定义\
-的 get_ident() 方法获取 。 这就是为什么全局使用的上下文对象不会在多个线程中产生混\
-乱 。 
-
-这里会优先使用 Greenlet 提供的协程 ID ， 如果 Greenlet 不可用再使用 thread 模块\
-获取线程 ID 。 类中定义了一些魔法方法来改变默认行为 。 比如 ， 当类实例被调用时会\
-创建一个 LocalProxy 对象 ， 我们在后面会详细了解 。 除此之外 ， 类中还定义了用来\
-释放线程/协程的 __release_local__() 方法 ， 它会清空当前线程/协程的数据 。 
-
-在 Python 类中 ， 前后双下划线的方法常被称为魔法方法 （Magic Methods） 。 它们是 \
-Python内置的特殊方法 ， 我们可以通过重写这些方法来改变类的行为 。 比如 ， 我们熟悉\
-的 __init__() 方法 （构造函数） 会在类被实例化时调用 ， 类中的 __repr__() 方法会\
-在类实例被打印时调用 。 Local 类中定义的 __getattr__() 、 __setattr__() 、 \
-__delattr__() 方法分别会在类属性被访问 、 设置 、 删除时调用 ； __iter__() 会在\
-类实例被迭代时调用 ； __call__() 会在类实例被调用时调用 。 完整的列表可以在 \
-Python 文档 （https://docs.python.org/3/reference/datamodel.html） 看到 。 
-
-2.3.3.2 堆栈与 LocalStack 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-堆栈或栈是一种常见的数据结构 ， 它的主要特点就是后进先出 （LIFO，Last In First \
-Out） ， 指针在栈顶 （top） 位置 ， 如图 16-9 所示 。 堆栈涉及的主要操作有 push \
-（推入） 、 pop （取出） 和 peek （获取栈顶条目） 。 其他附加的操作还有获取条目数\
-量 ， 判断堆栈是否为空等 。 使用 Python 列表 （list） 实现的一个典型的堆栈结构如\
-代码清单所示 。 
-
-.. image:: img/2-3.png
-
-.. code-block:: python 
-
-    [stack.py]
-
-    class Stack:
-
-        def __init__(self):
-            self.items = []
-
-        def push(self, item): # 推入条目
-            self.items.append(item)
-
-        def pop(self): # 移除并返回栈顶条目
-            if self.is_empty:
-                return None
-            return self.items.pop()
-
-        @property
-        def is_empty(self): # 判断是否为空
-            return self.items == []
-
-        @property
-        def top(self): # 获取栈顶条目
-            if self.is_empty:
-                return None
-            return self.items[-1]
 
 未完待续 ...
 
