@@ -1,0 +1,13 @@
+@startuml
+
+title wsgi_app
+
+Request_CTX -> Before_Request : With Open
+Before_Request --> dispatch_request : There is no Before Request
+dispatch_request --> make_response : return value and view
+Before_Request --> make_response : Have Before Request
+make_response -> process_response: return response object
+process_response -> response: process response object
+response -> Request_CTX: after response and close Request CTX
+
+@enduml
