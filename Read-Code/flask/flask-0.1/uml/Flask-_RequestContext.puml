@@ -1,0 +1,11 @@
+@startuml
+
+title _RequestContext
+
+"With Context" -> "~__init__" : initial current request \ncontext, need app and \nenviron\n- self.app\n- self.url_adapter\n- self.request\n- self.session\n- self.g\n- self.flashes 
+"~__init__" -> "~__enter__" : after initial class, will execute \n~__enter__ function\n- _request_ctx_stack.push(self)
+"~__enter__" -> "Other Operate" : just like some functions \nin wsgi_app 
+"Other Operate" -> "~__exit__" : execute ~__exit__ function
+"~__exit__" -> "With Context": close this with context, _request_ctx_stack.pop()
+
+@enduml
