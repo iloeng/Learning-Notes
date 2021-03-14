@@ -318,14 +318,18 @@ dispatch_request() 方法实现了从请求的 URL 找到端点 ， 再从端点
 route() 装饰器传入的参数创建 。 如上文中的描述 ： view_function 是 Flask 类中定义\
 的一个字典 ， 它存储了端点和视图函数的映射关系 。 
 
-而这里先调用 match_request() 方法得到处理的 endpoint 和 values ， 如下示例代码 \
-， 如果我请求的是 http://localhost:5000/hello/1234 ， 则结果为 ： endpoint=\
-'hello' ， values={'name':'1234'} ， 调试信息如下图 ： 
+而这里先调用 match_request() 方法得到处理的 endpoint 和 values ， 如下最简单的示例\
+代码 ， 如果我请求的是 http://localhost:5000/hello/world/test ， 则结果为 ： \  endpoint='hello_test' ， values={'name':'world'} ， 调试信息如下图 ： 
 
 .. code-block:: python
 
+    [直接在flask.py文件中添加代码测试]
+
+    app = Flask(__name__)
+
+
     @app.route('/hello/<name>/test', methods=['POST', 'GET'])
-    def hello1(name):
+    def hello_test(name):
         if name == "Test":
             return 'Test'
         else:
@@ -333,16 +337,25 @@ route() 装饰器传入的参数创建 。 如上文中的描述 ： view_functi
 
 
     @app.route('/hello/<name>', methods=['POST', 'GET'])
-    def hello2(name):
+    def hello(name):
         if name == "Test":
             return 'Test'
         else:
             return 'hello'
 
+
+    @app.route('/')
+    def index():
+        return "This is index page"
+
+
+    if __name__ == '__main__':
+        app.run()
+
 .. image:: img/2-1.png
 
-如果我请求的是 http://localhost:5000/hello/1234/test ， 则结果为 ： endpoint=\
-'hello' ， values={'name':'1234'} ， 调试信息如下图 ：
+如果我请求的是 http://localhost:5000/hello/world ， 则结果为 ： endpoint=\
+'hello' ， values={'name':'world'} ， 调试信息如下图 ：
 
 .. image:: img/2-2.png
 
