@@ -1,0 +1,18 @@
+@startuml Flask 0.1
+
+' https://www.planttext.com/
+
+object Flask.init {
+    self.debug = False
+    self.package_name = package_name
+    self.root_path = _get_package_path(self.package_name)
+    self.view_functions = {}
+    self.error_handlers = {}
+    self.before_request_funcs = []
+    self.after_request_funcs = []
+    self.template_context_processors = [_default_template_ctx_processor]
+    self.url_map = Map()
+    self.jinja_env = Environment(loader=self.create_jinja_loader(), **self.jinja_options)
+}
+
+@enduml
