@@ -302,5 +302,53 @@ url_for() 函数 、 get_flashed_messages() 函数以及 config 对象等) ， �
 3.1.1 Flask 初始化
 ------------------------------------------------------------------------------
 
-uml 见 : 
+uml 见 :  `Flask-__init__`_
+
+.. _`Flask-__init__`: uml/Flask-__init__.puml
+
+首先 app 为初始化的 Flask 类对象 ， 初始化时传入的参数为 __name__ ， 实际就是当前文\
+件名 ， 当然在实际使用中可以其他名称 ， 但是得符合当前的包名 。 看一下初始化代码 ： 
+
+.. code-block:: python 
+
+    class Flask(object):
+
+        def __init__(self, package_name):
+            self.debug = False
+            self.package_name = package_name
+            self.root_path = _get_package_path(self.package_name)
+            self.view_functions = {}
+            self.error_handlers = {}
+            self.before_request_funcs = []
+            self.after_request_funcs = []
+            self.template_context_processors = [_default_template_ctx_processor]
+            self.url_map = Map()
+            if self.static_path is not None:
+                self.url_map.add(Rule(self.static_path + '/<filename>',
+                                    build_only=True, endpoint='static'))
+                if pkg_resources is not None:
+                    target = (self.package_name, 'static')
+                else:
+                    target = os.path.join(self.root_path, 'static')
+                self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
+                    self.static_path: target
+                })
+            self.jinja_env = Environment(loader=self.create_jinja_loader(),
+                                        **self.jinja_options)
+            self.jinja_env.globals.update(
+                url_for=url_for,
+                get_flashed_messages=get_flashed_messages
+            )
+
+初始化的时候会设置一些属性 ， root_path 为当前目录 ， 通过 _get_package_path 进行\
+获取 ， 其代码为 ： 
+
+.. code-block:: python 
+
+    def _get_package_path(name):
+        """Returns the path to a package or cwd if that cannot be found."""
+        try:
+            return os.path.abspath(os.path.dirname(sys.modules[name].__file__))
+        except (KeyError, AttributeError):
+            return os.getcwd()
 
