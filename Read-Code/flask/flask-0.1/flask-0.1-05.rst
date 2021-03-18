@@ -352,3 +352,52 @@ uml 见 :  `Flask-__init__`_
         except (KeyError, AttributeError):
             return os.getcwd()
 
+来测试一下这个方法的实际功能 ： 
+
+.. code-block:: python 
+
+    def _get_package_path(name):
+        """Returns the path to a package or cwd if that cannot be found."""
+        try:
+            print 'name', name
+            return os.path.abspath(os.path.dirname(sys.modules[name].__file__))
+        except (KeyError, AttributeError):
+            return os.getcwd()
+
+    print _get_package_path('flask.py')
+
+    >>>name __main__
+    >>>name flask.py
+    >>>E:\Projects\github\flask
+
+我有些不解的是 name 为何会是 __main__ ? 最终就是获取绝对路径的功能 。 
+
+self.template_context_processors 的值为 [_default_template_ctx_processor] ， \
+实际结果是当前请求上下文的参数字典 ： 
+
+.. code-block:: python 
+
+    def _default_template_ctx_processor():
+        """Default template context processor.  Injects `request`,
+        `session` and `g`.
+        """
+        reqctx = _request_ctx_stack.top
+        return dict(
+            request=reqctx.request,
+            session=reqctx.session,
+            g=reqctx.g
+        )
+
+返回的是当前请求上下文的 request ， session 和 g 字典 。 
+
+self.url_map 是一个 werkzeug.routing.Map 类实例 ， 下面后用到 。 当 static_path \
+为空的时候 ， 不做操作 ， 但是 static_path 在类里面已经赋值为 static_path = '/\
+static' 它是有值的 ， 所以会将 static_path 添加到路由表中 ， 端点为 static 。
+
+self.jinja_env 为魔板渲染引擎 jinja 的环境 。 
+
+3.1.1 Flask route
+------------------------------------------------------------------------------
+
+
+
