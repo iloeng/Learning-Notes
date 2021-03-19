@@ -1,0 +1,11 @@
+@startuml Flask 0.1
+
+' https://www.planttext.com/
+
+route -> decorator: route 返回 decorator 函数
+decorator -> add_url_rule: 进入 decorator 函数 ， 并添加路由规则
+add_url_rule -> view_functions: 对 view_functions 字典进行操作
+view_functions -> decorator : 返回 
+decorator -> route: 装饰完毕
+
+@enduml
