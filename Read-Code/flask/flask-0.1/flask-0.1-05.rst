@@ -399,5 +399,22 @@ self.jinja_env 为魔板渲染引擎 jinja 的环境 。
 3.1.1 Flask route
 ------------------------------------------------------------------------------
 
+uml: Flask-route.puml
 
+.. code-block:: python
 
+    @app.route('/hello/<name>/test', methods=['POST', 'GET'])
+    def hello_test(name):
+        if name == "Test":
+            return 'Test'
+        else:
+            return 'hello'
+
+    def route(self, rule, **options):
+        def decorator(f):
+            self.add_url_rule(rule, f.__name__, **options)
+            self.view_functions[f.__name__] = f
+            return f
+        return decorator
+
+以 hello_test 为例 
