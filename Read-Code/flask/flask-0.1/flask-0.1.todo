@@ -29,7 +29,7 @@ Flask Read:
         ☐ open_session
         ☐ save_session
         ☐ add_url_rule
-        ☐ route
+        ✔ route @done(21-03-20 23:04)
         ☐ errorhandler
             ☐ decorator
         ☐ before_request
