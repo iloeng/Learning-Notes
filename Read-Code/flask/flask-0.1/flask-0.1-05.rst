@@ -417,4 +417,23 @@ uml: Flask-route.puml
             return f
         return decorator
 
-以 hello_test 为例 
+以 hello_test 为例 ， 在 route 函数中 ， rule = '/hello/<name>/test' ， \
+options = {'methods': ['POST', 'GET']} ， decorator 的参数 f = hello_test ， \
+然后执行步骤为 ： 
+
+1. 执行 route 函数时 ， 直接返回的是 decorator 对象 
+
+2. decorator 对象内部仍有执行步骤 ， 首先将 hello_test 对象传入到 decorator 内部 。
+
+3. 将 rule ， hello_test 对象的名称 'hello_test' 和 options 作为参数传入到 \
+   add_url_rule 函数内部 ， 执行相关操作 ， 详情见下一节 。 
+
+4. 将 hello_test 添加到 view_functions 字典中 ， 形如 ： {'hello_test': \
+   hello_test}
+
+5. decorator 对象中返回 hello_test 对象
+
+6. route 函数返回 decorator 对象
+
+3.1.1 Flask add_url_rule
+------------------------------------------------------------------------------

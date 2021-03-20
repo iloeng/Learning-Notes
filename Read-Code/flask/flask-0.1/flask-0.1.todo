@@ -20,7 +20,7 @@ Flask Read:
     ☐ func _get_package_path
 
     ☐ class Flask(object)
-        ☐ __init__
+        ✔ __init__ @done(21-03-19 22:49)
         ☐ create_jinja_loader
         ☐ update_template_context
         ☐ run
