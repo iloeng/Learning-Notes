@@ -1,0 +1,9 @@
+@startuml Flask 0.1
+
+' https://www.planttext.com/
+
+add_url_rule -> endpoint: 操作 options 字典 ， 添加 endpoint
+endpoint -> methods: 添加 method 字段
+methods -> url_map: 添加 url route
+
+@enduml

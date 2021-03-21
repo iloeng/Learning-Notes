@@ -16,8 +16,8 @@ Flask Read:
     ☐ func get_flashed_messages
     ☐ func render_template
     ☐ func render_template_string
-    ☐ func _default_template_ctx_processor
-    ☐ func _get_package_path
+    ✔ func _default_template_ctx_processor @done(21-03-20 23:24)
+    ✔ func _get_package_path @done(21-03-20 23:23)
 
     ☐ class Flask(object)
         ✔ __init__ @done(21-03-19 22:49)
@@ -28,7 +28,7 @@ Flask Read:
         ☐ open_resource
         ☐ open_session
         ☐ save_session
-        ☐ add_url_rule
+        ✔ add_url_rule @done(21-03-20 23:23)
         ✔ route @done(21-03-20 23:04)
         ☐ errorhandler
             ☐ decorator
@@ -45,11 +45,11 @@ Flask Read:
         ☐ test_request_context
         ✔ __call__ @done(21-02-19 15:10)
     
-    ☐ _request_ctx_stack
-    ☐ current_app
-    ☐ request
-    ☐ session
-    ☐ g
+    ✔ _request_ctx_stack @done(21-03-21 23:24)
+    ✔ current_app @done(21-03-21 23:24)
+    ✔ request @done(21-03-21 23:24)
+    ✔ session @done(21-03-21 23:24)
+    ✔ g @done(21-03-21 23:24)
 
 Flask Test:
 

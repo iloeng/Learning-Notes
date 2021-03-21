@@ -396,7 +396,7 @@ static' 它是有值的 ， 所以会将 static_path 添加到路由表中 ， �
 
 self.jinja_env 为魔板渲染引擎 jinja 的环境 。 
 
-3.1.1 Flask route
+3.1.2 Flask route
 ------------------------------------------------------------------------------
 
 uml: Flask-route.puml
@@ -435,5 +435,34 @@ options = {'methods': ['POST', 'GET']} ， decorator 的参数 f = hello_test �
 
 6. route 函数返回 decorator 对象
 
-3.1.1 Flask add_url_rule
+3.1.3 Flask add_url_rule
 ------------------------------------------------------------------------------
+
+uml: Flask-add_url_rule.puml
+
+.. code-block:: python 
+
+    def add_url_rule(self, rule, endpoint, **options):
+        options['endpoint'] = endpoint
+        options.setdefault('methods', ('GET',))
+        self.url_map.add(Rule(rule, **options))
+
+    def add_url_rule(self, rule, endpoint, **options):
+        options['endpoint'] = endpoint
+        options.setdefault('methods', ('GET',))
+        a = Rule(rule, **options)
+        self.url_map.add(Rule(rule, **options))
+
+接着上述分析 ， 执行到 add_url_rule 时 ， rule = '/hello/<name>/test' ， \
+endpoint = 'hello_test' ， options = {'methods': ['POST', 'GET']} ， 对 \
+add_url_rule 做一下变形 ， 方便调试看结果 。
+
+对 a 下断点 ， 执行完毕后 url_map 为
+::
+
+    Map([[<Rule '/static/<filename>' -> static>, <Rule '/hello/<name>/test' (POST, HEAD, GET) -> hello_test>]])
+
+首先设置 options 字典中 endpoint 字段为 'hello_test' ， 同时设置默认 methods 字段\
+为 ('GET',) ， 如果代码已经设置 ， 就不用修改 ， 否则使用默认的 ， 最后将路由规则添\
+加到 url_map 中 ， 由于使用的是 werkzeug 中的方法 ， 这里就不在分析 ， 直接看结果 。 
+
