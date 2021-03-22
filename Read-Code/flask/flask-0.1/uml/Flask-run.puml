@@ -1,0 +1,15 @@
+@startuml Flask 0.1
+
+' https://www.planttext.com/
+
+start
+
+if (debug in options?) then (yes)
+    :self.debug = options.pop('debug');
+else (no)
+    :pass;
+endif
+
+
+
+@enduml

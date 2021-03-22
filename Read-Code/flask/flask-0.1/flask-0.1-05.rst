@@ -466,3 +466,17 @@ add_url_rule 做一下变形 ， 方便调试看结果 。
 为 ('GET',) ， 如果代码已经设置 ， 就不用修改 ， 否则使用默认的 ， 最后将路由规则添\
 加到 url_map 中 ， 由于使用的是 werkzeug 中的方法 ， 这里就不在分析 ， 直接看结果 。 
 
+3.1.3 Flask run
+------------------------------------------------------------------------------
+
+uml: Flask-run.puml
+
+.. code-block:: python 
+
+    def run(self, host='localhost', port=5000, **options):
+        from werkzeug import run_simple
+        if 'debug' in options:
+            self.debug = options.pop('debug')
+        options.setdefault('use_reloader', self.debug)
+        options.setdefault('use_debugger', self.debug)
+        return run_simple(host, port, self, **options)
