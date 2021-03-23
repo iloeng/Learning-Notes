@@ -10,6 +10,10 @@ else (no)
     :pass;
 endif
 
+:options['use_reloader'] = self.debug;
+:options['use_debugger'] = self.debug;
+:run_simple(host, port, self, **options);
 
+end
 
 @enduml

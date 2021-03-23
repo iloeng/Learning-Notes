@@ -480,3 +480,22 @@ uml: Flask-run.puml
         options.setdefault('use_reloader', self.debug)
         options.setdefault('use_debugger', self.debug)
         return run_simple(host, port, self, **options)
+
+在上述 exam 代码中 ， route 添加完毕之后 ， 将 App 运行起来需要执行 run 函数 。 
+
+首先会判断 debug 是不是在 options 字典里面 ， 如果在 ， self.debug = debug 字段的\
+值 ， 同时将 use_reloader 字段和 use_debugger 字段设置为 self.debug 的值 ， 最终\
+执行 werkzeug.run_simple 函数将 App 运行起来 ， run_simple 的参数分别是 host ， \
+port ， self 以及 options 字典 ， 其中 host 和 port 都有默认值 ， 而 self 参数就\
+是 Flask 类的实例化 ， 在 run_simple 中会调用该实例 ， 也因此会执行 \
+Flask.__call__() 函数 ， 之前的 wsgi 以类的形式实现时说过了 。 接下来执行 \
+__call__() 函数 。 
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: flask-0.1-04.rst
+.. _`下一篇`: flask-0.1-06.rst
