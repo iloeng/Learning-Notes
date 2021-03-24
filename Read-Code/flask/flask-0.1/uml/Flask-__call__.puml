@@ -1,0 +1,11 @@
+@startuml Flask 0.1
+
+' https://www.planttext.com/
+
+start
+
+:self.wsgi_app(environ, start_response);
+
+end
+
+@enduml
