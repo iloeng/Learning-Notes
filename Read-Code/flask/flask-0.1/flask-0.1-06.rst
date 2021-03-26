@@ -51,3 +51,71 @@ uml: Flask-wsgi_app.puml
 行 make_response 对预处理请求或分发的请求生成响应对象 ， 然后处理这个响应对象 ， 其\
 结果作为返回值返回出去 。 
 
+3.1.4 Flask request_context
+------------------------------------------------------------------------------
+
+uml: Flask-request_context.puml
+
+.. code-block:: python 
+
+    def request_context(self, environ):
+        return _RequestContext(self, environ)
+
+直接返回 _RequestContext 类实例 ， 换句话说 request_context 就是 \
+_RequestContext 类实例。 
+
+3.1.4 _RequestContext
+------------------------------------------------------------------------------
+
+uml: Flask-_RequestContext.puml
+
+.. code-block:: python 
+
+    class _RequestContext(object):
+        def __init__(self, app, environ):
+            self.app = app
+            self.url_adapter = app.url_map.bind_to_environ(environ)
+            self.request = app.request_class(environ)
+            self.session = app.open_session(self.request)
+            self.g = _RequestGlobals()
+            self.flashes = None
+
+        def __enter__(self):
+            _request_ctx_stack.push(self)
+
+        def __exit__(self, exc_type, exc_value, tb):
+            if tb is None or not self.app.debug:
+                _request_ctx_stack.pop()
+
+在上文中 ， 执行 with 的时候 ， 会执行 __enter__ 函数 ， 当然是在执行 __init__ 函\
+数之后 ， 举个例子 ： 
+
+.. code-block:: python 
+
+    class testwith:
+        def __init__(self):
+            print('__init__()')
+
+        def __enter__(self):
+            print('__enter__()')
+            return '__enter__'
+        
+        def __exit__(self, type, value, trace):
+            print('__exit__()')
+        
+    with testwith() as tt:
+        print(tt)
+
+    Result:
+    >>>__init__()
+    >>>__enter__()
+    >>>__enter__
+    >>>__exit__()
+
+这个示例代码充分说明了执行过程是先执行初始化函数 ， 然后执行 __enter__ 函数 ， 上下\
+文结束时执行 __exit__ 函数 。 
+
+因此 _RequestContext 类中也是这样的顺序 ， 初始化 6 个变量 ， 然后执行 \
+_request_ctx_stack.push 函数 ， 将当前请求上下文推入到请求上下文堆栈中 ， 上下文结\
+束后执行 _request_ctx_stack.pop ， 弹出当前请求上下文 。 
+
