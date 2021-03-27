@@ -24,7 +24,7 @@ uml: Flask-__call__.puml
 
 执行 __call__ 函数时 ， 直接返回了 wsgi_app 函数的执行结果 。 
 
-3.1.4 Flask wsgi_app
+3.1.5 Flask wsgi_app
 ------------------------------------------------------------------------------
 
 uml: Flask-wsgi_app.puml
@@ -51,7 +51,7 @@ uml: Flask-wsgi_app.puml
 行 make_response 对预处理请求或分发的请求生成响应对象 ， 然后处理这个响应对象 ， 其\
 结果作为返回值返回出去 。 
 
-3.1.4 Flask request_context
+3.1.6 Flask request_context
 ------------------------------------------------------------------------------
 
 uml: Flask-request_context.puml
@@ -64,7 +64,7 @@ uml: Flask-request_context.puml
 直接返回 _RequestContext 类实例 ， 换句话说 request_context 就是 \
 _RequestContext 类实例。 
 
-3.1.4 _RequestContext
+3.1.7 _RequestContext
 ------------------------------------------------------------------------------
 
 uml: Flask-_RequestContext.puml
@@ -115,7 +115,34 @@ uml: Flask-_RequestContext.puml
 这个示例代码充分说明了执行过程是先执行初始化函数 ， 然后执行 __enter__ 函数 ， 上下\
 文结束时执行 __exit__ 函数 。 
 
-因此 _RequestContext 类中也是这样的顺序 ， 初始化 6 个变量 ， 然后执行 \
-_request_ctx_stack.push 函数 ， 将当前请求上下文推入到请求上下文堆栈中 ， 上下文结\
-束后执行 _request_ctx_stack.pop ， 弹出当前请求上下文 。 
+因此 _RequestContext 类中也是这样的顺序 ， 初始化 6 个变量 ：
+
+- self.app = app
+- self.url_adapter = app.url_map.bind_to_environ(environ)
+- self.request = app.request_class(environ)
+- self.session = app.open_session(self.request)
+- self.g = _RequestGlobals()
+- self.flashes = None
+
+初始化中的 app 参数就是 Flask 类实例 ， 因为 \
+``return _RequestContext(self, environ)`` self 代表的就是 Flask 类实例 ； \
+url_adapter 为当前 Flask app 的 url_map 绑定到 wsgi 环境中 ； request 为当前 \
+Flask app 的 request_class ； session 为当前 Flask app 的 open_session ； g 为\
+_RequestGlobals 类实例 ； flashes 为空 (None) 。
+
+然后执行 _request_ctx_stack.push 函数 ， 将当前请求上下文推入到请求上下文堆栈中 \
+， 上下文结束后执行 _request_ctx_stack.pop ， 弹出当前请求上下文 。 
+
+3.1.8 Flask request_class
+------------------------------------------------------------------------------
+
+uml: Flask-request_class.puml
+
+.. code-block:: python 
+    
+    class Flask:
+
+        request_class = Request
+
+Flask.request_class 就是 Request 类实例 。 
 
