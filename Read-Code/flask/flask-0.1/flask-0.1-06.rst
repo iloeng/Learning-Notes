@@ -146,3 +146,26 @@ uml: Flask-request_class.puml
 
 Flask.request_class 就是 Request 类实例 。 
 
+3.1.9 Request
+------------------------------------------------------------------------------
+
+uml: Flask-Request.puml
+
+.. code-block:: python 
+
+    class Request(RequestBase):
+        """The request object used by default in flask.  Remembers the
+        matched endpoint and view arguments.
+        """
+
+        def __init__(self, environ):
+            RequestBase.__init__(self, environ)
+            self.endpoint = None
+            self.view_args = None
+
+Request 类继承了 werkzeug.wrappers.Request 类 ， 然后记录了匹配的 endpoint 和 \
+view_args 。 
+
+3.1.10 open_session
+------------------------------------------------------------------------------
+
