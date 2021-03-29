@@ -1,15 +1,15 @@
 Flask Read:
-    ☐ class Request(RequestBase)
-        ☐ __init__
+    ✔ class Request(RequestBase) @done(21-03-28 23:25)
+        ✔ __init__ @done(21-03-28 23:25)
     
     ☐ class Response(ResponseBase)
     
     ☐ class _RequestGlobals(object)
 
-    ☐ class _RequestContext(object)
+    ✔ class _RequestContext(object) @done(21-03-28 23:25)
         ☐ __init__
-        ☐ __enter__
-        ☐ __exit__
+        ✔ __enter__ @done(21-03-28 23:25)
+        ✔ __exit__ @done(21-03-28 23:25)
     
     ☐ func url_for
     ☐ func flash

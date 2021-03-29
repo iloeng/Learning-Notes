@@ -1,0 +1,17 @@
+@startuml Flask 0.1
+
+' https://www.planttext.com/
+
+start
+: key = self.secret_key;
+
+if (key is not None) then (yes)
+    : return SecureCookie;
+else (no)
+    : None;
+endif
+
+end
+
+
+@enduml

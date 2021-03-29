@@ -169,3 +169,17 @@ view_args 。
 3.1.10 open_session
 ------------------------------------------------------------------------------
 
+uml: Flask-open_session.puml
+
+.. code-block:: python 
+
+    def open_session(self, request):
+        key = self.secret_key
+        if key is not None:
+            return SecureCookie.load_cookie(request, self.session_cookie_name,
+                                            secret_key=key)
+
+request 参数就是当前请求对象 app.open_session(self.request) 。 当 \
+self.secret_key 不为空时 ， 返回 SecureCookie 类 。
+
+
