@@ -36,6 +36,9 @@ Python 2.7 环境 ， 然后激活该环境 ， 并在命令行中执行 ：
 第 2 部分  源码阅读准备 
 ******************************************************************************
 
+本文大量文字节选自 《Flask Web开发实战：入门、进阶与原理解析（李辉著 ）》 ， 按照该\
+书中的第 16 章的步骤 ， 逐步学习 Flask 0.1 版本的源代码 。 
+
 2.1 Flask 的设计理念
 ==============================================================================
 
@@ -130,9 +133,6 @@ current_app 、 g ， 这些对象被称为本地上下文对象 （context loca
 在 Flask 中存在三种状态 ， 分别是程序设置状态 （application setup state） 、 程序\
 运行状态 （application runtime state） 和请求运行状态 （request runtime state） 。
 
-选自 《Flask Web开发实战：入门、进阶与原理解析（李辉著 ）》 ， 按照该书中的第 16 章\
-的步骤 ， 先了解一下本地上下文的数据结构 。 
-
 在 Flask 0.1 代码中 ， 本地上下文信息如下 ： 
 
 .. code-block:: python 
@@ -144,7 +144,13 @@ current_app 、 g ， 这些对象被称为本地上下文对象 （context loca
     session = LocalProxy(lambda: _request_ctx_stack.top.session)
     g = LocalProxy(lambda: _request_ctx_stack.top.g)
 
-我有些不解的是 LocalProxy 里面的匿名函数 ， 需要查一下资料 。
+这里的 lambda 匿名函数可以视为如下函数 ， 以 lambda: _request_ctx_stack.top.app \
+为例 ： 
+
+.. code-block:: python 
+
+    def a():
+        return _request_ctx_stack.top.app
 
 .. code-block:: python 
 
