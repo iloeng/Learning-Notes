@@ -8,11 +8,8 @@ Python Web 模块之 Flask v0.1
 第 3 部分  源码阅读之 App 代码阅读
 ******************************************************************************
 
-3.1 App 代码
+3.6 Flask __call__
 ==============================================================================
-
-3.1.4 Flask __call__
-------------------------------------------------------------------------------
 
 uml: Flask-__call__.puml
 
@@ -24,8 +21,8 @@ uml: Flask-__call__.puml
 
 执行 __call__ 函数时 ， 直接返回了 wsgi_app 函数的执行结果 。 
 
-3.1.5 Flask wsgi_app
-------------------------------------------------------------------------------
+3.7 Flask wsgi_app
+==============================================================================
 
 uml: Flask-wsgi_app.puml
 
@@ -51,8 +48,8 @@ uml: Flask-wsgi_app.puml
 行 make_response 对预处理请求或分发的请求生成响应对象 ， 然后处理这个响应对象 ， 其\
 结果作为返回值返回出去 。 
 
-3.1.6 Flask request_context
-------------------------------------------------------------------------------
+3.8 Flask request_context
+==============================================================================
 
 uml: Flask-request_context.puml
 
@@ -61,11 +58,11 @@ uml: Flask-request_context.puml
     def request_context(self, environ):
         return _RequestContext(self, environ)
 
-直接返回 _RequestContext 类实例 ， 换句话说 request_context 就是 \
-_RequestContext 类实例。 
+接上文 ， 进入 request_context 后直接返回 _RequestContext 类实例 ， 换句话说 \
+request_context 就是 _RequestContext 类实例。 
 
-3.1.7 _RequestContext
-------------------------------------------------------------------------------
+3.9 _RequestContext
+==============================================================================
 
 uml: Flask-_RequestContext.puml
 
@@ -87,8 +84,9 @@ uml: Flask-_RequestContext.puml
             if tb is None or not self.app.debug:
                 _request_ctx_stack.pop()
 
-在上文中 ， 执行 with 的时候 ， 会执行 __enter__ 函数 ， 当然是在执行 __init__ 函\
-数之后 ， 举个例子 ： 
+在上文中 ， 执行 with request_context 的时候 ， 会执行 _RequestContext 类的 \
+__enter__ 函数 ， 当然是在执行 __init__ 函数之后 ， 举个例子可以看一下 with 的执\
+行顺序 ： 
 
 .. code-block:: python 
 
@@ -115,7 +113,7 @@ uml: Flask-_RequestContext.puml
 这个示例代码充分说明了执行过程是先执行初始化函数 ， 然后执行 __enter__ 函数 ， 上下\
 文结束时执行 __exit__ 函数 。 
 
-因此 _RequestContext 类中也是这样的顺序 ， 初始化 6 个变量 ：
+因此 _RequestContext 类中也是这样的顺序 ， 先初始化 6 个变量 ：
 
 - self.app = app
 - self.url_adapter = app.url_map.bind_to_environ(environ)
@@ -133,8 +131,8 @@ _RequestGlobals 类实例 ； flashes 为空 (None) 。
 然后执行 _request_ctx_stack.push 函数 ， 将当前请求上下文推入到请求上下文堆栈中 \
 ， 上下文结束后执行 _request_ctx_stack.pop ， 弹出当前请求上下文 。 
 
-3.1.8 Flask request_class
-------------------------------------------------------------------------------
+3.10 Flask request_class
+==============================================================================
 
 uml: Flask-request_class.puml
 
@@ -144,10 +142,11 @@ uml: Flask-request_class.puml
 
         request_class = Request
 
-Flask.request_class 就是 Request 类实例 。 
+在 _RequestContext 中 ， bind_to_environ 函数属于 werkzeug 模块 ， 先放过 。 而 \
+self.request 的值 Flask.request_class 中的 request_class 就是 Request 类实例 。 
 
-3.1.9 Request
-------------------------------------------------------------------------------
+3.11 Request
+==============================================================================
 
 uml: Flask-Request.puml
 
@@ -163,11 +162,11 @@ uml: Flask-Request.puml
             self.endpoint = None
             self.view_args = None
 
-Request 类继承了 werkzeug.wrappers.Request 类 ， 然后记录了匹配的 endpoint 和 \
-view_args 。 
+接上文 ， Request 类继承了 werkzeug.wrappers.Request 类 ， 然后记录了匹配的 \
+endpoint 和 view_args 。 
 
-3.1.10 open_session
-------------------------------------------------------------------------------
+3.12 open_session
+==============================================================================
 
 uml: Flask-open_session.puml
 
@@ -179,7 +178,20 @@ uml: Flask-open_session.puml
             return SecureCookie.load_cookie(request, self.session_cookie_name,
                                             secret_key=key)
 
-request 参数就是当前请求对象 app.open_session(self.request) 。 当 \
-self.secret_key 不为空时 ， 返回 SecureCookie 类 。
+在 _RequestContext 类中继续 ， self.session 的值 open_session 函数的 request 参\
+数就是当前请求对象 ， 因为 app.open_session(self.request) 。 self.request 是一\
+个 Request 类实例 ， 当 self.secret_key 不为空时 ， 返回 SecureCookie 类 。
 
+3.13 _RequestGlobals
+==============================================================================
 
+接着上文 ， _RequestContext 中 g 变量是 _RequestGlobals 类实例 ， 代码如下 ： 
+
+.. code-block:: python 
+
+    class _RequestGlobals(object):
+        pass
+
+因此 g 变量为空 。 
+
+OK ， 到这里 _RequestContext 类解析完毕 ， 
