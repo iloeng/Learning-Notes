@@ -194,4 +194,25 @@ uml: Flask-open_session.puml
 
 因此 g 变量为空 。 
 
-OK ， 到这里 _RequestContext 类解析完毕 ， 
+OK ， 到这里 _RequestContext 类解析完毕 ， 也就是说 request_context 解析完毕 ， \
+接下来返回到 wsgi_app 函数中 ， 进入请求上下文当中 ， 解析 preprocess_request 方法
+
+3.14 Flask preprocess_request
+==============================================================================
+
+preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` 默认情况下\
+是空值 ， 其值为可调用对象 。 
+
+.. code-block:: python 
+
+    def preprocess_request(self):
+        for func in self.before_request_funcs:
+            rv = func()
+            if rv is not None:
+                return rv
+
+由于一般情况下是空值 ， 所以该函数没有返回值 ， 但是当 before_request_funcs 有值的\
+时候 ， 会返回其值的返回值 ， 换句话说 ， before_request_funcs 中是一个个函数 ， \
+返回的是函数的执行结果 。 
+
+
