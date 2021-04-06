@@ -200,8 +200,8 @@ OK ， 到这里 _RequestContext 类解析完毕 ， 也就是说 request_contex
 3.14 Flask preprocess_request
 ==============================================================================
 
-preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` 默认情况下\
-是空值 ， 其值为可调用对象 。 
+preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` 是一个列表 \
+， 默认情况下是空值 ， 其值为可调用对象 ， 通过 before_request 函数进行操作 。 
 
 .. code-block:: python 
 
@@ -214,5 +214,54 @@ preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` �
 由于一般情况下是空值 ， 所以该函数没有返回值 ， 但是当 before_request_funcs 有值的\
 时候 ， 会返回其值的返回值 ， 换句话说 ， before_request_funcs 中是一个个函数 ， \
 返回的是函数的执行结果 。 
+
+3.15 Flask before_request
+==============================================================================
+
+.. code-block:: python 
+
+    def before_request(self, f):
+        """Registers a function to run before each request."""
+        self.before_request_funcs.append(f)
+        return f
+
+直接看一下这个函数 ， 它用来注册在每个请求执行之前的函数 ， 也就是说在执行一个视图函\
+数之前 ， 先执行 before_request_funcs 列表中的函数 ， 调用这个函数之后 ， 会将参数\
+对象追加到 before_request_funcs 列表中 ， 最后返回这个参数对象 。 
+
+3.16 Flask dispatch_request
+==============================================================================
+
+继续 wsgi_app 中的解析 ， 由于 preprocess_request 为空 ， 判断条件为 False ， 因\
+此执行 dispatch_request 函数 ， 该函数代码如下 ：
+
+.. code-block:: python 
+
+    def dispatch_request(self):
+
+        try:
+            endpoint, values = self.match_request()
+            return self.view_functions[endpoint](**values)
+        except HTTPException, e:
+            handler = self.error_handlers.get(e.code)
+            if handler is None:
+                return e
+            return handler(e)
+        except Exception, e:
+            handler = self.error_handlers.get(500)
+            if self.debug or handler is None:
+                raise
+            return handler(e)
+
+其实这个函数在前文中有过解析 ， 这里在详细解析一下 。 首先执行 try 内部的步骤 ， 执\
+行 match_request 函数获得 endpoint 和 values ， 这里的 endpoint 其实就是视图函数\
+名称 ， values 就是视图函数的参数 ， 然后从 view_functions (视图函数关联字典) 中获\
+取到视图函数对象 ， 再将参数传递过去 ， 最终返回视图函数的执行结果 。 
+
+如果出现 HTTPException ， 则执行错误事件处理函数 ， error_handlers 是一个字典 ， \
+通过 errorhandler 函数注册错误事件处理函数 ， 从 error_handlers 字典中获取到错误事\
+件处理对象之后 ， 执行这个对象并返回出去结果 。
+
+如果是其他的 Exception ， 直接按照错误代码 500 进行处理 。 
 
 
