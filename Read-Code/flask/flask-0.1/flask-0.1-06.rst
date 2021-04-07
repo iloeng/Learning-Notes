@@ -311,4 +311,30 @@ preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` �
 
 到此 dispatch_request 函数解析完毕 。 
 
+3.19 Flask make_response
+==============================================================================
+
+回到 wsgi_app 中的步骤 ， make_response 创建响应对象 。 代码如下 ： 
+
+.. code-block:: python 
+
+    def make_response(self, rv):
+        if isinstance(rv, self.response_class):
+            return rv
+        if isinstance(rv, basestring):
+            return self.response_class(rv)
+        if isinstance(rv, tuple):
+            return self.response_class(*rv)
+        return self.response_class.force_type(rv, request.environ)
+
+首先判断参数 rv 到底是什么对象 ， 如果是 self.response_class 实例 ， 直接返回 rv \
+； 如果是 basestring 实例 ， 则返回 self.response_class(rv) ； 如果是 tuple 元组\
+则返回 self.response_class(*rv) ； 如果都不是 ， 则返回 \
+self.response_class.force_type(rv, request.environ) 。
+
+self.response_class 实际上就是 Response 类实例 ， 因为 \
+``response_class = Response`` ， basestring 是 str 和 unicode 的超类 (父类) ， \
+也是抽象类 ， 不能被调用和实例化 ， 但可以被用来判断一个对象是否为 str 或者 unicode \
+的实例 ， isinstance(obj, basestring) 等价于 isinstance(obj, (str, unicode)) 。
+
 
