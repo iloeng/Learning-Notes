@@ -264,4 +264,21 @@ preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` �
 
 如果是其他的 Exception ， 直接按照错误代码 500 进行处理 。 
 
+3.17 Flask dispatch_request
+==============================================================================
+
+.. code-block:: python 
+
+    def match_request(self):
+        """Matches the current request against the URL map and also
+        stores the endpoint and view arguments on the request object
+        is successful, otherwise the exception is stored.
+        """
+        rv = _request_ctx_stack.top.url_adapter.match()
+        request.endpoint, request.view_args = rv
+        return rv
+
+接着 dispatch_request 函数中的步骤 ， match_request 函数的功能就如函数注释 ， 将\
+当前请求与 URL 映射进行匹配 ， 匹配成功就存储 endpoint 和视图函数的参数 ， 否则就存\
+储异常 。 最终返回匹配结果 。 
 
