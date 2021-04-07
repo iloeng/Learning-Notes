@@ -328,9 +328,9 @@ preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` �
         return self.response_class.force_type(rv, request.environ)
 
 首先判断参数 rv 到底是什么对象 ， 如果是 self.response_class 实例 ， 直接返回 rv \
-； 如果是 basestring 实例 ， 则返回 self.response_class(rv) ； 如果是 tuple 元组\
-则返回 self.response_class(*rv) ； 如果都不是 ， 则返回 \
-self.response_class.force_type(rv, request.environ) 。
+； 如果是 basestring 实例 ， 则返回 ``self.response_class(rv)`` ； 如果是 tuple \
+元组则返回 ``self.response_class(*rv)`` ； 如果都不是 ， 则返回 \
+``self.response_class.force_type(rv, request.environ)`` 。
 
 self.response_class 实际上就是 Response 类实例 ， 因为 \
 ``response_class = Response`` ， basestring 是 str 和 unicode 的超类 (父类) ， \
