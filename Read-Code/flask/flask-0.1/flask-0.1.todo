@@ -30,8 +30,8 @@ Flask Read:
         ☐ save_session
         ✔ add_url_rule @done(21-03-20 23:23)
         ✔ route @done(21-03-20 23:04)
-        ☐ errorhandler
-            ☐ decorator
+        ✔ errorhandler @done(21-04-07 22:28)
+            ✔ decorator @done(21-04-07 22:27)
         ✔ before_request @done(21-04-06 22:51)
         ☐ after_request
         ☐ context_processor

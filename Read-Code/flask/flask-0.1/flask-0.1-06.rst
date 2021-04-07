@@ -264,7 +264,7 @@ preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` �
 
 如果是其他的 Exception ， 直接按照错误代码 500 进行处理 。 
 
-3.17 Flask dispatch_request
+3.17 Flask match_request
 ==============================================================================
 
 .. code-block:: python 
@@ -281,4 +281,34 @@ preprocess_request 的源代码如下所示 ， ``self.before_request_funcs`` �
 接着 dispatch_request 函数中的步骤 ， match_request 函数的功能就如函数注释 ， 将\
 当前请求与 URL 映射进行匹配 ， 匹配成功就存储 endpoint 和视图函数的参数 ， 否则就存\
 储异常 。 最终返回匹配结果 。 
+
+3.18 Flask errorhandler
+==============================================================================
+
+.. code-block:: python 
+
+    def errorhandler(self, code):
+
+        def decorator(f):
+            self.error_handlers[code] = f
+            return f
+        return decorator
+
+接着 dispatch_request 函数中的步骤 ， 如果出现异常 ， 就会从异常处理列表中查找异常\
+处理方法 ， error_handlers 是一个字典 ， 通过 errorhandler 函数注册错误事件处理函\
+数 ， 类似于 route 注册路由 ， errorhandler 会注册某些错误代码的处理方法 ， 假如错\
+误代码是 404 ：
+
+.. code-block:: python 
+
+    @app.errorhandler(404)
+    def page_not_found():
+        return 'This page does not exist', 404
+
+其注册后的结果 errorhandler = {'404': page_not_found} ， 之后会通过异常代码查找异\
+常处理方法 ， 如果出现了 404 异常代码 ， 然后就查到 page_not_found 方法 ， 然后就执\
+行它 。
+
+到此 dispatch_request 函数解析完毕 。 
+
 
