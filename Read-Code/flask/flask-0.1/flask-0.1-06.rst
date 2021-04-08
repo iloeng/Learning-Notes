@@ -355,3 +355,34 @@ make_response 的分析就到此结束了 ， 回到 wsgi_app 中 。
 
 3.20 Flask process_response
 ==============================================================================
+
+wsgi_app 执行到 process_response ， 用于处理响应对象 ， 其代码如下 :
+
+.. code-block:: python 
+
+    def process_response(self, response):
+        """Can be overridden in order to modify the response object
+        before it's sent to the WSGI server.  By default this will
+        call all the :meth:`after_request` decorated functions.
+
+        :param response: a :attr:`response_class` object.
+        :return: a new response object or the same, has to be an
+                 instance of :attr:`response_class`.
+        """
+        session = _request_ctx_stack.top.session
+        if session is not None:
+            self.save_session(session, response)
+        for handler in self.after_request_funcs:
+            response = handler(response)
+        return response
+
+这里的 response 参数联系上下文就知道是 make_response 生成的响应对象 ， 以生成的响\
+应对象为参数传入 process_response 函数中 。 
+
+首先局部变量 session 表示的是当前的请求的 session ， 在 _RequestContext 中有定义 \
+， 如果 session 不为 None ， 执行 save_session 函数 ， 当 after_request_funcs 中\
+有值的时候 ， 循环执行其中的方法 ， self.after_request_funcs 是一个列表 ， 存储着\
+每个请求执行完毕后应该执行的方法 ， 通过 after_request 函数操作 。 最终返回一个 \
+response_class 实例对象 。 
+
+
