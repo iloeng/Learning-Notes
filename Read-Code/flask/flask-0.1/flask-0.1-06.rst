@@ -418,3 +418,14 @@ save_session 其实就是更新一下之前的 session ， 当当前请求的 se
 after_request 会将参数对象注册到 after_request_funcs 列表中 ， 会在每个请求之后运\
 行 。 
 
+3.24 response
+==============================================================================
+
+回到 wsgi_app 中的最后一个步骤 ， 即一个请求上下文结束时的步骤 ， 执行的是 \
+``response(environ, start_response)`` ， 这里的 response 实际上还是一个 \
+Response 类 ， 只不过是 process_response 返回的一个 Response 类 。 它的意思是以当\
+前的 wsgi 环境和响应参数执行响应步骤 。 
+
+到此 wsgi_app 就完成解析了 ， 其他的一些方法在示例 App 中有用到 ， 就先不解析 ， 放\
+在测试代码中解析 。 
+

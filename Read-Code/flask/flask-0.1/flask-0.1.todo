@@ -21,7 +21,7 @@ Flask Read:
 
     ☐ class Flask(object)
         ✔ __init__ @done(21-03-19 22:49)
-        ☐ create_jinja_loader
+        ✔ create_jinja_loader @done(21-04-08 23:27)
         ☐ update_template_context
         ✔ run @done(21-03-23 22:32)
         ☐ test_client
@@ -39,8 +39,8 @@ Flask Read:
         ✔ dispatch_request @done(21-02-21 11:31)
         ✔ make_response @done(21-04-08 22:56)
         ✔ preprocess_request @done(21-04-05 22:29)
-        ☐ process_response
-        ☐ wsgi_app
+        ✔ process_response @done(21-04-08 23:24)
+        ✔ wsgi_app @done(21-04-08 23:24)
         ✔ request_context @done(21-04-05 22:29)
         ☐ test_request_context
         ✔ __call__ @done(21-02-19 15:10)
