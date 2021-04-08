@@ -385,4 +385,23 @@ wsgi_app 执行到 process_response ， 用于处理响应对象 ， 其代码�
 每个请求执行完毕后应该执行的方法 ， 通过 after_request 函数操作 。 最终返回一个 \
 response_class 实例对象 。 
 
+3.20 Flask save_session
+==============================================================================
+
+.. code-block:: python
+
+    def save_session(self, session, response):
+        """Saves the session if it needs updates.  For the default
+        implementation, check :meth:`open_session`.
+
+        :param session: the session to be saved (a
+                        :class:`~werkzeug.contrib.securecookie.SecureCookie`
+                        object)
+        :param response: an instance of :attr:`response_class`
+        """
+        if session is not None:
+            session.save_cookie(response, self.session_cookie_name)
+
+save_session 其实就是更新一下之前的 session ， 当当前请求的 session 不为空时 ， 更\
+新一下 cookie 。 由于 save_cookie 是 werkzeug 中的方法 ， 这里就不展开了 。 
 
