@@ -37,7 +37,7 @@ Flask Read:
         ☐ context_processor
         ✔ match_request @done(21-02-21 11:31)
         ✔ dispatch_request @done(21-02-21 11:31)
-        ☐ make_response
+        ✔ make_response @done(21-04-08 22:56)
         ✔ preprocess_request @done(21-04-05 22:29)
         ☐ process_response
         ☐ wsgi_app

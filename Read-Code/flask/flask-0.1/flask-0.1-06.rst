@@ -337,4 +337,21 @@ self.response_class 实际上就是 Response 类实例 ， 因为 \
 也是抽象类 ， 不能被调用和实例化 ， 但可以被用来判断一个对象是否为 str 或者 unicode \
 的实例 ， isinstance(obj, basestring) 等价于 isinstance(obj, (str, unicode)) 。
 
+3.20 Flask Response
+==============================================================================
 
+Flask 中的 Response 类继承自 werkzeug 中的 ResponseBase ， 只设置了默认处理格式 \
+。 其代码如下 ： 
+
+.. code-block:: python 
+
+    class Response(ResponseBase):
+        default_mimetype = 'text/html'
+
+在这里只指定了 default_mimetype 为 html ， 用于控制响应类型 。 其他值均继承 \
+ResponseBase 类 。 
+
+make_response 的分析就到此结束了 ， 回到 wsgi_app 中 。 
+
+3.20 Flask process_response
+==============================================================================
