@@ -353,7 +353,7 @@ ResponseBase 类 。
 
 make_response 的分析就到此结束了 ， 回到 wsgi_app 中 。 
 
-3.20 Flask process_response
+3.21 Flask process_response
 ==============================================================================
 
 wsgi_app 执行到 process_response ， 用于处理响应对象 ， 其代码如下 :
@@ -385,7 +385,7 @@ wsgi_app 执行到 process_response ， 用于处理响应对象 ， 其代码�
 每个请求执行完毕后应该执行的方法 ， 通过 after_request 函数操作 。 最终返回一个 \
 response_class 实例对象 。 
 
-3.20 Flask save_session
+3.22 Flask save_session
 ==============================================================================
 
 .. code-block:: python
@@ -404,4 +404,17 @@ response_class 实例对象 。
 
 save_session 其实就是更新一下之前的 session ， 当当前请求的 session 不为空时 ， 更\
 新一下 cookie 。 由于 save_cookie 是 werkzeug 中的方法 ， 这里就不展开了 。 
+
+3.23 Flask after_request
+==============================================================================
+
+.. code-block:: python
+
+    def after_request(self, f):
+        """Register a function to be run after each request."""
+        self.after_request_funcs.append(f)
+        return f
+
+after_request 会将参数对象注册到 after_request_funcs 列表中 ， 会在每个请求之后运\
+行 。 
 

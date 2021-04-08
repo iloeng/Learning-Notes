@@ -27,13 +27,13 @@ Flask Read:
         ☐ test_client
         ☐ open_resource
         ✔ open_session @done(21-04-06 22:30)
-        ☐ save_session
+        ✔ save_session @done(21-04-08 23:14)
         ✔ add_url_rule @done(21-03-20 23:23)
         ✔ route @done(21-03-20 23:04)
         ✔ errorhandler @done(21-04-07 22:28)
             ✔ decorator @done(21-04-07 22:27)
         ✔ before_request @done(21-04-06 22:51)
-        ☐ after_request
+        ✔ after_request @done(21-04-08 23:14)
         ☐ context_processor
         ✔ match_request @done(21-02-21 11:31)
         ✔ dispatch_request @done(21-02-21 11:31)
