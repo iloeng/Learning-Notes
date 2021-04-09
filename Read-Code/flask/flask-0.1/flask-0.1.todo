@@ -24,7 +24,7 @@ Flask Read:
         ✔ create_jinja_loader @done(21-04-08 23:27)
         ☐ update_template_context
         ✔ run @done(21-03-23 22:32)
-        ☐ test_client
+        ✔ test_client @done(21-04-09 22:36)
         ☐ open_resource
         ✔ open_session @done(21-04-06 22:30)
         ✔ save_session @done(21-04-08 23:14)
@@ -57,7 +57,7 @@ Flask Test:
         ☐ test_context_binding
     
     `class BasicFunctionality(unittest.TestCase)`:
-        ☐ test_request_dispatching
+        ✔ test_request_dispatching @done(21-04-09 22:36)
         ☐ test_session
         ☐ test_request_processing
         ☐ test_error_handling

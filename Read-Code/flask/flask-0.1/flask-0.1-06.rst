@@ -429,3 +429,72 @@ Response 类 ， 只不过是 process_response 返回的一个 Response 类 。 
 到此 wsgi_app 就完成解析了 ， 其他的一些方法在示例 App 中有用到 ， 就先不解析 ， 放\
 在测试代码中解析 。 
 
+
+******************************************************************************
+第 3 部分  源码阅读之测试用例
+******************************************************************************
+
+3.1 BasicFunctionality
+==============================================================================
+
+首先阅读基础功能方面的测试用例 ， 按照源码中的 TestCase 依次阅读 。 
+
+3.1.1 Request Dispatching
+------------------------------------------------------------------------------
+
+第一个是请求转发功能 ， 详情看测试用例代码 。 
+
+.. code-block:: python
+
+    class BasicFunctionality(unittest.TestCase):
+
+        def test_request_dispatching(self):
+            app = flask.Flask(__name__)
+
+            @app.route('/')
+            def index():
+                return flask.request.method
+            
+            @app.route('/more', methods=['GET', 'POST'])
+            def more():
+                return flask.request.method
+
+            c = app.test_client()
+            b = c.get('/')
+            assert c.get('/').data == 'GET'
+            rv = c.post('/')
+            assert rv.status_code == 405
+            assert sorted(rv.allow) == ['GET', 'HEAD']
+            rv = c.head('/')
+            assert rv.status_code == 200
+            assert not rv.data # head truncates
+            assert c.post('/more').data == 'POST'
+            assert c.get('/more').data == 'GET'
+            rv = c.delete('/more')
+            assert rv.status_code == 405
+            assert sorted(rv.allow) == ['GET', 'HEAD', 'POST']
+
+为了方便调试中查看变量数据 ， 插入一行 ``b = c.get('/')`` ， 并在此处设置断点 ， 开\
+始调试 ， 调试结果如下 。 当然首先要先了解两个视图函数的作用 。
+
+``index`` 函数返回了当前请求的请求方法 ， 注册路由的时候没有添加请求方法 ， 默认为 \
+GET ， 也就是说最终返回的是 'GET' 。
+
+``more`` 设置了请求方法 ， 'GET' 和 'POST' 都可以 ， 那最终结果就看请求方法了 ， \
+如果用 GET 请求 ， 返回值为 'GET' ， 如果用 POST 请求 ， 返回值为 'POST' 。
+
+.. image:: img/3-1.png
+
+这里的 data 就是视图函数的结果 ， 然后 case 中的步骤就很好理解了 ， 判断请求视图函\
+数的方法是否正确 ， 当然我有些疑惑的是 ， 用一个视图函数不支持的请求方法请求响应的路\
+由后 ， 允许的请求方法会多一个 'HEAD' 方法 ， 这个问题就先留在这了 ， 以后有这方面的\
+知识后再解答 。 
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: flask-0.1-05.rst
+.. _`下一篇`: flask-0.1-07.rst
