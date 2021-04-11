@@ -73,7 +73,7 @@ before_request 路由 ， 在执行视图函数之前会先行执行它 ； 同�
 'request' ； 然后执行 after_request 函数 ， 它会在之前的相应数据中添加 '\|after' \
 ， 同时将 'after' 添加到 evts 中 。 整个步骤就是这样的 ， 在进行判断操作 。 
 
-3.1.5 Error Handling
+3.1.4 Error Handling
 ------------------------------------------------------------------------------
 
 .. code-block:: python 
@@ -111,7 +111,7 @@ internal_server_error 捕获 。
 因此这里也很好理解 ， 当请求 '/' 时会被 404 异常中止服务 ， 那么状态码应该为 404 \
 ， 执行结果为 'not found' 。 同理后面的步骤也是这样 。 
 
-3.1.6 Response Creation
+3.1.5 Response Creation
 ------------------------------------------------------------------------------
 
 .. code-block:: python 
@@ -139,4 +139,42 @@ internal_server_error 捕获 。
 这个 case 是测试请求响应的 ， 前面的判断都很好理解 ， 我有些疑惑的是 from_tuple 视\
 图函数响应的时候会是 data ， headers ， status_code 和 mimetype 在返回值中 ， 应\
 该是响应的时候经过了某些步骤的处理吧 。 
+
+3.1.6 URL Generation
+------------------------------------------------------------------------------
+
+.. code-block:: python 
+
+    def test_url_generation(self):
+        app = flask.Flask(__name__)
+        @app.route('/hello/<name>', methods=['POST'])
+        def hello(): # 这里添加参数 name => def hello(name) 较好
+            pass  # 这里改成 return "name" 较好
+        with app.test_request_context():
+            assert flask.url_for('hello', name='test x') == '/hello/test%20x'
+
+这个 case 也比较简单 ， 注册一个路由之后 ， 在请求上下文中判断响应的链接是否正确 ， \
+这里的 test_request_context 其实就是创建请求上下文 ， 其代码如下 ： 
+
+.. code-block:: python 
+
+    def test_request_context(self, *args, **kwargs):
+        return self.request_context(create_environ(*args, **kwargs))
+
+这里的 request_context 之前已经解析过 ， 就不再解析 ； url_for 函数是用来生成 URL \
+链接的 ， 根据给定的参数生成链接 ， 其代码如下 ： 
+
+.. code-block:: python 
+
+    def url_for(endpoint, **values):
+        """Generates a URL to the given endpoint with the method provided.
+
+        :param endpoint: the endpoint of the URL (name of the function)
+        :param values: the variable arguments of the URL rule
+        """
+        return _request_ctx_stack.top.url_adapter.build(endpoint, values)
+
+由于 build 不是 Flask 的代码 ， 这里就不在解析 。
+
+最终这个 case 通过判断生成链接是否符合预期来判断功能是否正常 。 
 

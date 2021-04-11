@@ -11,7 +11,7 @@ Flask Read:
         ✔ __enter__ @done(21-03-28 23:25)
         ✔ __exit__ @done(21-03-28 23:25)
     
-    ☐ func url_for
+    ✔ func url_for @done(21-04-11 23:05)
     ☐ func flash
     ☐ func get_flashed_messages
     ☐ func render_template
@@ -42,7 +42,7 @@ Flask Read:
         ✔ process_response @done(21-04-08 23:24)
         ✔ wsgi_app @done(21-04-08 23:24)
         ✔ request_context @done(21-04-05 22:29)
-        ☐ test_request_context
+        ✔ test_request_context @done(21-04-11 23:05)
         ✔ __call__ @done(21-02-19 15:10)
     
     ✔ _request_ctx_stack @done(21-03-21 23:24)
@@ -62,7 +62,7 @@ Flask Test:
         ✔ test_request_processing @done(21-04-11 15:07)
         ✔ test_error_handling @done(21-04-11 17:36)
         ✔ test_response_creation @done(21-04-11 22:51)
-        ☐ test_url_generation
+        ✔ test_url_generation @done(21-04-11 23:05)
         ☐ test_static_files
     
     `class Templating(unittest.TestCase)`:
