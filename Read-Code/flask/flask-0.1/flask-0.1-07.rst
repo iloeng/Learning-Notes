@@ -111,3 +111,32 @@ internal_server_error 捕获 。
 因此这里也很好理解 ， 当请求 '/' 时会被 404 异常中止服务 ， 那么状态码应该为 404 \
 ， 执行结果为 'not found' 。 同理后面的步骤也是这样 。 
 
+3.1.6 Response Creation
+------------------------------------------------------------------------------
+
+.. code-block:: python 
+
+    def test_response_creation(self):
+        app = flask.Flask(__name__)
+        @app.route('/unicode')
+        def from_unicode():
+            return u'Hällo Wörld'
+        @app.route('/string')
+        def from_string():
+            return u'Hällo Wörld'.encode('utf-8')
+        @app.route('/args')
+        def from_tuple():
+            return 'Meh', 400, {'X-Foo': 'Testing'}, 'text/plain'
+        c = app.test_client()
+        assert c.get('/unicode').data == u'Hällo Wörld'.encode('utf-8')
+        assert c.get('/string').data == u'Hällo Wörld'.encode('utf-8')
+        rv = c.get('/args')
+        assert rv.data == 'Meh'
+        assert rv.headers['X-Foo'] == 'Testing'
+        assert rv.status_code == 400
+        assert rv.mimetype == 'text/plain'
+
+这个 case 是测试请求响应的 ， 前面的判断都很好理解 ， 我有些疑惑的是 from_tuple 视\
+图函数响应的时候会是 data ， headers ， status_code 和 mimetype 在返回值中 ， 应\
+该是响应的时候经过了某些步骤的处理吧 。 
+
