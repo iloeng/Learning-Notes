@@ -73,4 +73,41 @@ before_request 路由 ， 在执行视图函数之前会先行执行它 ； 同�
 'request' ； 然后执行 after_request 函数 ， 它会在之前的相应数据中添加 '\|after' \
 ， 同时将 'after' 添加到 evts 中 。 整个步骤就是这样的 ， 在进行判断操作 。 
 
+3.1.5 Error Handling
+------------------------------------------------------------------------------
+
+.. code-block:: python 
+
+    def test_error_handling(self):
+        app = flask.Flask(__name__)
+        @app.errorhandler(404)
+        def not_found(e):
+            return 'not found', 404
+        @app.errorhandler(500)
+        def internal_server_error(e):
+            return 'internal server error', 500
+        @app.route('/')
+        def index():
+            flask.abort(404)
+        @app.route('/error')
+        def error():
+            1/0
+        c = app.test_client()
+        rv = c.get('/')
+        assert rv.status_code == 404
+        assert rv.data == 'not found'
+        rv = c.get('/error')
+        assert rv.status_code == 500
+        assert 'internal server error' in rv.data
+
+这个测试用例是为了测试错误处理功能是否正常 。 
+
+not_found 函数通过 errorhandler 注册了 404 代码的处理方法 ， 返回 \
+``'not found', 404`` ； internal_server_error 注册了一个 500 代码的处理方法 ， \
+返回 ``'internal server error', 500`` ； 访问 index 的时候 ， 直接以 404 异常中\
+止 ； error 是以 Python 错误语句来导致 Python 内部错误 ， 可以被 \
+internal_server_error 捕获 。 
+
+因此这里也很好理解 ， 当请求 '/' 时会被 404 异常中止服务 ， 那么状态码应该为 404 \
+， 执行结果为 'not found' 。 同理后面的步骤也是这样 。 
 

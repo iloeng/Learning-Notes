@@ -58,9 +58,9 @@ Flask Test:
     
     `class BasicFunctionality(unittest.TestCase)`:
         ✔ test_request_dispatching @done(21-04-09 22:36)
-        ☐ test_session
-        ☐ test_request_processing
-        ☐ test_error_handling
+        ✔ test_session @done(21-04-11 15:07)
+        ✔ test_request_processing @done(21-04-11 15:07)
+        ✔ test_error_handling @done(21-04-11 17:36)
         ☐ test_response_creation
         ☐ test_url_generation
         ☐ test_static_files
