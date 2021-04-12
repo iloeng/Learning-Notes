@@ -178,3 +178,25 @@ internal_server_error 捕获 。
 
 最终这个 case 通过判断生成链接是否符合预期来判断功能是否正常 。 
 
+3.1.7 Static Files
+------------------------------------------------------------------------------
+
+.. code-block:: python 
+
+    def test_static_files(self):
+        app = flask.Flask(__name__)
+        rv = app.test_client().get('/static/index.html')
+        assert rv.status_code == 200
+        assert rv.data.strip() == '<h1>Hello World!</h1>'
+        with app.test_request_context():
+            assert flask.url_for('static', filename='index.html') \
+                == '/static/index.html'
+
+这里的 index.html 文件内容就是 ``<h1>Hello World!</h1>`` ， 在这里并没有设置 \
+static 文件目录 ， 这是因为 Flask 0.1 中已经设置了 static 目录为与 Flask 实例同级 \
+， 因此没有设置 ， 同时是直接请求静态文件 ， 所以不需要视图函数 。
+
+因此请求一个已知路径的静态文件是可以正常请求到的 ， 因此这里的 status_code 为正常的 \
+200 ， 返回值也用 strip 函数预处理了一下 ， 最后又测试了一下 url_for 生成链接的功\
+能 ， 这里就不在解析 。 
+
