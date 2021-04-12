@@ -257,5 +257,106 @@ static 文件目录 ， 这是因为 Flask 0.1 中已经设置了 static 目录�
 直接在请求上下文里面操作 ， 省去了请求的步骤 ； 下面的步骤同理 。 不过需要注意一下 \
 ， 如果自定义了 server host ， 链接中就不是 localhost 了 。
 
+3.3 Templating
+==============================================================================
 
+上文中已经解析完毕基础功能及上下文相关的测试用例 ， 这一节解析模板相关的用例 。 
+
+3.3.1 Context Processing
+------------------------------------------------------------------------------
+
+.. code-block:: python 
+
+    def test_context_processing(self):
+        app = flask.Flask(__name__)
+        @app.context_processor
+        def context_processor():
+            return {'injected_value': 42}
+        @app.route('/')
+        def index():
+            return flask.render_template('context_template.html', value=23)
+        rv = app.test_client().get('/')
+        assert rv.data == '<p>23|42'
+
+测试用例开始之前 ， 使用 context_processor 注册了一个上下文处理器 ， 这个上下文处\
+理器返回了一个字典 {'injected_value': 42} ； 同时主页使用 render_template 函数动\
+态渲染了一个静态模板 ， 最终通过 get 请求主页后的值进行比对 ， 来判断测试功能是否正\
+常 。
+
+首先先看一下 context_processor 方法 ：
+
+.. code-block:: python 
+
+    [flask.py]
+
+    def context_processor(self, f):
+        """Registers a template context processor function."""
+        self.template_context_processors.append(f)
+        return f
+
+就是把参数对象添加到模板处理器列表 template_context_processors 中 ， Flask 初始化\
+的时候已经初始化为 \
+``self.template_context_processors = [_default_template_ctx_processor]`` 这个 \
+_default_template_ctx_processor 实际上就是一个 dict 对象 ：
+
+.. code-block:: python 
+
+    def _default_template_ctx_processor():
+        """Default template context processor.  Injects `request`,
+        `session` and `g`.
+        """
+        reqctx = _request_ctx_stack.top
+        return dict(
+            request=reqctx.request,   # 当前请求
+            session=reqctx.session,   # 当前请求的 session
+            g=reqctx.g
+        )
+
+接下来解析 render_template 函数 ：
+
+.. code-block:: python 
+
+    def render_template(template_name, **context):
+        """Renders a template from the template folder with the given
+        context.
+
+        :param template_name: the name of the template to be rendered
+        :param context: the variables that should be available in the
+                        context of the template.
+        """
+        current_app.update_template_context(context)
+        return current_app.jinja_env.get_template(template_name).render(context)
+
+传入两个参数 ， 第一个是模板文件名称 ， 第二个就是参数字典 。 最终返回 jinja 渲染的\
+文本 。 
+
+当然在渲染之前 ， 会先执行模板上下文处理器 template_context_processors ：
+
+.. code-block:: python 
+
+    [flask.py]
+
+    def update_template_context(self, context):
+        """Update the template context with some commonly used variables.
+        This injects request, session and g into the template context.
+
+        :param context: the context as a dictionary that is updated in place
+                        to add extra variables.
+        """
+        reqctx = _request_ctx_stack.top
+        for func in self.template_context_processors:
+            context.update(func())
+
+将处理器全部执行一遍之后才会执行渲染步骤 ， 这个过程就是为了更新上下文的变量 。 
+
+那这个测试用例就很明了了 ， 先执行 index 函数 ， 但是 index 函数中有渲染模板的功能 \
+， 在模板渲染函数 render_template 中 ， 会首先执行模板上下文处理器 ， 因此会先行执\
+行 context_processor 函数 ， 再渲染模板 ， 这个模板语句很简单 ： 
+
+.. code-block:: html
+
+    <p>{{ value }}|{{ injected_value }} 
+
+经过渲染后 ， 分别将 value 和 injected_value 替换到模板文件中 ， 最终结果为 ： \
+``<p>23|42`` ， 因此正常情况下应该是通过的 。
 

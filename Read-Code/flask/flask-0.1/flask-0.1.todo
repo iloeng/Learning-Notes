@@ -14,7 +14,7 @@ Flask Read:
     ✔ func url_for @done(21-04-11 23:05)
     ☐ func flash
     ☐ func get_flashed_messages
-    ☐ func render_template
+    ✔ func render_template @done(21-04-12 23:09)
     ☐ func render_template_string
     ✔ func _default_template_ctx_processor @done(21-03-20 23:24)
     ✔ func _get_package_path @done(21-03-20 23:23)
@@ -22,7 +22,7 @@ Flask Read:
     ☐ class Flask(object)
         ✔ __init__ @done(21-03-19 22:49)
         ✔ create_jinja_loader @done(21-04-08 23:27)
-        ☐ update_template_context
+        ✔ update_template_context @done(21-04-12 23:09)
         ✔ run @done(21-03-23 22:32)
         ✔ test_client @done(21-04-09 22:36)
         ☐ open_resource
@@ -34,7 +34,7 @@ Flask Read:
             ✔ decorator @done(21-04-07 22:27)
         ✔ before_request @done(21-04-06 22:51)
         ✔ after_request @done(21-04-08 23:14)
-        ☐ context_processor
+        ✔ context_processor @done(21-04-12 23:09)
         ✔ match_request @done(21-02-21 11:31)
         ✔ dispatch_request @done(21-02-21 11:31)
         ✔ make_response @done(21-04-08 22:56)
@@ -66,6 +66,6 @@ Flask Test:
         ✔ test_static_files @done(21-04-12 22:12)
     
     `class Templating(unittest.TestCase)`:
-        ☐ test_context_processing
+        ✔ test_context_processing @done(21-04-12 23:09)
         ☐ test_escaping
 
