@@ -54,7 +54,7 @@ Flask Read:
 Flask Test:
 
     `class ContextTestCase(unittest.TestCase)`:
-        ☐ test_context_binding
+        ✔ test_context_binding @done(21-04-12 22:33)
     
     `class BasicFunctionality(unittest.TestCase)`:
         ✔ test_request_dispatching @done(21-04-09 22:36)
