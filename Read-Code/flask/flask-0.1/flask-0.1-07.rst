@@ -360,3 +360,41 @@ _default_template_ctx_processor 实际上就是一个 dict 对象 ：
 经过渲染后 ， 分别将 value 和 injected_value 替换到模板文件中 ， 最终结果为 ： \
 ``<p>23|42`` ， 因此正常情况下应该是通过的 。
 
+3.3.2 Escaping
+------------------------------------------------------------------------------
+
+.. code-block:: python 
+
+    def test_escaping(self):
+        text = '<p>Hello World!'
+        app = flask.Flask(__name__)
+        @app.route('/')
+        def index():
+            return flask.render_template('escaping_template.html', text=text,
+                                         html=flask.Markup(text))
+        lines = app.test_client().get('/').data.splitlines()
+        assert lines == [
+            '&lt;p&gt;Hello World!',
+            '<p>Hello World!',
+            '<p>Hello World!',
+            '<p>Hello World!',
+            '&lt;p&gt;Hello World!',
+            '<p>Hello World!'
+        ]
+    
+    [escaping_template.html]
+
+    {{ text }}
+    {{ html }}
+    {% autoescape false %}{{ text }}
+    {{ html }}{% endautoescape %}
+    {% autoescape true %}{{ text }}
+    {{ html }}{% endautoescape %}
+
+这个测试用例和上一个相差不多 ， 不过这个测试用例测试的是转义功能 ， 在模板语句中 ， \
+自动转义不容易出现某些安全相关的问题 ， 但是会出现一些奇怪的符号 ， 例如上文中 \
+&lt;p&gt; ， 这些都是 html 中的符号 ， 如果将自动转义功能关闭 ， 则不会将某些符号自\
+动转换 ， 例如第二个 text 的值为 <p>Hello World! 而第一个经过转义后为 \
+&lt;p&gt;Hello World! ， 这个 case 也结束了 。 
+
+

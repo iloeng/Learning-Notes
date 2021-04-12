@@ -67,5 +67,5 @@ Flask Test:
     
     `class Templating(unittest.TestCase)`:
         ✔ test_context_processing @done(21-04-12 23:09)
-        ☐ test_escaping
+        ✔ test_escaping @done(21-04-12 23:19)
 
