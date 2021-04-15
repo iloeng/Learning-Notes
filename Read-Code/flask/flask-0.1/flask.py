@@ -661,3 +661,31 @@ current_app = LocalProxy(lambda: _request_ctx_stack.top.app)
 request = LocalProxy(lambda: _request_ctx_stack.top.request)
 session = LocalProxy(lambda: _request_ctx_stack.top.session)
 g = LocalProxy(lambda: _request_ctx_stack.top.g)
+
+
+app = Flask(__name__)
+
+
+@app.route('/hello/<name>/test', methods=['POST', 'GET'])
+def hello_test(name):
+    if name == "Test":
+        return 'Test'
+    else:
+        return 'hello'
+
+
+@app.route('/hello/<name>', methods=['POST', 'GET'])
+def hello(name):
+    if name == "Test":
+        return 'Test'
+    else:
+        return 'hello'
+
+
+@app.route('/')
+def index():
+    return "This is index page"
+
+
+if __name__ == '__main__':
+    app.run()
