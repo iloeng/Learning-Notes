@@ -12,9 +12,11 @@ print $cgi->h1("CGI Example");
 print $cgi->p, "This is an example of CGI\n";
 print $cgi->p, "Parameters given to this script:\n";
 print "<UL>\n";
+
 foreach my $param ($cgi->param)
 {
- print "<LI>", "$param ", $cgi->param($param), "\n";
+    print "<LI>", "$param ", $cgi->param($param), "\n";
 }
+
 print "</UL>";
 print $cgi->end_html, "\n";
