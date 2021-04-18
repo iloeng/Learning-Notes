@@ -26,3 +26,56 @@ Tinyhttpd 项目开始 。
 https://sourceforge.net/projects/tinyhttpd ， 当然我在这个仓库里面附带了已经代码\
 格式化的源代码 。 
 
+1.2 编译源码
+==============================================================================
+
+当源代码下载之后 ， 我们需要编译源代码 ， 使其能正常运行在 WSL2 上 ， 并且没有错误产\
+生 。
+
+这个代码包可以在 Linux 上正常编译 ， 不需要按照代码注释中所说的步骤 。 可以直接执行 ：
+
+.. code-block:: shell
+
+    gcc -g -W -Wall -pthread -o httpd httpd.c
+
+会有一些警告信息 ， 目前我们不用管它 。 然后执行 httpd ， 将这个 httpd 服务器运行起\
+来 ， 查看是否有错误 。
+
+1.3 环境整理
+==============================================================================
+
+编译后的产物在我的实际电脑上运行后出现如下错误 ：
+
+1. 浏览器打开主页面空白
+
+2. perl 脚本无法执行
+
+首先第一条问题的解决办法为 ： 去除 index.html 的可执行权限 ， 确保两个 CGI 脚本具有\
+可执行权限 。
+
+.. code-block:: shell
+
+    chmod 600 index.html 
+    chmod a+x check.cgi 
+    chmox a+x color.cgi 
+
+第二个问题如果类似于 \
+``Can't locate CGI.pm in @INC (you may need to install the CGI module)`` ， \
+则说明 Perl 需要安装 CGI 模块 。 
+
+首先执行 ``perl -e shell -MCPAN`` 进入 CPAN shell ， 然后执行在 CPAN 中执行 \
+``install CGI`` 就可以安装 CGI 模块了 ， 需要等待 ， 耗时较久 。
+
+.. code-block:: shell
+
+    cpan[1]> install CGI 
+
+同时需要修改两个 CGI 的头部 ， 使其指向真实的 perl 路径 ： 
+
+.. code-block:: shell
+
+    #!/usr/local/bin/perl -Tw
+    改为
+    #!/usr/bin/perl -Tw
+
+到这里 ， 我这里的环境能正常执行了 。 
