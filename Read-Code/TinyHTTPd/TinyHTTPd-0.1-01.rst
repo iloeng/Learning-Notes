@@ -19,6 +19,23 @@ Tinyhttpd 项目开始 。
 
 我的源码阅读环境为 ： WSL2 + CLion on Windows 10 。
 
+补充一下 ， 我的 WSL2 中的 GCC 版本为 10.2.1 20210110 ：
+
+.. code-block:: c
+
+    ┌──(home㉿Station)-[/mnt/c/Users/Darker]
+    └─$ gcc -v
+    Using built-in specs.
+    COLLECT_GCC=gcc
+    COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-linux-gnu/10/lto-wrapper
+    OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa:hsa
+    OFFLOAD_TARGET_DEFAULT=1
+    Target: x86_64-linux-gnu
+    Configured with: ../src/configure -v --with-pkgversion='Debian 10.2.1-6' --with-bugurl=file:///usr/share/doc/gcc-10/README.Bugs --enable-languages=c,ada,c++,go,brig,d,fortran,objc,obj-c++,m2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-10 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-bootstrap --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --enable-libphobos-checking=release --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-10-Km9U7s/gcc-10-10.2.1/debian/tmp-nvptx/usr,amdgcn-amdhsa=/build/gcc-10-Km9U7s/gcc-10-10.2.1/debian/tmp-gcn/usr,hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-build-config=bootstrap-lto-lean --enable-link-mutex
+    Thread model: posix
+    Supported LTO compression algorithms: zlib zstd
+    gcc version 10.2.1 20210110 (Debian 10.2.1-6)
+
 1.1 下载源码
 ==============================================================================
 
@@ -79,3 +96,130 @@ https://sourceforge.net/projects/tinyhttpd ， 当然我在这个仓库里面附
     #!/usr/bin/perl -Tw
 
 到这里 ， 我这里的环境能正常执行了 。 
+
+******************************************************************************
+第 2 部分  开始源码阅读
+******************************************************************************
+
+由于是 C 语言项目 ， 直接从 main 函数开始看起 。 
+
+2.1 main 函数
+==============================================================================
+
+main 函数的源代码如下 ： 
+
+.. code-block:: c 
+
+    int main(void) {
+        int server_sock = -1;
+        u_short port = 0;
+        int client_sock = -1;
+        struct sockaddr_in client_name;
+        int client_name_len = sizeof(client_name);
+        pthread_t newthread;
+
+        server_sock = startup(&port);
+        printf("httpd running on port %d\n", port);
+
+        while (1) {
+            client_sock = accept(server_sock,
+                                (struct sockaddr *) &client_name,
+                                &client_name_len);
+            if (client_sock == -1)
+                error_die("accept");
+            /* accept_request(client_sock); */
+            if (pthread_create(&newthread, NULL, accept_request, client_sock) != 0)
+                perror("pthread_create");
+        }
+
+        close(server_sock);
+
+        return (0);
+    }
+
+首先初始化变量 server_sock 和 client_sock 均为 -1 ， 初始化端口号 port 为无符号短\
+整型 ， 值为 0 。 client_name 是一个 sockaddr_in 结构体 ， 用于网络通信 ， 其结构\
+体如下 ： 
+
+.. code-block:: C
+
+    [/usr/include/netinet/in.h]
+    typedef uint16_t in_port_t;
+    struct sockaddr_in
+    {
+        __SOCKADDR_COMMON (sin_);   // 此处简化为  sa_family_t sin_family;
+        in_port_t sin_port;			/* Port number.  */
+        struct in_addr sin_addr;		/* Internet address.  */
+
+        /* Pad to size of `struct sockaddr`.  */
+        unsigned char sin_zero[sizeof (struct sockaddr)
+                - __SOCKADDR_COMMON_SIZE
+                - sizeof (in_port_t)
+                - sizeof (struct in_addr)];  // 这一大串计算完毕后是 8 ， unsigned char sin_zero[8]
+    };
+    typedef uint32_t in_addr_t;
+    struct in_addr
+    {
+        in_addr_t s_addr;
+    };
+
+    [/usr/include/x86_64-linux-gnu/bits/stdint-uintn.h]
+    typedef __uint16_t uint16_t;
+    typedef __uint32_t uint32_t;
+
+    [/usr/include/x86_64-linux-gnu/bits/types.h]
+    typedef unsigned short int __uint16_t;
+    typedef unsigned int __uint32_t;
+
+    [/usr/include/x86_64-linux-gnu/bits/sockaddr.h]
+    typedef unsigned short int sa_family_t;
+    #define	__SOCKADDR_COMMON(sa_prefix) \
+        sa_family_t sa_prefix##family
+
+    [/usr/include/x86_64-linux-gnu/bits/socket.h]
+    struct sockaddr
+    {
+        __SOCKADDR_COMMON (sa_);	/* Common data: address family and length.  */
+        // 此处相当于 sa_family_t sa_family
+        char sa_data[14];		/* Address data.  */
+    };
+        
+整理之后的结构体如下 ， 原始的有点儿不太易于阅读 ：
+
+.. code-block:: C
+
+    [/usr/include/netinet/in.h]
+    struct sockaddr_in
+    {
+        unsigned short sin_family;
+        unsigned short sin_port;			/* Port number.  */
+        unsigned int sin_addr;		/* Internet address.  */
+
+        /* Pad to size of `struct sockaddr`.  */
+        unsigned char sin_zero[8];  
+    };
+
+    [/usr/include/x86_64-linux-gnu/bits/socket.h]
+    struct sockaddr
+    {
+        unsigned short sa_family;	/* Common data: address family and length.  */
+        char sa_data[14];		/* Address data.  */
+    };
+
+在 sockaddr 结构体中 ， sa_family 是通信类型 ， 最常用的值是 "AF_INET" ， \
+sa_data 14 字节 ， 包含套接字中的目标地址和端口信息 ， 其缺点就是把目标地址和端口信\
+息混在一起了 ； 而 sockaddr_in 结构体解决了 sockaddr 的缺陷 ， 它把 port 和 addr \
+分开存储在两个变量中 。 client_name 就是一个 sockaddr_in 类型的变量 。 
+
+client_name_len 是 client_name 所占用的字节数 。 newthread 是 pthread_t 类型的\
+数据 ； server_sock 被赋值为 startup 函数值 ， 然后打印出 server 监听的端口号 ； \
+然后进入一个死循环 ， 在没有异常的情况下 ， 使这个服务一直运行 ；
+
+在这个死循环中 ， client_sock 被赋值为 accept 函数值 ， 当 client_sock == -1 时 \
+， 说明运行出错了 ， 退出当前子程序 。 
+
+如果 pthread_create 创建线程出错 ， 即函数返回值不等于 0 ， perror 打印出系统错误\
+信息 。 
+
+最终关闭服务器 server_sock ， 并返回 0 。 
+
