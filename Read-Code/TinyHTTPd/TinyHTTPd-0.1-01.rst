@@ -223,3 +223,66 @@ client_name_len 是 client_name 所占用的字节数 。 newthread 是 pthread_
 
 最终关闭服务器 server_sock ， 并返回 0 。 
 
+2.2 startup 函数
+==============================================================================
+
+在 main 函数中只是简单的一笔带过 startup 函数 ， 在这一小节 ， 详细分析一下 ：
+
+.. code-block:: c
+
+    typedef unsigned short int __u_short;
+    typedef __u_short u_short;
+    int startup(u_short *port) {
+        int httpd = 0;
+        struct sockaddr_in name;
+
+        httpd = socket(PF_INET, SOCK_STREAM, 0);
+        if (httpd == -1)
+            error_die("socket");
+        memset(&name, 0, sizeof(name));
+        name.sin_family = AF_INET;
+        name.sin_port = htons(*port);
+        name.sin_addr.s_addr = htonl(INADDR_ANY);
+        if (bind(httpd, (struct sockaddr *) &name, sizeof(name)) < 0)
+            error_die("bind");
+        if (*port == 0) /* if dynamically allocating a port */
+        {
+            int namelen = sizeof(name);
+            if (getsockname(httpd, (struct sockaddr *) &name, &namelen) == -1)
+                error_die("getsockname");
+            *port = ntohs(name.sin_port);
+        }
+        if (listen(httpd, 5) < 0)
+            error_die("listen");
+        return (httpd);
+    }
+
+startup 函数是一个指向 port (端口) 的无符号 short 指针 。 从上文中知道这个 port \
+初始为 0 。
+
+进入函数内部 ， httpd 初始化为值为 0 的 int 型数据 ； name 是 sockaddr_in 结构数\
+据 ； 
+
+然后 httpd 被赋值为 socket 函数值 。 socket 函数用于创建套接字 ：
+
+.. code-block:: c
+
+    /* Create a new socket of type TYPE in domain DOMAIN, using
+    protocol PROTOCOL.  If PROTOCOL is zero, one is chosen automatically.
+    Returns a file descriptor for the new socket, or -1 for errors.  */
+    extern int socket (int __domain, int __type, int __protocol) __THROW;
+
+这里的 __domain 指明通信域 ， 如 PF_UNIX (unix 域) ， PF_INET (IPv4) ， \
+PF_INET6 (IPv6) 等 。
+
+type 为数据传输方式 / 套接字类型 ， 常用的有 SOCK_STREAM （流格式套接字 / 面向连接\
+的套接字） 和 SOCK_DGRAM （数据报套接字 / 无连接的套接字） 。 SOCK_STREAM 是数据\
+流 ， 一般是 TCP/IP 协议的编程 ， SOCK_DGRAM 是数据包 ， 是 UDP 协议网络编程 。 
+
+protocol 表示传输协议 ， 常用的有 IPPROTO_TCP 和 IPPTOTO_UDP ， 分别表示 TCP 传\
+输协议和 UDP 传输协议 。 使用 0 则根据前两个参数使用默认的协议 。 
+
+一般情况下有了 __domain 和 type 两个参数就可以创建套接字了 ， 操作系统会自动\
+推演出协议类型 ， 除非遇到这样的情况 ： 有两种不同的协议支持同一种地址类型和数据传输\
+类型 。 如果我们不指明使用哪种协议 ， 操作系统是没办法自动推演的 。 
+
