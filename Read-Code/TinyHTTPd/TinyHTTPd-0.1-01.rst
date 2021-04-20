@@ -286,3 +286,54 @@ protocol 表示传输协议 ， 常用的有 IPPROTO_TCP 和 IPPTOTO_UDP ， 分
 推演出协议类型 ， 除非遇到这样的情况 ： 有两种不同的协议支持同一种地址类型和数据传输\
 类型 。 如果我们不指明使用哪种协议 ， 操作系统是没办法自动推演的 。 
 
+socket 函数正常时 ， 返回新套接字的文件描述符 ； 否则返回 -1 。 因此代码中用 httpd \
+与 -1 进行比较 ， 判断套接字是否建立正常 。 
+
+之后使用 memset 函数将以 name 为起始地址的内存中的值设置为 0 ， 内存块的大小为 \
+name 结构体的大小 。 之后设置相应的结构体中的值 ， sin_family 设为 AF_INET ， \
+AF_INET 实际上是 PF_INET ， 代表的是 IPv4 ； sin_port 设置为 ``htons(*port)`` \
+， htons 的作用是将一个无符号短整型数值转换为网络字节序 ， 即大端模式 \
+(big-endian) ， 返回值是 TCP/IP 网络字节顺序 ， 这个函数的参数是 16 位无符号整数 \
+， 刚好是两个字节 ， 一个字节只能存储 8 位 2 进制数 ， 而计算机的端口数量是 65536 \
+个 ， 也就是 2^16 ， 两个字节 。 大端模式的符号位的判定固定为第一个字节 ， 容易判断\
+正负 ； sin_addr.s_addr 设置为 ``htonl(INADDR_ANY)`` ， htonl 函数用于将主机数转\
+换成无符号长整型的网络字节顺序 。 本函数将一个 32 位数从主机字节顺序转换成网络字节顺\
+序 。 这里 htonl 参数设置为 INADDR_ANY 表示不管连接哪个服务器 IP 都能连接上 ， 不\
+管服务器上有多少块网卡 ， 有多少个 IP ， 只要是向其中一个 IP 和指定的端口发送消息 \
+， 服务器就能接收到消息 。 
+
+.. code-block:: C 
+
+    /* Address to accept any incoming messages.  */
+    #define	INADDR_ANY		((in_addr_t) 0x00000000)
+
+然后执行到 bind 函数 ， bind 函数能够将套接字文件描述符 、 端口号和 IP 绑定到一起 \
+， 对于 TCP 服务器来说绑定的就是服务器自己的 IP 和端口 。
+
+.. code-block:: C 
+
+    /* Give the socket FD the local address ADDR (which is LEN bytes long).  */
+    extern int bind (int __fd, __CONST_SOCKADDR_ARG __addr, socklen_t __len) __THROW;
+
+    # define __CONST_SOCKADDR_ARG	const struct sockaddr *
+
+函数的参数 __fd 表示的是 socket 函数创建的通信文件描述符 ； __addr 表示 \
+``struct sockaddr`` 的地址 ， 用于设定要绑定的 IP 和端口 ； __len 表示所指定的结\
+构体变量的大小 ； 
+
+在 bind 步骤处 ， 如果正常绑定 ， 则返回值为 0 ， 否则返回 -1 ， 表示不成功 。 不成\
+功时打印出失败信息 ， 并退出程序 。 在这里绑定了表示动态端口的 0 ， 实际上会自动找到\
+一个可用的端口 ， 而 ``*port`` 的值仍为 0 。
+
+然后判断端口号 ``*port`` 的值是不是 0 ， 为 0 说明需要动态分配端口号 。 然后通过 \
+getsockname 函数获取套接字的名字 。 因此如果 getsockname 执行失败返回 -1 说明获\
+取 socket 绑定的地址信息失败 ， 打印出信息并退出程序 。 如果正常获取到信息 ， 将当\
+前绑定的端口信息转换为主机字节顺序的数字 ， 并赋值给 ``*port`` 。 
+
+使用的是 ntohs 函数 ， 作用是将一个 16 位数由网络字节顺序转换为主机字节顺序 。
+
+之后使用 listen 函数监听套接字上的连接请求 。 第一个参数就是套接字文件描述符 ， 第\
+二个参数指定了内核为此套接字排队的最大连接个数 。 listen 成功时返回 0 ， 错误时返\
+回 -1 。 错误就打印错误信息 "listen" ， 表明是在这一步出错的 。 最后返回了 socket \
+id 。 
+
