@@ -357,3 +357,35 @@ perror(s) 用来将上一个函数发生错误的原因输出到标准设备 (st
 
 打印出发送错误的原因之后 ， 再用 exit 函数退出当前程序 。 
 
+到此返回到 main 函数中 。 同时 port 变量也被赋值为真实的端口数 ， 并被打印出来 。 
+
+2.4 accept_request 函数
+==============================================================================
+
+在解析 accept_request 函数之前 ， 需要先解析一下 mian 函数的死循环的一些步骤 。 
+
+client_sock 是 accept 函数的结果 ， accept 函数会提取出所监听套接字的等待连接队列\
+中第一个连接请求 ， 创建一个新的套接字 ， 并返回指向该套接字的文件描述符 。 新建立的\
+套接字不在监听状态 ， 原来所监听的套接字也不受该系统调用的影响 。 
+
+也就是说 accept 函数会从 server_sock 套接字中提取第一个连接的请求 ， 创建一个新的\
+套接字 ， 并返回指向该套接字的文件描述符 ， 即 client_sock 。 以我的理解 ， 就是一\
+个客户端请求 。 执行成功时返回文件描述符 ， 失败返回 -1 。
+
+然后使用 pthread_create 创建处理这个客户端请求的进程 。 
+
+.. code-block:: C 
+
+    /* Create a new thread, starting with execution of START-ROUTINE
+    getting passed ARG.  Creation attributed come from ATTR.  The new
+    handle is stored in *NEWTHREAD.  */
+    extern int pthread_create (pthread_t *__restrict __newthread,
+                const pthread_attr_t *__restrict __attr,
+                void *(*__start_routine) (void *),
+                void *__restrict __arg) __THROWNL __nonnull ((1, 3));
+
+__start_routine 是一个函数指针 ， 在 main 函数中 ， __start_routine 指向的是 \
+accept_request 函数 ， 即新建的进程就是用来执行这个函数的 。 
+
+pthread_create 执行成功就返回 0 ， 失败返回错误代码 。 
+
