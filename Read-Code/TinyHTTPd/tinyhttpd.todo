@@ -1,0 +1,30 @@
+TinyHTTPd Read:
+    ☐ ISspace
+
+    ☐ SERVER_STRING
+    
+    ☐ accept_request
+    
+    ☐ bad_request
+    
+    ☐ cat
+    
+    ☐ cannot_execute
+    
+    ✔ error_die @done(21-04-20 22:44)
+    
+    ☐ execute_cgi
+    
+    ☐ get_line
+    
+    ☐ headers
+    
+    ☐ not_found
+    
+    ☐ serve_file
+    
+    ✔ startup @done(21-04-20 22:40)
+    
+    ☐ unimplemented
+    
+    ✔ main @done(21-04-20 22:40)
