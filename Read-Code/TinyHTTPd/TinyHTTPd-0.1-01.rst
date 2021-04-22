@@ -473,3 +473,36 @@ pthread_create 执行成功就返回 0 ， 失败返回错误代码 。
     }
 
 这个函数的代码有些长 ， 慢慢解析 。 
+
+buf[1024] 是一个 1 KB 大小的内存空间 ； numchars 是字符计数 ； method[255] 、 \
+url[255] 和 path[512] 分别表示请求方法 、 URL 链接以及路径 ， 长度分别是 255 、 \
+255 和 512 ； i , j 是 ``size_t`` 类型 ， 目前作用未知 ； st 是一个 stat 结构体 \
+， struct stat 这个结构体是用来描述一个 linux 文件系统中的文件属性的结构 ； cgi \
+是 CGI 程序的标识 ， 如果是 CGI 程序 ， 它的值会置为 1 ， 初始为 0 (假值) ； \
+``*query_string`` 初始为空 (NULL) 。 
+
+然后进入正常的步骤处理中 。 首先使用 get_line 函数获取一个 HTTP 请求中的第一行数据 \
+， 正常情况下 ， 它读取了这个请求报文的第一行 ， 并将其存入到 buf[1024] 中 ， 最后\
+返回这一行有多少个 bytes ； 否则返回 null 。 
+
+然后初始化 i 和 j 为 0 。 开始循环读取 buf[1024] 这个 1KB 空间中存储的数据 ， 当然\
+只读取了 254 字节的数据 ， 因为有 ``i < sizeof(method) - 1`` 约束条件 。 读取前 \
+254 非空白字符的数据赋值到 method 数组里面 。 因为它使用了 ISspace 宏 ： 
+
+.. code-block:: C 
+
+    #define ISspace(x) isspace((int)(x))
+
+    isspace(int c) 检查所传的字符是否是空白字符。
+    ' '     (0x20)    space (SPC) 空格符
+    '\t'    (0x09)    horizontal tab (TAB) 水平制表符    
+    '\n'    (0x0a)    newline (LF) 换行符
+    '\v'    (0x0b)    vertical tab (VT) 垂直制表符
+    '\f'    (0x0c)    feed (FF) 换页符
+    '\r'    (0x0d)    carriage return (CR) 回车符
+
+未完待续 ...
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`下一篇`: TinyHTTPd-0.1-02.rst
