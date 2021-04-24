@@ -88,7 +88,37 @@ HTTP 响应也由四个部分组成 ， 分别是 ： 状态行 、 消息报头
     }
     url[i] = '\0';
 
-这里则是从请求报文中提取 URL 。 
+这里则是从请求报文中提取 URL 。 首先判断 buf[j] 是否是空白字符 ， ISspace 判断某个\
+字符是空白字符的时候 ， 返回非 0 数字 ， 否则返回 0 。
+
+.. code-block:: shell
+
+    (gdb) p buf
+    $4 = "GET / HTTP/1.1\n", '\000' <repeats 25 times>, "\363\365|\377\377\177\000\000\001", '\000' <repeats 15 times>,
+
+这一段代码开始的时候 ， 将 i 的值重新置为 0 了 ， 而 j 的值仍然是读取 method 之后的\
+值 3 ， 因此 buf[3] = " " ， ISspace 会返回一个非 0 数字 ， 因此执行到此分支 ， j \
+的值自增 1 为 4 。 
+
+到下面的 while 循环 ， 与之前获取 method 一致 ， 从非空字符读取到空白字符就是 URL \
+的值 ， 因此 url[0] = '/' ， 此时 i = 1 ， j = 5 ， 最后 url[1] = '\0' ， 表示 \
+url 字符串到此结束 。 
+
+开始进行下一段代码分析 。 
+
+.. code-block:: C 
+
+    [void accept_request(int client)]
+    if (strcasecmp(method, "GET") == 0) {
+        query_string = url;
+        while ((*query_string != '?') && (*query_string != '\0'))
+            query_string++;
+        if (*query_string == '?') {
+            cgi = 1;
+            *query_string = '\0';
+            query_string++;
+        }
+    }
 
 
 
