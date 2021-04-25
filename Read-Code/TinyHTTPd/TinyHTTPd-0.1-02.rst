@@ -177,5 +177,65 @@ else 分支 ， 通过是否是 CGI 程序来决定到底执行什么方法进�
 accept_request 方法的详细解析到此完成 ， 但是它调用的几个方法并没有详细解析 ， 放在\
 下文进行解析 。 
 
+2.5 get_line 函数
+==============================================================================
 
+详细解析一下 accept_request 函数中使用的 get_line 函数 ：
+
+.. code-block:: C 
+
+    int get_line(int sock, char *buf, int size) {
+        int i = 0;
+        char c = '\0';
+        int n;
+
+        while ((i < size - 1) && (c != '\n')) {
+            n = recv(sock, &c, 1, 0);
+            /* DEBUG printf("%02X\n", c); */
+            if (n > 0) {
+                if (c == '\r') {
+                    n = recv(sock, &c, 1, MSG_PEEK);
+                    /* DEBUG printf("%02X\n", c); */
+                    if ((n > 0) && (c == '\n'))
+                        recv(sock, &c, 1, 0);
+                    else
+                        c = '\n';
+                }
+                buf[i] = c;
+                i++;
+            } else
+                c = '\n';
+        }
+        buf[i] = '\0';
+
+        return (i);
+    }
+
+直接进入正题 ， 变量的声明就不说了 。 这个函数有三个参数 : sock ， buf 和 size ， \
+在 accept_request 函数中 ， ``sock = client`` ， ``*buf=buf[1024]`` ， \
+``size=sizeof(buf)`` 即 1024 。 
+
+i 初始值为 0 ， c 初始值为 '\0' ， 因此直接进入 while 循环分支 。 n 赋值为 recv 函\
+数值 ， ``recv(int sockfd, void *buf, size_t len, int flags);`` 用于已连接的数\
+据报或流式套接字接口进行数据的接收 。 通常 flags 都设置为 0 ， 此时 recv 函数读取 \
+tcp buffer 中的数据到 buf 中 ， 并从 tcp buffer 中移除已读取的数据 。 把 flags \
+设置为 MSG_PEEK ， 仅把 tcp buffer 中的数据读取到 buf 中 ， 并不把已读取的数据从 \
+tcp buffer 中移除 ， 再次调用 recv 仍然可以读到刚才读到的数据 。 若无错误发生 ， \
+recv 返回读入的字节数 。 如果连接已中止 ， 返回 0 。 如果发生错误 ， 返回 -1 ， 应\
+用程序可通过 perror() 获取相应错误信息 。 
+
+在代码中就是一个字节一个字节的读取 ， 因为缓冲区长度就是 1 。 开始循环读取 ， 直到读\
+取到缓冲区 c 为换行符 '\n' ， 因此这个函数的功能就是逐行读取客户端发送的请求 。 在 \
+while 内部 ， 判断缓冲区 c 是不是回车键 '\r' ， 在之前 HTTP 请求结构图中可以知道 : \
+每行的结尾是回车键加上换行符 ， 即 "\r\n" 。 只要读取到 '\r' ， 说明已经要到行尾了 \
+。 然后接受一个字节 ， flags 为 MSG_PEEK 。 判断接收的字节是否大于 0 ， 且存储在缓\
+冲区中的数据是换行符 ， 若是就再接受一个字节存储到缓冲区中 ， 但是需要注意的是 : \
+flags 在上一步中是 MSG_PEEK ， 表明上一步接收后 ， TCP Buffer 中的数据没有被清除 \
+， 仍然是 '\n' ， 所以在这个 ``if ((n > 0) && (c == '\n'))`` 分支中 ， recv 函数\
+接收的仍然是 '\n' 。 另外如果 c != '\n' ， 手动将 c 置为 '\n' ， 这是因为 '\r\n' \
+在 HTTP 请求中是一起的 。 
+
+读取一个字节后就将缓冲区中的字符存入到 buf 中 ， 同时将 i 自增一 。 
+
+在 buf 的最后添加字符串结束符 '\0' 。 并最终返回一行读取完毕后 ， 接收了多少字节 。 
 
