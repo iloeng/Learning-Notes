@@ -19,7 +19,7 @@ TinyHTTPd Read:
     
     ☐ headers
     
-    ☐ not_found
+    ✔ not_found @done(21-04-25 22:51)
     
     ☐ serve_file
     

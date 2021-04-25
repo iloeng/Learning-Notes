@@ -239,7 +239,7 @@ flags 在上一步中是 MSG_PEEK ， 表明上一步接收后 ， TCP Buffer �
 
 在 buf 的最后添加字符串结束符 '\0' 。 并最终返回一行读取完毕后 ， 接收了多少字节 。 
 
-2.5 unimplemented 函数
+2.6 unimplemented 函数
 ==============================================================================
 
 从上向下继续 accept_request 函数解析 ， 这一节解析 unimplemented 函数 ：
@@ -274,4 +274,36 @@ flags 在上一步中是 MSG_PEEK ， 表明上一步接收后 ， TCP Buffer �
 
 该函数使用 sprintf 格式化一个字符串后 ， 就将格式化后的字符串发送到已连接的客户端套\
 接字中 。 
+
+2.7 not_found 函数
+==============================================================================
+
+not_found 函数是在找不到 index.html 文件的时候执行 ， 这里详细解析一下它 ： 
+
+.. code-block:: C 
+
+    void not_found(int client) {
+        char buf[1024];
+
+        sprintf(buf, "HTTP/1.0 404 NOT FOUND\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, SERVER_STRING);
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "Content-Type: text/html\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "<HTML><TITLE>Not Found</TITLE>\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "<BODY><P>The server could not fulfill\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "your request because the resource specified\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "is unavailable or nonexistent.\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "</BODY></HTML>\r\n");
+        send(client, buf, strlen(buf), 0);
+    }
+
+这个函数的实现类似于 unimplemented 函数 ， 所不同的是发送的字符串不同 。 
 
