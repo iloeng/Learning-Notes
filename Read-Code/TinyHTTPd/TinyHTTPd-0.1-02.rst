@@ -42,8 +42,8 @@ HTTP 响应也由四个部分组成 ， 分别是 ： 状态行 、 消息报头
 
 既然知道了 HTTP 请求结构图 ， 那么这里的逻辑就很清晰了 ， 就是从请求报文的第一行获取\
 请求方法 ， 循环判断 buf 中的数据 ， 一旦为空值 ， 就表示拿到了请求方法 ， 因为第一\
-行的第一个空值就是在请求方法之后 。 那这个的 i 和 j 就为 3 ， 注意我这里是请求首页 \
-， method 为 GET 。 使用 GDB 调试结果如下 ： 
+行的第一个空值就是在请求方法之后 。 那这个的 i 和 j 就为 3 ， 注意我这里 **以请求首页为\
+例** ， method 为 GET 。 使用 GDB 调试结果如下 ： 
 
 .. image:: img/2-4.png 
 
@@ -120,22 +120,62 @@ url 字符串到此结束 。
         }
     }
 
+当 method 与 "GET" 相等时 ， strcasecmp 返回值为 0 ， 局部变量 query_string 被赋\
+值为 url 的值 ， 那么 ``query_string`` 代表的是指向 url 起始的指针 ， 即 url[0] \
+， 那么 while 循环的功能就是读取到 url 结束 ， 如果字符等于 "?" ， 表明后面是 url \
+的参数 ； 如果等于 "\0" 表明 url 到此结束 。 这个 while 循环执行完毕后 ， \
+query_string = url[2] = '\0' 。 后面的 if 分支不在执行 ， 因为不等于 '?' 。 
 
+.. code-block:: C  
 
+    [void accept_request(int client)]
+    sprintf(path, "htdocs%s", url);
+    if (path[strlen(path) - 1] == '/')
+        strcat(path, "index.html");
+    if (stat(path, &st) == -1) {
+        while ((numchars > 0) && strcmp("\n", buf)) /* read & discard headers */
+            numchars = get_line(client, buf, sizeof(buf));
+        not_found(client);
+    } else {
+        if ((st.st_mode & S_IFMT) == S_IFDIR)
+            strcat(path, "/index.html");
+        if ((st.st_mode & S_IXUSR) ||
+            (st.st_mode & S_IXGRP) ||
+            (st.st_mode & S_IXOTH))
+            cgi = 1;
+        if (!cgi)
+            serve_file(client, path);
+        else
+            execute_cgi(client, path, method, query_string);
+    }
 
+sprintf 函数会将格式化后的字符串追加到 path 字符串中 ， 那么 path = "htdocs/" 。 \
+首先判断 path 最后一个字符是不是 '/' ， 如果是的话说明访问是首页 ， 需要返回 \
+index.html ， ``strcat(path, "index.html");`` 就是拼接 path ， 将 "index.html" \
+追加到 path 后 。 
 
+之后判断 path 路径代表的文件的状态 ， \
+``stat(const char * file_name, struct stat *buf)`` 函数用来将参数 file_name 所\
+指的文件状态 ， 复制到参数 buf 所指的结构中 。 执行成功则返回 0 ， 失败返回 -1 ， \
+错误代码存于 errno 。 如果执行失败说明不存在这个文件 ， 那么就会执行 if 分支语句 \
+， numchars 就是 buf 中存储的字节的数量 ， 是大于零的值 ， 同时 \
+``strcmp("\n", buf)`` 不相等 ， 执行 while 分支 ， 逐行读取请求报文 ， 直到 \
+``strcmp("\n", buf)`` 为零 ， 即相等 。 然后执行 not_found 函数 ， 该函数后面解\
+析 。 这种情况可以将 index.html 删除或重命名为其他名字就可以复现 。 
 
+正常情况下是执行 else 分支 。 之前的步骤中已经将 path 代表的文件属性赋值给 st ， \
+st.st_mode 与 S_IFMT 相与之后其值等于 S_IFDIR ， 再次向 path 后追加 "index.html" \
+， 正常情况下执行 else 分支 。 
 
+S_IXUSR 表示用户可执行权限 ， S_IXGRP 表示用户组可执行权限 ， S_IXOTH 表示 other \
+可执行权限 。 总之只要拥有可执行权限 ， 就将 cgi 置为 1 ， 表明该文件是 CGI 程序 。
 
+一开始 cgi 是假值 ， 只有请求的文件具备可执行权限的时候才会将 cgi 置为真值 。 那么\
+访问首页的时候 ， index.html 没有可执行权限 ， 所以会执行 if 分支 ， 否则会执行 \
+else 分支 ， 通过是否是 CGI 程序来决定到底执行什么方法进行服务 。 
 
-
-
-
-
-
-
-
-
+accept_request 方法的详细解析到此完成 ， 但是它调用的几个方法并没有详细解析 ， 放在\
+下文进行解析 。 
 
 
 
