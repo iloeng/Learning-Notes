@@ -15,7 +15,7 @@ TinyHTTPd Read:
     
     ☐ execute_cgi
     
-    ☐ get_line
+    ✔ get_line @done(21-04-25 22:34)
     
     ☐ headers
     
@@ -25,6 +25,6 @@ TinyHTTPd Read:
     
     ✔ startup @done(21-04-20 22:40)
     
-    ☐ unimplemented
+    ✔ unimplemented @done(21-04-25 22:46)
     
     ✔ main @done(21-04-20 22:40)

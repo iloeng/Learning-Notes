@@ -239,3 +239,39 @@ flags 在上一步中是 MSG_PEEK ， 表明上一步接收后 ， TCP Buffer �
 
 在 buf 的最后添加字符串结束符 '\0' 。 并最终返回一行读取完毕后 ， 接收了多少字节 。 
 
+2.5 unimplemented 函数
+==============================================================================
+
+从上向下继续 accept_request 函数解析 ， 这一节解析 unimplemented 函数 ：
+
+.. code-block:: C 
+
+    void unimplemented(int client) {
+        char buf[1024];
+
+        sprintf(buf, "HTTP/1.0 501 Method Not Implemented\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, SERVER_STRING);
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "Content-Type: text/html\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "<HTML><HEAD><TITLE>Method Not Implemented\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "</TITLE></HEAD>\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "<BODY><P>HTTP request method not supported.\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "</BODY></HTML>\r\n");
+        send(client, buf, strlen(buf), 0);
+    }
+
+这个函数相对简单 ， 主要就是用了 send 函数 ， ``send(sockfd, buf, len, flags);`` \
+函数用于向一个已经连接的 socket 发送数据 ， 适用于已连接的数据包或流式套接口发送数\
+据 。 若无错误发生 ， send() 返回所发送数据的总数 （数字可能小于 len 中所规定的大\
+小） 。 否则的话 ， 返回 -1 并设置 errno 的值 。 
+
+该函数使用 sprintf 格式化一个字符串后 ， 就将格式化后的字符串发送到已连接的客户端套\
+接字中 。 
+
