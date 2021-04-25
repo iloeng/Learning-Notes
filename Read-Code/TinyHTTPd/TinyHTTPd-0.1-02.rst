@@ -307,3 +307,43 @@ not_found 函数是在找不到 index.html 文件的时候执行 ， 这里详�
 
 这个函数的实现类似于 unimplemented 函数 ， 所不同的是发送的字符串不同 。 
 
+2.8 serve_file 函数
+==============================================================================
+
+该函数是在 index.html 文件不具备可执行权限时执行的 ， 这里详细解析 ： 
+
+.. code-block:: C 
+
+    void serve_file(int client, const char *filename) {
+        FILE *resource = NULL;
+        int numchars = 1;
+        char buf[1024];
+
+        buf[0] = 'A';
+        buf[1] = '\0';
+        while ((numchars > 0) && strcmp("\n", buf)) /* read & discard headers */
+            numchars = get_line(client, buf, sizeof(buf));
+
+        resource = fopen(filename, "r");
+        if (resource == NULL)
+            not_found(client);
+        else {
+            headers(client, filename);
+            cat(client, resource);
+        }
+        fclose(resource);
+    }
+
+该函数有两个参数 ， 一个是套接字 ， 另一个是文件名字符串 。 
+
+函数初始化 resource 为 FILE 类型的一个对象 ， 类型 FILE 包含了所有用来控制流的必要\
+的信息 ； numchars 初始为 1 ； 缓冲区 buf[1024] 为 1024 字节长度 ； 对 buf 的前两\
+个字节进行了初始化 ， 防止第一个字符就是 '\n' 。
+
+然后在 while 循环中读取请求头 ， 知道读取的字节数为 0 ， 因为 strcmp("\n", buf) 不\
+可能相等 。 
+
+然后打开传入的文件名 ， fopen 如果执行成功会返回一个指针 ， 否则返回 NULL 。 如果为\
+空 ， 则执行 not_found 函数 ； 否则执行 headers 函数和 cat 函数 。 最后关闭这个文\
+件流 。 
+

@@ -21,7 +21,7 @@ TinyHTTPd Read:
     
     ✔ not_found @done(21-04-25 22:51)
     
-    ☐ serve_file
+    ✔ serve_file @done(21-04-25 23:05)
     
     ✔ startup @done(21-04-20 22:40)
     
