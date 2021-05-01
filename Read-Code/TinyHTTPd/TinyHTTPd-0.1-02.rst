@@ -408,5 +408,108 @@ accept_request 函数中 ， 当 index.html 不具备可执行权限时 ， 读�
 并将其发送给 Client ； 当具备可执行权限时 ， 就执行 execute_cgi 函数 ， 这也是一\
 个核心功能 。 
 
+2.11 execute_cgi 函数
+==============================================================================
 
+当文件具备可执行权限时 ， 程序将其视为 CGI 程序 ， 执行该函数 ， 详细分析如下 ： 
 
+.. code-block:: C 
+
+    void execute_cgi(int client, const char *path,
+                    const char *method, const char *query_string) {
+        char buf[1024];
+        int cgi_output[2];
+        int cgi_input[2];
+        pid_t pid;
+        int status;
+        int i;
+        char c;
+        int numchars = 1;
+        int content_length = -1;
+
+        buf[0] = 'A';
+        buf[1] = '\0';
+        if (strcasecmp(method, "GET") == 0)
+            while ((numchars > 0) && strcmp("\n", buf)) /* read & discard headers */
+                numchars = get_line(client, buf, sizeof(buf));
+        else /* POST */
+        {
+            numchars = get_line(client, buf, sizeof(buf));
+            while ((numchars > 0) && strcmp("\n", buf)) {
+                buf[15] = '\0';
+                if (strcasecmp(buf, "Content-Length:") == 0)
+                    content_length = atoi(&(buf[16]));
+                numchars = get_line(client, buf, sizeof(buf));
+            }
+            if (content_length == -1) {
+                bad_request(client);
+                return;
+            }
+        }
+
+        sprintf(buf, "HTTP/1.0 200 OK\r\n");
+        send(client, buf, strlen(buf), 0);
+
+        if (pipe(cgi_output) < 0) {
+            cannot_execute(client);
+            return;
+        }
+        if (pipe(cgi_input) < 0) {
+            cannot_execute(client);
+            return;
+        }
+
+        if ((pid = fork()) < 0) {
+            cannot_execute(client);
+            return;
+        }
+        if (pid == 0) /* child: CGI script */
+        {
+            char meth_env[255];
+            char query_env[255];
+            char length_env[255];
+
+            dup2(cgi_output[1], 1);
+            dup2(cgi_input[0], 0);
+            close(cgi_output[0]);
+            close(cgi_input[1]);
+            sprintf(meth_env, "REQUEST_METHOD=%s", method);
+            putenv(meth_env);
+            if (strcasecmp(method, "GET") == 0) {
+                sprintf(query_env, "QUERY_STRING=%s", query_string);
+                putenv(query_env);
+            } else { /* POST */
+                sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
+                putenv(length_env);
+            }
+            execl(path, path, NULL);
+            exit(0);
+        } else { /* parent */
+            close(cgi_output[1]);
+            close(cgi_input[0]);
+            if (strcasecmp(method, "POST") == 0)
+                for (i = 0; i < content_length; i++) {
+                    recv(client, &c, 1, 0);
+                    write(cgi_input[1], &c, 1);
+                }
+            while (read(cgi_output[0], &c, 1) > 0)
+                send(client, &c, 1, 0);
+
+            close(cgi_output[0]);
+            close(cgi_input[1]);
+            waitpid(pid, &status, 0);
+        }
+    }
+
+这个函数算是这个程序的核心了 ， 是最长的一个函数 ， 该函数有 4 个参数 ： client 就\
+是 socket 套接字连接 ； path 是请求的路径字符串 ； method 是请求方法 ； \
+query_string 可以视为链接中的参数 。 
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: TinyHTTPd-0.1-01.rst
+.. _`下一篇`: TinyHTTPd-0.1-03.rst
