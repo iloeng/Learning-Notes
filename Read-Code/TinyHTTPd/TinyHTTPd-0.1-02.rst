@@ -382,4 +382,31 @@ strcpy 函数的功能是将第二个参数的内容拷贝到第一个参数中 
 2.10 cat 函数
 ==============================================================================
 
+.. code-block:: C 
+
+    void cat(int client, FILE *resource) {
+        char buf[1024];
+
+        fgets(buf, sizeof(buf), resource);
+        while (!feof(resource)) {
+            send(client, buf, strlen(buf), 0);
+            fgets(buf, sizeof(buf), resource);
+        }
+    }
+
+cat 函数的功能与我之前的猜测相差不多 ， 从文件流 resource 中读取相应大小的字符串 \
+。 ``fgets(char *s, int size, FILE *stream);`` 函数功能是从 stream 流中读取 \
+size 个字符存储到字符指针变量 s 所指向的内存空间 。 它的返回值是一个指针 ， 指向字\
+符串中第一个字符的地址 。 
+
+首先读取 1024 个字符 ， 将其存储到 buf 中 ； 然后判断是否为 EOF (End Of File) ， \
+若不是 ， 就先将 buf 中已存储的字符发送给已连接的 socket ， 并继续读取文件流 ； \
+直至读取到文件结束符 。 
+
+这个函数解析完毕 ， 同时 serve_file 函数完整的解析完毕了 。 那么回到 \
+accept_request 函数中 ， 当 index.html 不具备可执行权限时 ， 读取该文件中字符 ， \
+并将其发送给 Client ； 当具备可执行权限时 ， 就执行 execute_cgi 函数 ， 这也是一\
+个核心功能 。 
+
+
 
