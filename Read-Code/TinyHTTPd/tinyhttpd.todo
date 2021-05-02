@@ -3,17 +3,17 @@ TinyHTTPd Read:
 
     ✔ SERVER_STRING @done(21-05-01 16:55)
     
-    ☐ accept_request
+    ✔ accept_request @done(21-05-02 20:19)
     
-    ☐ bad_request
+    ✔ bad_request @done(21-05-02 20:24)
     
     ✔ cat @done(21-05-01 17:10)
     
-    ☐ cannot_execute
+    ✔ cannot_execute @done(21-05-02 20:24)
     
     ✔ error_die @done(21-04-20 22:44)
     
-    ☐ execute_cgi
+    ✔ execute_cgi @done(21-05-02 20:19)
     
     ✔ get_line @done(21-04-25 22:34)
     

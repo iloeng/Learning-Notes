@@ -142,6 +142,59 @@ fork 用于创建一个新进程 ， 称为子进程 ， 它与进程 （称为�
         }
         execl(path, path, NULL);
         exit(0);
+    } else { /* parent */
+        close(cgi_output[1]);
+        close(cgi_input[0]);
+        if (strcasecmp(method, "POST") == 0)
+            for (i = 0; i < content_length; i++) {
+                recv(client, &c, 1, 0);
+                write(cgi_input[1], &c, 1);
+            }
+        while (read(cgi_output[0], &c, 1) > 0)
+            send(client, &c, 1, 0);
+
+        close(cgi_output[0]);
+        close(cgi_input[1]);
+        waitpid(pid, &status, 0);
     }
 
+这一块的代码有些晕 ， 对 Linux 进程间通信不太了解 。 后面再找时间学习一下 ， 这个\
+函数就先到此结束 。 
 
+2.12 bad_request 和 cannot_execute 函数
+==============================================================================
+
+.. code-block:: C 
+
+    void bad_request(int client) {
+        char buf[1024];
+
+        sprintf(buf, "HTTP/1.0 400 BAD REQUEST\r\n");
+        send(client, buf, sizeof(buf), 0);
+        sprintf(buf, "Content-type: text/html\r\n");
+        send(client, buf, sizeof(buf), 0);
+        sprintf(buf, "\r\n");
+        send(client, buf, sizeof(buf), 0);
+        sprintf(buf, "<P>Your browser sent a bad request, ");
+        send(client, buf, sizeof(buf), 0);
+        sprintf(buf, "such as a POST without a Content-Length.\r\n");
+        send(client, buf, sizeof(buf), 0);
+    }
+
+    void cannot_execute(int client) {
+        char buf[1024];
+
+        sprintf(buf, "HTTP/1.0 500 Internal Server Error\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "Content-type: text/html\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "\r\n");
+        send(client, buf, strlen(buf), 0);
+        sprintf(buf, "<P>Error prohibited CGI execution.\r\n");
+        send(client, buf, strlen(buf), 0);
+    }
+
+这两个函数的步骤很相似 ， 格式化字符串然后发送给已连接的 socket 链接 。 
+
+TinyHTTPd 阅读算是基本完成了 ， 但是仍然有一部分没有完整解析 ， 因为对 Linux 进程\
+间通信有些陌生 ， 等后面学习一下再进行补充 。 
