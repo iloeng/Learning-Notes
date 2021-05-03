@@ -1,0 +1,10 @@
+language: python
+python:
+  - "pypy"
+  - "3.3"
+  - "3.2"
+  - "2.7"
+  - "2.6"
+# command to run tests, e.g. python setup.py test
+install: #empty
+script: nosetests -v
