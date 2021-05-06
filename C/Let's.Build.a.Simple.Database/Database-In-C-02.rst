@@ -313,3 +313,207 @@ total         291
 
 .. _这里: https://github.com/Deteriorator/SimpleDB/commit/86cc806da9e94391498c9c5a15f04fe4f2c90d56
 
+******************************************************************************
+第 04 部分  第一个测试 (和 BUG)
+******************************************************************************
+
+我们已经具备了向数据库插入行和打印出所有行的能力 。 让我们花点时间来测试一下我们目前\
+得到的东西 。 
+
+我打算用 rspec_ 来写我的测试 ， 因为我对它很熟悉 ， 而且语法也相当可读 。 
+
+.. _rspec: http://rspec.info/
+
+我将定义一个简短的辅助工具 ， 向我们的数据库程序发送一个命令列表 ， 然后对输出进行断\
+言 :
+
+.. code-block:: ruby 
+
+    describe 'database' do
+        def run_script(commands)
+            raw_output = nil
+            IO.popen("./db", "r+") do |pipe|
+            commands.each do |command|
+                pipe.puts command
+            end
+
+            pipe.close_write
+
+            # Read entire output
+            raw_output = pipe.gets(nil)
+            end
+            raw_output.split("\n")
+        end
+
+        it 'inserts and retrieves a row' do
+            result = run_script([
+                "insert 1 user1 person1@example.com",
+                "select",
+                ".exit",
+            ])
+            expect(result).to match_array([
+                "db > Executed.",
+                "db > (1, user1, person1@example.com)",
+                "Executed.",
+                "db > ",
+            ])
+        end
+    end
+
+这个简单的测试确保了我们的投入能得到回报 。 而事实上 ， 它通过了 :
+
+.. code-block:: shell
+
+    bundle exec rspec
+    .
+
+    Finished in 0.00871 seconds (files took 0.09506 seconds to load)
+    1 example, 0 failures
+
+现在 ， 测试向数据库插入大量的行是可行的 。 
+
+.. code-block:: ruby
+
+    it 'prints error message when table is full' do
+        script = (1..1401).map do |i|
+            "insert #{i} user#{i} person#{i}@example.com"
+        end
+        script << ".exit"
+        result = run_script(script)
+        expect(result[-2]).to eq('db > Error: Table full.')
+    end
+
+再次运行测试 ... 
+
+.. code-block:: shell 
+
+    bundle exec rspec
+    ..
+
+    Finished in 0.01553 seconds (files took 0.08156 seconds to load)
+    2 examples, 0 failures
+
+很好 ， 成功了 ! 我们的数据库现在可以容纳 1400 行 ， 因为我们把最大的页数设置为 \
+100 ， 而 14 行可以放在一个页面中 。 
+
+通过阅读我们到目前为止的代码 ， 我意识到我们可能没有正确处理存储文本字段 。 用这个例\
+子很容易测试 :
+
+.. code-block:: ruby
+
+    it 'allows inserting strings that are the maximum length' do
+        long_username = "a"*32
+        long_email = "a"*255
+        script = [
+            "insert 1 #{long_username} #{long_email}",
+            "select",
+            ".exit",
+        ]
+        result = run_script(script)
+        expect(result).to match_array([
+            "db > Executed.",
+            "db > (1, #{long_username}, #{long_email})",
+            "Executed.",
+            "db > ",
+        ])
+    end
+
+然而测试失败了 ! 
+
+.. code-block:: shell 
+
+    Failures:
+
+    1) database allows inserting strings that are the maximum length
+        Failure/Error: raw_output.split("\n")
+
+        ArgumentError:
+        invalid byte sequence in UTF-8
+        # ./spec/main_spec.rb:14:in `split`
+        # ./spec/main_spec.rb:14:in `run_script`
+        # ./spec/main_spec.rb:48:in `block (2 levels) in <top (required)>`
+
+如果我们自己尝试一下 ， 就会发现当我们试图打印出这一行时 ， 有一些奇怪的字符 。 (我\
+对长字符串进行了缩写) 。 
+
+.. code-block:: shell
+
+    db > insert 1 aaaaa... aaaaa...
+    Executed.
+    db > select
+    (1, aaaaa...aaa\�, aaaaa...aaa\�)
+    Executed.
+    db >
+
+发生了什么事 ? 如果你看一下我们对行的定义 ， 我们为用户名分配了正好 32 个字节 ， 为\
+电子邮件分配了正好 255 个字节 。 但是 ， C 语言的字符串应该以空字符结束 ， 而我们并\
+没有为它分配空间 。 解决的办法是多分配一个字节 :
+
+.. code-block:: C 
+
+    typedef struct
+    {
+        uint32_t id;
+        char username[COLUMN_USERNAME_SIZE + 1];
+        char email[COLUMN_EMAIL_SIZE + 1];
+    } Row;
+
+而这确实解决了这个问题 。 
+
+.. code-block:: shell
+
+    bundle exec rspec
+    ...
+
+    Finished in 0.0188 seconds (files took 0.08516 seconds to load)
+    3 examples, 0 failures
+
+我们不应该允许插入比列大小更长的用户名或电子邮件 。 这方面的规范是这样的 :
+
+.. code-block:: ruby
+
+    it 'prints error message if strings are too long' do
+        long_username = "a"*33
+        long_email = "a"*256
+        script = [
+            "insert 1 #{long_username} #{long_email}",
+            "select",
+            ".exit",
+        ]
+        result = run_script(script)
+        expect(result).to match_array([
+            "db > String is too long.",
+            "db > Executed.",
+            "db > ",
+        ])
+    end
+
+为了做到这一点 ， 我们需要升级我们的分析器 。 作为提醒 ， 我们目前正在使用 sscanf() 。
+
+.. code-block:: C 
+
+    if (strncmp(input_buffer->buffer, "insert", 6) == 0)
+    {
+        statement->type = STATEMENT_INSERT;
+        int args_assigned = sscanf(
+                input_buffer->buffer,
+                "insert %d %s %s",
+                &(statement->row_to_insert.id),
+                statement->row_to_insert.username,
+                statement->row_to_insert.email
+        );
+        if (args_assigned < 3)
+        {
+            return PREPARE_SYNTAX_ERROR;
+        }
+        return PREPARE_SUCCESS;
+    }
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: Database-In-C-01.rst
+.. _`下一篇`: Database-In-C-03.rst
