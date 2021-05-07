@@ -177,3 +177,53 @@ C 语言从头写一个 SQLite 程序
 
 .. _测试: https://github.com/Deteriorator/SimpleDB/commit/4252a9ba1dc5493df75601774c305fa4b42f2b80#diff-cd059b64c879760da651c87b92f415003bbadb2e3b4c49ef961d7ba26b8f80a8
 
+******************************************************************************
+第 05 部分  持久化到磁盘
+******************************************************************************
+
+.. 
+
+    "Nothing in the world can take the place of persistence." – `Calvin Coolidge`_
+
+.. _`Calvin Coolidge`: https://en.wikiquote.org/wiki/Calvin_Coolidge
+
+我们的数据库允许你插入记录并读出它们 ， 但只有在你保持程序运行的情况下 。 如果你关闭\
+程序并重新启动它 ， 你的所有记录就会消失 。 下面是我们想要的行为规范 :
+
+.. code-block:: ruby
+
+    it 'keeps data after closing connection' do
+        result1 = run_script([
+            "insert 1 user1 person1@example.com",
+            ".exit",
+        ])
+        expect(result1).to match_array([
+            "db > Executed.",
+            "db > ",
+        ])
+        result2 = run_script([
+            "select",
+            ".exit",
+        ])
+        expect(result2).to match_array([
+            "db > (1, user1, person1@example.com)",
+            "Executed.",
+            "db > ",
+        ])
+    end
+
+像 SQLite 一样 ， 我们将通过把整个数据库保存到一个文件中来持久化记录 。 
+
+我们已经通过将行序列化为页面大小的内存块来为自己做准备了 。 为了增加持久性 ， 我们可\
+以简单地将这些内存块写入一个文件 ， 并在下次程序启动时将其读回内存中 。 
+
+为了使这个问题更简单 ， 我们要做一个抽象的东西 ， 叫做 pager 。 我们向 pager 索取第 \
+x 页 ， pager 给我们返回一个内存块 。 它首先在其缓存中寻找 。 在缓存缺失时 ， 它将\
+数据从磁盘复制到内存中 (通过读取数据库文件) 。 
+
+.. image:: img/arch-part5.gif
+
+我们的程序如何与 SQLite 架构相匹配
+
+Pager 访问页面缓存和文件 。 表对象通过 pager 对页面发出请求 。 
+
