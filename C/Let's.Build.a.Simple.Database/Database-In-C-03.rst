@@ -223,7 +223,41 @@ x 页 ， pager 给我们返回一个内存块 。 它首先在其缓存中寻�
 
 .. image:: img/arch-part5.gif
 
-我们的程序如何与 SQLite 架构相匹配
+上图是我们的程序是如何与 SQLite 架构相匹配的
 
-Pager 访问页面缓存和文件 。 表对象通过 pager 对页面发出请求 。 
+Pager 访问页面缓存和文件 。 表对象通过 pager 对页面发出请求 :
+
+.. code-block:: C  
+
+    typedef struct {
+        int file_descriptor;
+        uint32_t file_length;
+        void* pages[TABLE_MAX_PAGES];
+    } Pager;
+
+    typedef struct
+    {
+        Pager* pager;
+        uint32_t num_rows;
+    } Table;
+
+我把 new_table() 重命名为 db_open() ， 因为它现在具有打开数据库连接的效果 。 我所\
+说的打开连接是指 :
+
+- 打开数据库文件
+- 初始化一个 pager 数据结构
+- 初始化一个 table 数据结构
+
+.. code-block:: C 
+
+    Table* db_open(const char* filename)
+    {
+        Pager* pager = pager_open(filename);
+        uint32_t num_rows = pager->file_length / ROW_SIZE;
+        Table* table = malloc(sizeof(Table));
+        table->pager = pager;
+        table->num_rows = num_rows;
+        return table;
+    }
+
 
