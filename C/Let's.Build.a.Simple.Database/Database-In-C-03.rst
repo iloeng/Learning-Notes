@@ -260,4 +260,256 @@ Pager 访问页面缓存和文件 。 表对象通过 pager 对页面发出请�
         return table;
     }
 
+``db_open()`` 依次调用 ``pager_open()`` ， 它打开数据库文件并跟踪其大小 。 它还将\
+页面缓存全部初始化为 NULL 。 
 
+.. code-block:: C 
+
+    Pager* pager_open(const char* filename){
+        int fd = open(filename,
+                O_RDWR |    // Read/Write mode
+                O_CREAT,          // Create file if it does not exist
+                S_IWUSR |         // User write permission
+                S_IRUSR           // User read permission
+        );
+
+        if (fd == -1){
+            printf("Unable to open file\n");
+            exit(EXIT_FAILURE);
+        }
+
+        off_t file_length = lseek(fd, 0, SEEK_END);
+
+        Pager* pager = malloc(sizeof(Pager));
+        pager->file_descriptor = fd;
+        pager->file_length = file_length;
+
+        for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
+            pager->pages[i] = NULL;
+        }
+        return pager;
+    }
+
+按照我们新的抽象逻辑 ， 我们把获取页面的逻辑移到自己的方法中 ：
+
+.. code-block:: C  
+
+    void* row_slot(Table* table, uint32_t row_num)
+    {
+        uint32_t page_num = row_num / ROWS_PER_PAGE;
+        void* page = get_page(table->pager, page_num);
+        uint32_t row_offset = row_num % ROWS_PER_PAGE;
+        uint32_t byte_offset = row_offset * ROW_SIZE;
+        return page + byte_offset;
+    }
+
+``get_page()`` 方法有处理缓存丢失的逻辑 。 我们假设页面是一个接一个地保存在数据库文\
+件中 。 第 0 页在偏移量 0 处 ， 第 1 页在偏移量 4096 处 ， 第 2 页在偏移量 8192 处\
+等等 。 如果请求的页面位于文件的边界之外 ， 我们知道它应该是空白的 ， 所以我们只是分\
+配一些内存并将其返回 。 当我们稍后刷新缓存到磁盘时 ， 该页将被添加到文件中 。 
+
+.. code-block:: C 
+
+    void* get_page(Pager* pager, uint32_t page_num)
+    {
+        if (page_num > TABLE_MAX_PAGES)
+        {
+            printf("Tried to fetch page number out of bounds. %d > %d\n",
+                    page_num, TABLE_MAX_PAGES);
+            exit(EXIT_FAILURE);
+        }
+
+        if (pager->pages[page_num] == NULL)
+        {
+            // Cache miss. Allocate memory and load from file.
+            void* page = malloc(PAGE_SIZE);
+            uint32_t  num_pages = pager->file_length / PAGE_SIZE;
+
+            // We might save a partial page at the end of the file
+            if (pager->file_length % PAGE_SIZE)
+            {
+                num_pages += 1;
+            }
+
+            if (page_num <= num_pages)
+            {
+                lseek(pager->file_descriptor, page_num * PAGE_SIZE, SEEK_SET);
+                ssize_t bytes_read = read(pager->file_descriptor, page, PAGE_SIZE);
+                if (bytes_read == -1)
+                {
+                    printf("Error reading file: %d\n", errno);
+                    exit(EXIT_FAILURE);
+                }
+            }
+            pager->pages[page_num] = page;
+        }
+        return pager->pages[page_num];
+    }
+
+现在我们将等待缓存刷入磁盘 ， 直到用户关闭与数据库的连接 。 当用户退出时 ， 我们将调\
+用一个叫做 ``db_close()`` 的新方法 :
+
+- 将页面缓存刷入磁盘
+- 关闭数据库文件
+- 释放 Pager 和 Table 数据结构的内存
+
+.. code-block:: C 
+
+    void db_close(Table* table)
+    {
+        Pager* pager = table->pager;
+        uint32_t num_full_pages = table->num_rows / ROWS_PER_PAGE;
+        for (uint32_t i = 0; i < num_full_pages; i++)
+        {
+            if (pager->pages[i] == NULL)
+            {
+                    continue;
+            }
+            pager_flush(pager, i, PAGE_SIZE);
+            free(pager->pages[i]);
+            pager->pages[i] = NULL;
+        }
+        // There may be a partial page to write to the end of the file
+        // This should not be needed after we switch to a B-tree
+        uint32_t num_additional_rows = table->num_rows % ROWS_PER_PAGE;
+        if (num_additional_rows > 0)
+        {
+            uint32_t page_num = num_full_pages;
+            if (pager->pages[page_num] != NULL)
+            {
+                pager_flush(pager, page_num, num_additional_rows * ROW_SIZE);
+                free(pager->pages[page_num]);
+                pager->pages[page_num] = NULL;
+            }
+        }
+        int result = close(pager->file_descriptor);
+        if (result == -1)
+        {
+            printf("Error closing db file.\n");
+            exit(EXIT_FAILURE);
+        }
+        for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++)
+        {
+            void* page = pager->pages[i];
+            if (page)
+            {
+                free(page);
+                pager->pages[i] = NULL;
+            }
+        }
+        free(pager);
+        free(table);
+    }
+
+    MetaCommandResult do_meta_command(InputBuffer* input_buffer, Table *table)
+    {
+        if (strcmp(input_buffer->buffer, ".exit") == 0)
+        {
+    //        close_input_buffer(input_buffer);
+            db_close(table);
+            exit(EXIT_SUCCESS);
+        } else {
+            return META_COMMAND_UNRECOGNIZED_COMMAND;
+        }
+    }
+
+在我们目前的设计中 ， 文件的长度编码了数据库中的行数 ， 所以我们需要在文件的最后写入\
+部分页面 。 这就是为什么 ``pager_flush()`` 同时需要一个页码和一个大小 。 这不是最好\
+的设计 ， 但是当我们开始实现 B-tree 时 ， 它将很快消失 。 
+
+.. code-block:: C 
+
+    void pager_flush(Pager* pager, uint32_t page_num, uint32_t size)
+    {
+        if (pager->pages[page_num] == NULL)
+        {
+            printf("Tried to flush null page\n");
+            exit(EXIT_FAILURE);
+        }
+        off_t offset = lseek(pager->file_descriptor, page_num * PAGE_SIZE, SEEK_SET);
+        if (offset == -1)
+        {
+            printf("Error seeking: %d\n", errno);
+            exit(EXIT_FAILURE);
+        }
+        ssize_t bytes_written = write(pager->file_descriptor, pager->pages[page_num], size);
+        if (bytes_written == -1)
+        {
+            printf("Error writing: %d\n", errno);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+最后我们需要接受文件名作为一个命令行参数 。 不要忘了也给 ``do_meta_command`` 添加额\
+外的参数 。 
+
+.. code-block:: C 
+
+    int main(int argc, char* argv[])
+    {
+        if (argc < 2)
+        {
+            printf("Must supply a database filename.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        char* filename = argv[1];
+        Table* table = db_open(filename);
+
+        InputBuffer* input_buffer = new_input_buffer();
+        while (true)
+        {
+            print_prompt();
+            read_input(input_buffer);
+
+            if (input_buffer->buffer[0] == '.')
+            {
+                switch (do_meta_command(input_buffer, table))
+                {
+                    case (META_COMMAND_SUCCESS):
+                        continue;
+                    case (META_COMMAND_UNRECOGNIZED_COMMAND):
+                        printf("Unrecognized command '%s'.\n", input_buffer->buffer);
+                        continue;
+                }
+            }
+            Statement statement;
+            switch (prepare_statement(input_buffer, &statement))
+            {
+                case (PREPARE_SUCCESS):
+                    break;
+                case (PREPARE_NEGATIVE_ID):
+                    printf("ID must be positive.\n");
+                    continue;
+                case (PREPARE_STRING_TOO_LONG):
+                    printf("String is too long.\n");
+                    continue;
+                case PREPARE_SYNTAX_ERROR:
+                    printf("Syntax error. Could not parse statement.\n");
+                    continue;
+                case (PREPARE_UNRECOGNIZED_STATEMENT):
+                    printf("Unrecognized keyword at start of '%s'.\n", input_buffer->buffer);
+                    continue;
+            }
+            // execute_statement(&statement);
+            // printf("Executed.\n");
+            switch (execute_statement(&statement, table))
+            {
+                case (EXECUTE_SUCCESS):
+                    printf("Executed!\n");
+                    break;
+                case (EXECUTE_TABLE_FULL):
+                    printf("Error: Table full.\n");
+                    break;
+            }
+        }
+    }
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: Database-In-C-02.rst
+.. _`下一篇`: Database-In-C-04.rst
