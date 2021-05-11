@@ -25,8 +25,8 @@ C 语言从头写一个 SQLite 程序
 .. _`Part 02 世界上最简单的 SQL 编译器和虚拟机`: #sql
 .. _`Part 03 一个内存中的只加单表的数据库`: Database-In-C-02.rst#id5
 .. _`Part 04 第一个测试 (和 BUG)`: Database-In-C-02.rst#id6
-.. _`Part 05 持久化到磁盘`:
-.. _`Part 06 游标抽象`:
+.. _`Part 05 持久化到磁盘`: Database-In-C-03.rst#id8
+.. _`Part 06 游标抽象`: Database-In-C-04.rst#id5
 .. _`Part 07 B 型树简介`:
 .. _`Part 08 B 型树叶子节点格式`:
 .. _`Part 09 二进制搜索和重复 Key`:
