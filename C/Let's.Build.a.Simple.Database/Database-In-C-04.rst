@@ -380,4 +380,78 @@ Lookup by id   O(n)                    O(log(n))             O(log(n))
 8.1 节点头部格式
 ==============================================================================
 
+叶子结点和内部结点有不同的布局 。 让我们做一个枚举来跟踪节点的类型 : 
 
+.. code-block:: C 
+
+    typedef enum
+    {
+        NODE_INTERNAL, NODE_LEAF
+    } NodeType;
+
+每个节点将对应于一个页面 。 内部节点将通过存储子节点的页号来指向它们的子节点 。 \
+btree 向 pager 询问一个特定的页码 ， 并得到一个进入页面缓存的指针 。 页面按照页码的\
+顺序一个接一个地存储在数据库文件中 。 
+
+节点需要在页面开头的头中存储一些元数据 。 每个节点都将存储它是什么类型的节点 ， 它是\
+否是根节点 ， 以及它的父节点的指针 (以便于找到节点的兄弟姐妹) 。 我为每个头字段的大\
+小和偏移量定义了常数 。 
+
+.. code-block:: C 
+
+    /*
+    * Common Node Header Layout
+    */
+    const uint32_t NODE_TYPE_SIZE = sizeof(uint8_t);
+    const uint32_t NODE_TYPE_OFFSET = 0;
+    const uint32_t IS_ROOT_SIZE = sizeof(uint8_t);
+    const uint32_t IS_ROOT_OFFSET = NODE_TYPE_SIZE;
+    const uint32_t PARENT_POINTER_SIZE = sizeof(uint32_t);
+    const uint32_t PARENT_POINTER_OFFSET = IS_ROOT_OFFSET + IS_ROOT_SIZE;
+    const uint8_t COMMON_NODE_HEADER_SIZE = NODE_TYPE_SIZE + IS_ROOT_SIZE + PARENT_POINTER_SIZE;
+
+8.2 叶子节点格式
+==============================================================================
+
+除了这些常见的头字段外 ， 叶子节点还需要存储它们包含多少个 "单元" 。 一个单元是一个\
+键 / 值对 。 
+
+.. code-block:: C 
+
+    /*
+    * Leaf Node Header Layout
+    */
+    const uint32_t LEAF_NODE_NUM_CELLS_SIZE = sizeof(uint32_t);
+    const uint32_t LEAF_NODE_NUM_CELLS_OFFSET = COMMON_NODE_HEADER_SIZE;
+    const uint32_t LEAF_NODE_HEADER_SIZE = COMMON_NODE_HEADER_SIZE + LEAF_NODE_NUM_CELLS_SIZE;
+
+叶子节点的主体是一个单元格的数组 。 每个单元格是一个键 ， 后面是一个值 (一个序列化的\
+行) 。 
+
+.. code-block:: C 
+
+/*
+ * Leaf Node Body Layout
+ */
+const uint32_t LEAF_NODE_KEY_SIZE = sizeof(uint32_t);
+const uint32_t LEAF_NODE_KEY_OFFSET = 0;
+const uint32_t LEAF_NODE_VALUE_SIZE = ROW_SIZE;
+const uint32_t LEAF_NODE_VALUE_OFFSET = LEAF_NODE_KEY_OFFSET + LEAF_NODE_KEY_SIZE;
+const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
+const uint32_t LEAF_NODE_SPACE_FOR_CELLS = PAGE_SIZE - LEAF_NODE_HEADER_SIZE;
+const uint32_t LEAF_NODE_MAX_CELLS = LEAF_NODE_SPACE_FOR_CELLS / LEAF_NODE_CELL_SIZE;
+
+基于这些常数 ， 下面是一个叶子节点的布局 ， 目前看起来是这样的 : 
+
+.. image:: img/leaf-node-format.png 
+
+Our leaf node format
+
+在 header 里每个布尔值使用一整个字节 ， 这样空间利用率低 ， 但这使得编写访问这些值的\
+代码更容易 。 
+
+还注意到在最后有一些浪费的空间 。 我们在 header 之后尽可能多地存储单元格 ， 但剩下的\
+空间不能容纳整个单元格 。 我们把它留空 ， 以避免在节点之间分割单元格 。 
+
+8.3 叶子节点格式
+==============================================================================
