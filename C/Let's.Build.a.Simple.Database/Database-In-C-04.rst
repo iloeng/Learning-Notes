@@ -453,5 +453,46 @@ Our leaf node format
 还注意到在最后有一些浪费的空间 。 我们在 header 之后尽可能多地存储单元格 ， 但剩下的\
 空间不能容纳整个单元格 。 我们把它留空 ， 以避免在节点之间分割单元格 。 
 
-8.3 叶子节点格式
+8.3 访问叶子节点字段
 ==============================================================================
+
+访问键 、 值和元数据的代码都涉及到使用我们刚刚定义的常数的指针运算 。 
+
+.. code-block:: C 
+
+    uint32_t* leaf_node_num_cells(void* node)
+    {
+        return node + LEAF_NODE_NUM_CELLS_OFFSET;
+    }
+
+    void* leaf_node_cell(void* node, uint32_t cell_num)
+    {
+        return node + LEAF_NODE_HEADER_SIZE + cell_num * LEAF_NODE_CELL_SIZE;
+    }
+
+    uint32_t* leaf_node_key(void* node, uint32_t cell_num)
+    {
+        return leaf_node_cell(node, cell_num);
+    }
+
+    void* leaf_node_value(void* node, uint32_t cell_num)
+    {
+        return leaf_node_cell(node, cell_num) + LEAF_NODE_KEY_SIZE;
+    }
+
+    void initialize_leaf_node(void* node)
+    {
+        *leaf_node_num_cells(node) = 0;
+    }
+
+这些方法返回一个指向相关值的指针 ， 所以它们既可以作为一个获取器 ， 也可以作为一个设\
+置器使用 。 
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: Database-In-C-03.rst
+.. _`下一篇`: Database-In-C-05.rst
