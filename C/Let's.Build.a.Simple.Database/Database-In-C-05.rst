@@ -468,3 +468,45 @@ one-node btree
 第 09 部分  二进制搜索和重复 Key
 ******************************************************************************
 
+上次我们注意到 ， 我们仍然以未排序的顺序存储密钥 。 我们将解决该问题 ， 并检测并拒绝\
+重复的键 。 
+
+现在我们的 ``execute_insert()`` 函数始终选择在表的末尾插入 。 相反 ， 我们应该在表\
+格中搜索正确的要插入的位置 ， 然后在此处插入 。 如果密钥已经存在 ， 则返回错误 。
+
+.. code-block:: C
+
+    ExecuteResult execute_insert(Statement* statement, Table* table)
+    {
+        void* node = get_page(table->pager, table->root_page_num);
+        uint32_t num_cells = (*leaf_node_num_cells(node));
+        if (num_cells >= LEAF_NODE_MAX_CELLS)
+        {
+            return EXECUTE_TABLE_FULL;
+        }
+        Row* row_to_insert = &(statement->row_to_insert);
+        uint32_t key_to_insert = row_to_insert->id;
+        Cursor* cursor = table_find(table, key_to_insert);
+
+        if (cursor->cell_num < num_cells)
+        {
+            uint32_t key_at_index = *leaf_node_key(node, cursor->cell_num);
+            if (key_at_index == key_to_insert)
+            {
+                return EXECUTE_DUPLICATE_KEY;
+            }
+        }
+
+        leaf_node_insert(cursor, row_to_insert->id, row_to_insert);
+        free(cursor);
+        return EXECUTE_SUCCESS;
+    }
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: Database-In-C-04.rst
+.. _`下一篇`: Database-In-C-06.rst
