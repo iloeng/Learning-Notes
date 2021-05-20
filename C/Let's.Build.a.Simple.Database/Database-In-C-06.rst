@@ -470,5 +470,63 @@ Our internal node format
 部节点中容纳 510 个键和 511 个子指针 。 这意味着我们将不必遍历树的许多层来找到给定的\
 键 ！ 
 
+======================  ===================  ======================
+# internal node layers  max # leaf nodes     Size of all leaf nodes
+======================  ===================  ======================
+0                       511^0 = 1            4 KB
+1                       511^1 = 512          -2 MB
+2                       511^2 = 261,121      -1 GB
+3                       511^3 = 133,432,831  -550 GB
+======================  ===================  ======================
 
+实际上 ， 由于头部 、 键和浪费的空间的开销 ， 我们不能在每个叶子节点上存储整整 4KB \
+的数据 。 但是 ， 我们可以通过从磁盘加载 4 个页面来搜索大约 500 GB 的数据 。 这就是\
+为什么 B 树是数据库的一个有用的数据结构 。 
 
+下面是对内部节点进行读写的方法 :
+
+.. code-block:: C 
+
+    uint32_t* internal_node_num_keys(void* node) 
+    {
+        return node + INTERNAL_NODE_NUM_KEYS_OFFSET;
+    }
+
+    uint32_t* internal_node_right_child(void* node)
+    {
+        return node + INTERNAL_NODE_RIGHT_CHILD_OFFSET;
+    }
+
+    uint32_t* internal_node_cell(void* node, uint32_t cell_num) 
+    {
+        return node + INTERNAL_NODE_HEADER_SIZE + cell_num * INTERNAL_NODE_CELL_SIZE;
+    }
+
+    uint32_t* internal_node_child(void* node, uint32_t child_num) 
+    {
+        uint32_t num_keys = *internal_node_num_keys(node);
+        if (child_num > num_keys) 
+        {
+            printf("Tried to access child_num %d > num_keys %d\n", child_num, num_keys);
+            exit(EXIT_FAILURE);
+        } else if (child_num == num_keys) 
+        {
+            return internal_node_right_child(node);
+        } else {
+            return internal_node_cell(node, child_num);
+        }
+    }
+
+    uint32_t* internal_node_key(void* node, uint32_t key_num) 
+    {
+        return internal_node_cell(node, key_num) + INTERNAL_NODE_CHILD_SIZE;
+    }
+
+未完待续 ...
+
+上一篇文章 ： `上一篇`_
+
+下一篇文章 ： `下一篇`_ 
+
+.. _`上一篇`: Database-In-C-05.rst
+.. _`下一篇`: Database-In-C-07.rst
