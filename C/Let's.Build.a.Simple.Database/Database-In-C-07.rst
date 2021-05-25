@@ -439,6 +439,56 @@ three-level btree
 第 12 部分  扫描多层次的 B 型树
 ******************************************************************************
 
+我们现在支持构建多级 btree ， 但在此过程中 ， 我们已经破坏了 select 语句 。 这是一\
+个测试案例 ， 该案例插入 15 行 ， 然后尝试打印它们 。 
+
+.. code-block:: ruby
+
+  it 'prints all rows in a multi-level tree' do
+    script = []
+    (1..15).each do |i|
+      script << "insert #{i} user#{i} person#{i}@example.com"
+    end
+    script << "select"
+    script << ".exit"
+    result = run_script(script)
+
+    expect(result[15...result.length]).to match_array([
+      "db > (1, user1, person1@example.com)",
+      "(2, user2, person2@example.com)",
+      "(3, user3, person3@example.com)",
+      "(4, user4, person4@example.com)",
+      "(5, user5, person5@example.com)",
+      "(6, user6, person6@example.com)",
+      "(7, user7, person7@example.com)",
+      "(8, user8, person8@example.com)",
+      "(9, user9, person9@example.com)",
+      "(10, user10, person10@example.com)",
+      "(11, user11, person11@example.com)",
+      "(12, user12, person12@example.com)",
+      "(13, user13, person13@example.com)",
+      "(14, user14, person14@example.com)",
+      "(15, user15, person15@example.com)",
+      "Executed.", "db > ",
+    ])
+  end
+
+但是 ， 当我们运行该测试用例时 ， 实际发生的是 ： 
+
+.. code-block:: ruby
+
+    db > select
+    (2, user1, person1@example.com)
+    Executed.
+
+那真是怪了 。 它仅打印一行 ， 而该行看起来已损坏 (请注意 ， 该 ID 与用户名不匹配) 。
+
+这种奇怪的现象是因为 ``execute_select()`` 从表头开始 ， 而我们目前实现的 \
+``table_start()`` 返回根节点的 0 号单元格 。 但是我们的树的根现在是一个内部节点 ， \
+不包含任何行 。 被打印的数据一定是根节点是叶子时留下的 。 ``execute_select()`` 应\
+该真正返回最左边叶子节点的 0 号单元格 。 
+
+因此 ， 需要摆脱旧的执行方式 。  
 
 未完待续 ...
 
