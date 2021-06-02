@@ -132,3 +132,64 @@ Code structure
 02  哈希表结构
 ******************************************************************************
 
+我们的键值对 (条目) 将每个都存储在一个结构中 ： 
+
+.. code-block:: c 
+
+    // hash_table.h
+    typedef struct {
+        char* key;
+        char* value;
+    } ht_item;
+
+我们的哈希表存储了一个指向条目的指针数组 ， 以及一些关于它的大小和它是否装满的细节 ：
+
+.. code-block:: C 
+
+    // hash_table.h
+    typedef struct {
+        int size;
+        int count;
+        ht_item** items;
+    } ht_hash_table;
+
+初始化和删除
+==============================================================================
+
+我们需要为 ``ht_items`` 定义初始化函数 。 这个函数分配了一个与 ``ht_item`` 大小相\
+当的内存块 ， 并在新的内存块中保存了字符串 ``k`` 和 ``v`` 的副本 。 这个函数被标记\
+为静态的 ， 因为它只会被哈希表内部的代码调用 。 
+
+.. code-block:: C 
+
+    // hash_table.c
+    #include <stdlib.h>
+    #include <string.h>
+
+    #include "hash_table.h"
+
+    static ht_item* ht_new_item(const char* k, const char* v) {
+        ht_item* i = malloc(sizeof(ht_item));
+        i->key = strdup(k);
+        i->value = strdup(v);
+        return i;
+    }
+
+``ht_new`` 初始化一个新的哈希表 。 ``size`` 定义了我们可以存储多少个条目 。 目前固\
+定为 53 。 我们将在有关 调整大小_ 的部分对此进行扩展 。 我们使用 calloc 初始化项目数组 \
+， 它用 ``NULL`` 字节填充分配的内存 。 数组中的 ``NULL`` 条目表示该存储桶为空 。 
+
+.. _调整大小: waiting
+
+.. code-block:: C 
+
+    // hash_table.c
+    ht_hash_table* ht_new() {
+        ht_hash_table* ht = malloc(sizeof(ht_hash_table));
+
+        ht->size = 53;
+        ht->count = 0;
+        ht->items = calloc((size_t)ht->size, sizeof(ht_item*));
+        return ht;
+    }
+
