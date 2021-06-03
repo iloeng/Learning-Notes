@@ -1,4 +1,4 @@
-
+#include <stdio.h>
 
 typedef struct {
     char* key;
@@ -11,4 +11,11 @@ typedef struct {
     int count;
     ht_item** items;
 } ht_hash_table;
+
+ht_hash_table* ht_new();
+
+static void ht_del_item(ht_item* i);
+
+void ht_del_hash_table(ht_hash_table* ht);
+
 

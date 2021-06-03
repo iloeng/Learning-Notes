@@ -193,3 +193,52 @@ Code structure
         return ht;
     }
 
+我们还需要有删除 ``ht_items`` 和 ``ht_hash_tables`` 的函数 ， 它将释放我们分配的\
+内存 ， 所以我们不会导致 内存泄漏_ 。
+
+.. _内存泄露: https://en.wikipedia.org/wiki/Memory_leak
+
+.. code-block:: C 
+
+    // hash_table.c
+    static void ht_del_item(ht_item* i) {
+        free(i->key);
+        free(i->value);
+        free(i);
+    }
+
+
+    void ht_del_hash_table(ht_hash_table* ht) {
+        for (int i = 0; i < ht->size; i++) {
+            ht_item* item = ht->items[i];
+            if (item != NULL) {
+                ht_del_item(item);
+            }
+        }
+        free(ht->items);
+        free(ht);
+    }
+
+我们已经编写了定义哈希表的代码 ， 并让我们创建和销毁一个 。 虽然目前它没有做太多事\
+情 ， 但我们仍然可以尝试一下 。 
+
+.. code-block:: C 
+
+    // main.c
+    #include "hash_table.h"
+
+
+    int main() {
+        ht_hash_table* ht = ht_new();
+        printf("%d, %d, %s, %s", ht->count, ht->size, ht->items[0], ht->items[1]);
+        ht_del_hash_table(ht);
+    }
+
+下一节 ： 哈希函数
+
+******************************************************************************
+03  哈希函数
+******************************************************************************
+
+
+

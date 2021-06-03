@@ -33,3 +33,22 @@ ht_hash_table* ht_new() {
     return ht;
 }
 
+// hash_table.c
+static void ht_del_item(ht_item* i) {
+    free(i->key);
+    free(i->value);
+    free(i);
+}
+
+
+void ht_del_hash_table(ht_hash_table* ht) {
+    for (int i = 0; i < ht->size; i++) {
+        ht_item* item = ht->items[i];
+        if (item != NULL) {
+            ht_del_item(item);
+        }
+    }
+    free(ht->items);
+    free(ht);
+}
+
