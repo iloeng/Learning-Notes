@@ -18,7 +18,7 @@ C 语言实现哈希表
 我们可以通过修改 ``ht_insert`` 来解决这个问题 ， 以删除前一个项目并在其位置插入新条\
 目 。
 
-.. cdeo-block:: C 
+.. code-block:: C 
 
     // hash_table.c
     void ht_insert(ht_hash_table* ht, const char* key, const char* value) {
