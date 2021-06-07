@@ -8,4 +8,4 @@ include_directories(.)
 add_executable(src
         hash_table.h
         hash_table.c
-        main.c)
+        main.c prime.c prime.h)
