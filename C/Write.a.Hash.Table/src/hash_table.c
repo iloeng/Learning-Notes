@@ -206,6 +206,3 @@ void ht_delete(ht_hash_table* ht, const char* key)
     }
     ht->count--;
 }
-
-
-
