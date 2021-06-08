@@ -4,8 +4,8 @@
 
 注 ： 
 
-- 本文发现于 project-based-learning_
-- 本文的原始链接 : `Write a NoSQL Database in Python`_ 
+- 本文发现于 : project-based-learning_
+- 本文原始链接 : `Write a NoSQL Database in Python`_ 
 - 本文存档链接 : `Write a NoSQL Database in Python Archive`_
 
 .. _project-based-learning: https://github.com/tuvtran/project-based-learning
