@@ -191,7 +191,7 @@ Schemas
 部分之一 。 
 
 Key/Value Stores
-------------------------------------------------------------------------------
+==============================================================================
 
 早在 "NoSQL" 这个术语出现之前 ， 像 memcached 这样的键 / 值数据存储就提供了数据存\
 储 ， 而没有表模式的开销 。 事实上 ， 在 K/V 存储中 ， 根本没有 "Tables" 。 只有键\
@@ -201,4 +201,163 @@ NoSQL 数据库只是一个大字典 。
 
 要了解它们的工作原理 ， 让我们自己编写一个 ！ 我们将从一个非常简单的设计开始 ： 
 
+- 作为主要数据存储的 Python 字典
+- 只支持字符串作为键
+- 支持存储整数 、 字符串和列表
+- 使用 ASCII 字符串进行消息传递的简单 TCP/IP 服务器
+- INCREMENT 、 DELETE 、 APPEND 和 STATS 等稍微高级的命令
+
+使用基于 ASCII 的 TCP/IP 接口构建数据存储的好处是我们可以使用简单的 telnet 程序与我\
+们的服务器进行交互 ； 不需要特殊的客户端 (尽管写一个是一个很好的练习 ， 可以在大约 \
+15 行内完成) 。
+
+对于我们发送到服务器的消息和它发回的响应 ， 我们需要一个 "有线格式" 。 这是一个松散的\
+规范 ： 
+
+Commands Supported
+------------------------------------------------------------------------------
+
+- PUT
+
+  - 参数 : Key , Value 
+  - 目的 : 将新条目插入数据存储
+
+- GET
+
+  - 参数 : Key 
+  - 目的 : 从数据存储中检索存储的值
+
+- PUTLIST
+
+  - 参数 : Key , Value 
+  - 目的 : 在数据存储中插入一个新的列表条目
+
+- GETLIST
+
+  - 参数 : Key
+  - 目的 : 从数据存储中检索存储的列表
+
+- APPEND
+
+  - 参数 : Key , Value 
+  - 目的 : 将元素添加到数据存储中的现有列表
+
+- INCREMENT
+
+  - 参数 : Key
+  - 目的 : 增加数据存储中整数值的值
+
+- DELETE
+
+  - 参数 : Key
+  - 目的 : 从数据存储中删除条目
+
+- STATS
+
+  - 参数 : N/A
+  - 目的 : 请求统计每个命令执行成功 / 失败的次数
+
+现在让我们定义消息结构本身 。 
+
+Message Structure
+------------------------------------------------------------------------------
+
+Request Messages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+请求消息由命令 、 键 、 值和值类型组成 。 根据消息的不同最后三个是可选的 。 ``;`` \
+被用作分隔符 。 必须总是三个 ``;`` 在消息中 ， 即使不包含某些可选字段 。 
+
+.. code-block:: bash 
+
+    COMMAND;[KEY];[VALUE];[VALUE TYPE]
+
+- **COMMAND** : 是上面列表中的命令
+- **KEY** : 是用作数据存储键的字符串 (可选)
+- **VALUE** : 是要存储在数据存储中的整数 、 列表或字符串 (可选)
+  
+  - 列表表示为以逗号分隔的一系列字符串 ， 例如 "red,green,blue"
+
+- **VALUE TYPE** :  描述应该解释为什么类型的 **VALUE**
+
+  - 可能的值 ： INT , STRING , LIST
+
+Example
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+.. code-block:: SQL 
+
+    "PUT;foo;1;INT"
+
+    "GET;foo;;"
+
+    "PUTLIST;bar;a,b,c;LIST"
+
+    "APPEND;bar;d;STRING
+
+    "GETLIST;bar;;"
+
+    "STATS;;;"
+
+    "INCREMENT;foo;;"
+
+    "DELETE;foo;;"
+
+Response Messages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+响应消息由两部分组成 ， 以 ``;`` 分隔 。 根据命令是否成功 ， 第一部分始终为 \
+``True|False`` 。 第二部分是命令消息 。 关于错误 ， 这将描述错误 。 对于不希望返回\
+值的成功命令 (如 PUT) ， 这将是一条成功消息 。 对于期望返回值的命令 (如 GET) ， 这\
+将是值本身 。 
+
+Example
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+.. code-block:: bash 
+
+    "True;Key [foo] set to [1]"
+
+    "True;1"
+
+    "True;Key [bar] set to [['a', 'b', 'c']]"
+
+    "True;Key [bar] had value [d] appended"
+
+    "True;['a', 'b', 'c', 'd']
+
+    "True;{'PUTLIST': {'success': 1, 'error': 0}, 'STATS': {'success': 0, 'error': 0}, 'INCREMENT': {'success': 0, 'error': 0}, 'GET': {'success': 0, 'error': 0}, 'PUT': {'success': 0, 'error': 0}, 'GETLIST': {'success': 1, 'error': 0}, 'APPEND': {'success': 1, 'error': 0}, 'DELETE': {'success': 0, 'error': 0}}"
+
+Show Me The Code!
+==============================================================================
+
+我将以可消化的块呈现代码 。 整个服务器只有不到 180 行代码 ， 因此可以快速阅读 。 
+
+Set Up
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+以下是我们服务器所需的许多样板设置代码 ： 
+
+.. code-block:: python 
+
+    """NoSQL database written in Python."""
+
+    # Standard library imports
+    import socket
+
+    HOST = 'localhost'
+    PORT = 50505
+    SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    STATS = {
+        'PUT': {'success': 0, 'error': 0},
+        'GET': {'success': 0, 'error': 0},
+        'GETLIST': {'success': 0, 'error': 0},
+        'PUTLIST': {'success': 0, 'error': 0},
+        'INCREMENT': {'success': 0, 'error': 0},
+        'APPEND': {'success': 0, 'error': 0},
+        'DELETE': {'success': 0, 'error': 0},
+        'STATS': {'success': 0, 'error': 0},
+        }
+
+这里没什么可看的 ， 只是导入和一些数据初始化 。 
 
