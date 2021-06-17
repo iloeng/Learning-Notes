@@ -361,3 +361,204 @@ Set Up
 
 这里没什么可看的 ， 只是导入和一些数据初始化 。 
 
+Set Up (Cont'd)
+------------------------------------------------------------------------------
+
+我现在将跳过一些代码 ， 以便我可以显示其余的设置代码 。 请注意 ， 它指的是尚不存在的\
+函数 。 没关系 ， 因为我在跳来跳去 。 在完整版中 (在最后展示) ， 一切都按正确的顺序\
+排列 。 这是设置代码的其余部分 ： 
+
+.. code-block:: python 
+
+  COMMAND_HANDLERS = {
+      'PUT': handle_put,
+      'GET': handle_get,
+      'GETLIST': handle_getlist,
+      'PUTLIST': handle_putlist,
+      'INCREMENT': handle_increment,
+      'APPEND': handle_append,
+      'DELETE': handle_delete,
+      'STATS': handle_stats,
+      }
+  DATA = {}
+
+  def main():
+      """Main entry point for script."""
+      SOCKET.bind((HOST, PORT))
+      SOCKET.listen(1)
+      while 1:
+          connection, address = SOCKET.accept()
+          print 'New connection from [{}]'.format(address)
+          data = connection.recv(4096).decode()
+          command, key, value = parse_message(data)
+          if command == 'STATS':
+              response = handle_stats()
+          elif command in (
+              'GET',
+              'GETLIST',
+              'INCREMENT',
+              'DELETE'
+                  ):
+              response = COMMAND_HANDLERS[command](key)
+          elif command in (
+              'PUT',
+              'PUTLIST',
+              'APPEND',
+                  ):
+              response = COMMAND_HANDLERS[command](key, value)
+          else:
+              response = (False, 'Unknown command type [{}]'.format(command))
+          update_stats(command, response[0])
+          connection.sendall('{};{}'.format(response[0], response[1]))
+          connection.close()
+
+  if __name__ == '__main__':
+      main()
+
+我们创建了通常称为 ``COMMAND_HANDLERS`` 的查找表 。 它的工作原理是将命令的名称与用\
+于处理该类型命令的函数相关联 。 所以 ， 例如如果我们得到一个 GET 命令 ， 说 \
+``COMMAND_HANDLERS[command](key)`` 和说 ``handle_get(key)`` 是一样的 。 请记住 \
+， 函数可以被视为值 ， 并且可以像任何其他值一样存储在 dict 中 。 
+
+在上面的代码中 ， 我决定分别处理需要相同数量参数的每组命令 。 我可以简单地强制所有的 \
+``handle_`` 函数接受一个 ``key`` 和 ``value`` ， 我只是决定这样处理函数更清晰 ， \
+更容易测试 ， 并且更不容易出错 。 
+
+请注意 ， 套接字代码是最少的 。 尽管我们的整个服务器都是基于 TCP/IP 通信的 ， 但实际\
+上与低级网络代码的交互并不多 。 
+
+要注意的最后一件事是如此无害 ， 您可能已经错过了它 ： ``DATA`` 字典 。 这是我们实际\
+存储构成数据库的键值对的地方 。 
+
+Command Parser
+------------------------------------------------------------------------------
+
+让我们来看看命令解析器 ， 它负责理解传入的消息 ： 
+
+.. code-block:: python 
+
+    def parse_message(data):
+        """Return a tuple containing the command, the key, and (optionally) the
+        value cast to the appropriate type."""
+        command, key, value, value_type = data.strip().split(';')
+        if value_type:
+            if value_type == 'LIST':
+                value = value.split(',')
+            elif value_type == 'INT':
+                value = int(value)
+            else:
+                value = str(value)
+        else:
+            value = None
+        return command, key, value
+
+在这里我们可以看到发生了类型转换 。 如果该值是一个列表 ， 我们知道我们可以通过对字符\
+串调用 ``str.split(',')`` 来创建正确的值 。 对于 ``int`` ， 我们只是利用 \
+``int()`` 可以接受字符串的事实 。 字符串和 ``str()`` 也是如此 。 
+
+Command Handlers
+------------------------------------------------------------------------------
+
+下面是命令处理程序的代码 。 它们都非常直接 ， 并且 (希望) 看起来像您期望的那样 。 请\
+注意 ， 有大量的错误检查 ， 但肯定不是详尽无遗的 。 在您阅读时 ， 尝试找出代码遗漏的\
+错误案例并将其发布在 讨论_ 中 。 
+
+.. _讨论: https://web.archive.org/web/20200414132138/http://discourse.jeffknupp.com/
+
+.. code-block:: python 
+
+    def update_stats(command, success):
+        """Update the STATS dict with info about if executing
+        *command* was a *success*."""
+        if success:
+            STATS[command]['success'] += 1
+        else:
+            STATS[command]['error'] += 1
+
+
+    def handle_put(key, value):
+        """Return a tuple containing True and the message
+        to send back to the client."""
+        DATA[key] = value
+        return (True, 'Key [{}] set to [{}]'.format(key, value))
+
+
+    def handle_get(key):
+        """Return a tuple containing True if the key exists and the message
+        to send back to the client."""
+        if key not in DATA:
+            return(False, 'ERROR: Key [{}] not found'.format(key))
+        else:
+            return(True, DATA[key])
+
+
+    def handle_putlist(key, value):
+        """Return a tuple containing True if the command succeeded and the message
+        to send back to the client."""
+        return handle_put(key, value)
+
+
+    def handle_getlist(key):
+        """Return a tuple containing True if the key contained a list and
+        the message to send back to the client."""
+        return_value = exists, value = handle_get(key)
+        if not exists:
+            return return_value
+        elif not isinstance(value, list):
+            return (
+                False,
+                'ERROR: Key [{}] contains non-list value ([{}])'.format(key, value)
+            )
+        else:
+            return return_value
+
+
+    def handle_increment(key):
+        """Return a tuple containing True if the key's value could be incremented
+        and the message to send back to the client."""
+        return_value = exists, value = handle_get(key)
+        if not exists:
+            return return_value
+        elif not isinstance(value, int):
+            return (
+                False,
+                'ERROR: Key [{}] contains non-int value ([{}])'.format(key, value)
+            )
+        else:
+            DATA[key] = value + 1
+            return (True, 'Key [{}] incremented'.format(key))
+
+
+    def handle_append(key, value):
+        """Return a tuple containing True if the key's value could be appended to
+        and the message to send back to the client."""
+        return_value = exists, list_value = handle_get(key)
+        if not exists:
+            return return_value
+        elif not isinstance(list_value, list):
+            return (
+                False,
+                'ERROR: Key [{}] contains non-list value ([{}])'.format(key, value)
+            )
+        else:
+            DATA[key].append(value)
+            return (True, 'Key [{}] had value [{}] appended'.format(key, value))
+
+
+    def handle_delete(key):
+        """Return a tuple containing True if the key could be deleted and
+        the message to send back to the client."""
+        if key not in DATA:
+            return (
+                False,
+                'ERROR: Key [{}] not found and could not be deleted'.format(key)
+            )
+        else:
+            del DATA[key]
+
+
+    def handle_stats():
+        """Return a tuple containing True and the contents of the STATS dict."""
+        return (True, str(STATS))
+
+
