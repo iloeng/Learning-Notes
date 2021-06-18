@@ -561,4 +561,19 @@ Command Handlers
         """Return a tuple containing True and the contents of the STATS dict."""
         return (True, str(STATS))
 
+需要注意的两件事 ： 多重赋值的使用和代码重用 。 许多函数只是对现有函数的简单包装 ， \
+具有更多的逻辑 ， 例如 ``handle_get`` 和 ``handle_getlist`` 。 由于我们偶尔只是发\
+回现有函数的结果 ， 而其他时候检查该函数返回的内容 ， 因此使用了多重赋值 。 
+
+看看 ``handle_append`` 。 如果我们尝试调用 ``handle_get`` 并且 Key 不存在 ， 我们\
+可以简单地返回 ``handle_get`` 返回的内容 。 因此 ， 我们希望能够将 ``handle_get`` \
+返回的元组作为单个返回值引用 。 如果 Key 不存在 ， 我们可以简单地说 \
+``return return_value`` 。 
+
+如果它确实存在 ， 我们需要检查返回的值 。 因此 ， 我们还想将 ``handle_get`` 的返回\
+值称为单独的变量 。 为了同时处理上述情况和我们需要分别处理结果的情况 ， 我们使用多重\
+赋值 。 这为我们提供了两全其美的优势 ， 而无需在我们的目的不明确的情况下使用多条线路 \
+。 ``return_value = exists, list_value = handle_get(key)`` 明确表示我们将至少以\
+两种不同的方式引用 ``handle_get`` 返回的值 。 
+
 
