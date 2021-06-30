@@ -492,8 +492,9 @@ match_request() 方法通过调用 MapAdapter.match() 方法来匹配请求 URL 
 2.3.3 本地上下文
 ------------------------------------------------------------------------------
 
-Flask 提供了两种上下文 ， 请求上下文和程序上下文 (新版本中) ， 这两种上下文分别包含 request 、 session 和 current_app 、 g 这四个变量 ， 这些变量是实际对象的本地代\
-理 (local proxy) ， 因此被称为本地上下文 (context locals) 。 这些代理对象定义在脚\
+Flask 提供了两种上下文 ， 请求上下文和程序上下文 ， 这两种上下文分别包含 request \
+、 session 和 current_app 、 g 这四个变量 ， 这些变量是实际对象的本地代理 \
+(local proxy) ， 因此被称为本地上下文 (context locals) 。 这些代理对象定义在脚\
 本中 。
 
 获取当前请求的信息是从 _request_ctx_stack.top 中获取出来的 ， 也就是说请求会被加入\
