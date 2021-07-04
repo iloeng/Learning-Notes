@@ -16,41 +16,41 @@ Python 标准库之 String 01
 
 此模块中定义的常量为 ：
 
-- string.ascii_letters
+- ``string.ascii_letters``
   
   英文大小写 ASCII 字符 ， 下文所述 ascii_lowercase 和 ascii_uppercase 常量的拼\
   连 。 该值不依赖于语言区域 。
 
-- string.ascii_lowercase
+- ``string.ascii_lowercase``
 
   小写字母 'abcdefghijklmnopqrstuvwxyz' 。 该值不依赖于语言区域 ， 不会发生改变 。
 
-- string.ascii_uppercase
+- ``string.ascii_uppercase``
 
   大写字母 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 。 该值不依赖于语言区域 ， 不会发生改变 。
 
-- string.digits
+- ``string.digits``
   
   数字字符串 '0123456789' 。
 
-- string.hexdigits
+- ``string.hexdigits``
 
   十六进制字符串 '0123456789abcdefABCDEF' 。
 
-- string.octdigits
+- ``string.octdigits``
   
   八进制字符串 '01234567' 。
 
-- string.punctuation
+- ``string.punctuation``
   
   由在 C 语言区域中被视为标点符号的 ASCII 字符组成的字符串 。
 
-- string.printable
+- ``string.printable``
 
   由被视为可打印符号的 ASCII 字符组成的字符串 。 这是 digits ， ascii_letters ， \
   punctuation 和 whitespace 的集合 。
 
-- string.whitespace
+- ``string.whitespace``
   
   由被视为空白符号的 ASCII 字符组成的字符串 。 其中包括空格 、 制表 、 换行 、 回车 \
   、 进纸和纵向制表符 。
@@ -276,8 +276,8 @@ auto_arg_index 。 然后对 obj 和 format_spec 变量进行格式化字段 `fo
         def parse(self, format_string):
             return _string.formatter_parser(format_string)
 
-该函数返回了 `_string.formatter_parser` 函数执行结果 。 而 \
-`_string.formatter_parser` 函数是 string 的内置方法 ， 暂时不知道其作用 ， 先放\
+该函数返回了 ``_string.formatter_parser`` 函数执行结果 。 而 \
+``_string.formatter_parser`` 函数是 string 的内置方法 ， 暂时不知道其作用 ， 先放\
 下 。 继续向下阅读 get_field 方法 。
 
 1.1.2.5 get_field 方法
