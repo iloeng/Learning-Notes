@@ -1,0 +1,26 @@
+Global:
+    ☐ capwords
+
+    ☐ _TemplateMetaclass
+        ☐ __init__
+
+    ☐ Template
+        ☐ __init__
+        ☐ _invalid
+        ☐ substitute
+            ☐ convert
+        ☐ safe_substitute
+            ☐ convert
+
+    ☐ Formatter
+        ☐ format
+        ☐ vformat
+        ☐ _vformat
+        ☐ get_value
+        ☐ format_field
+        ☐ check_unused_args
+        ☐ convert_field
+        ☐ parse
+        ☐ get_field
+
+        
