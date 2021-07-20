@@ -84,6 +84,11 @@ class TinyDB(object):
         """
         Purge all tables from the database. **CANT BE REVERSED!**
         """
+        """
+        1. 清除数据表操作， 首先会执行 _write 函数， 由于没有指定 table 名称， 因此
+           表示将 '{}' 表示的空数据覆盖到 TinyDB 里面， 达到清除数据的目的
+        2. 然后在清除数据表缓存字典中的数据
+        """
         self._write({})
         self._table_cache.clear()
 
@@ -119,7 +124,12 @@ class TinyDB(object):
         :param values: the new values to write
         :type values: list, dict
         """
-
+        """
+        1. TinyDB 对象的写操作， 至少需要一个参数 value， 如果 table 没有指定相应的值，
+           会将 value 写入所有的 table 中
+        2. 如果指定了 table， 首先会读取当前 TinyDB 的数据 current_data ， 然后将 
+           values 赋值给指定 table， 最后将 current_data 覆盖到 TinyDB 对象里
+        """
         if not table:
             self._storage.write(values)
         else:
