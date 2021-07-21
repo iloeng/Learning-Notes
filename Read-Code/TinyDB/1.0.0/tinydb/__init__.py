@@ -34,7 +34,9 @@ class TinyDB(object):
     Gives access to the database, provides methods to insert/search/remove
     and getting tables.
     """
-
+    """
+    1. _table_cache 数据表缓存
+    """
     _table_cache = {}
 
     def __init__(self, *args, **kwargs):
@@ -43,6 +45,12 @@ class TinyDB(object):
 
         All arguments and keyword arguments will be passed to the underlying
         storage class (default: :class:`~tinydb.storages.JSONStorage`).
+        """
+        """
+        1. 使用 TinyDB 时， 首先进行初始化操作。
+        2. 初始化工作会从参数字典了拿 storage 的值， 如果没有传入这个参数， 则使用 
+           JSONStorage 形式存储数据
+        3. 初始化工作指定了数据的存储方式以及数据表， 数据表默认为 _default
         """
         storage = kwargs.pop('storage', JSONStorage)
         #: :type: Storage
@@ -58,6 +66,12 @@ class TinyDB(object):
 
         :param name: The name of the table.
         :type name: str
+        """
+        """
+        1. 首先判断 _table_cache 数据表缓存字典中是否含有名称为 name 的数据表， 如果
+           有， 就返回缓存字典中的 table 对象
+        2. 没有的话， 就会执行下面的步骤。 对当前 TinyDB 对象创建 Table 对象， 然后将
+           其加入到数据表缓存字典当中
         """
         if name in self._table_cache:
             return self._table_cache[name]
