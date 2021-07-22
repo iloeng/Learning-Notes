@@ -14,6 +14,9 @@ except ImportError:
 
 
 def touch(fname, times=None):
+    """
+    1. 打开 fname 文件， 然后设置该文件的访问日期和修改日期
+    """
     with open(fname, 'a'):
         os.utime(fname, times)
 
@@ -24,6 +27,9 @@ class Storage(object):
 
     A Storage (de)serializes the current state of the database and stores it in
     some place (memory, file on disk, ...).
+    """
+    """
+    1. 存储方式的基类， 声明了存储方式的 read 和 write
     """
     __metaclass__ = ABCMeta
 
@@ -64,6 +70,12 @@ class JSONStorage(Storage):
 
         :param path: Where to store the JSON data.
         :type path: str
+        """
+        """
+        1. JSON 形式存储。
+        2. 初始化时， 先执行 touch 方法， 如果 path 指定的文件不存在， 将会新建
+        3. 然后将 path 赋值给 self.path， 整个类里面都可使用
+        4. 然后用 self._handle 存储文件句柄
         """
         super(JSONStorage, self).__init__()
         touch(path)  # Create file if not exists
