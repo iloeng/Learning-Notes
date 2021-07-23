@@ -102,7 +102,11 @@ class TinyDB(object):
         :returns: all values
         :rtype: dict, list
         """
-
+        """
+        1. 读取当前 TinyDB 对象的数据
+        2. 如果没有指定 table， 会读取当前 TinyDB 对象的所有 table 的值
+        3. 如果指定了 table， 则会读取对应的 table 
+        """
         if not table:
             try:
                 return self._storage.read()
@@ -145,6 +149,9 @@ class TinyDB(object):
         >>> len(db)
         0
         """
+        """
+        1. 对 TinyDB 对象实现了 len() 函数， 用于获取该 DB 对象共有多少元素
+        """
         return len(self._table)
 
     def __contains__(self, item):
@@ -155,11 +162,17 @@ class TinyDB(object):
         >>> if where('field') == 'value' in db:
         ...     print True
         """
+        """
+        1. 对 db 实现了 in 操作符
+        """
         return item in self._table
 
     def __getattr__(self, name):
         """
         Forward all unknown attribute calls to the underlying standard table.
+        """
+        """
+        1. 实现了 getattr 方法
         """
         return getattr(self._table, name)
 
