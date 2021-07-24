@@ -191,6 +191,13 @@ class Table(object):
         :param db: The parent database.
         :type db: TinyDB
         """
+        """
+        1. Table 类的初始化需要两个参数， name 是数据表名称， db 是 DB 对象
+        2. 同时将 self.name 和 self._db 暴露为类级别， 方便使用， 另增加了查询缓存字
+           典 self._queries_cache， 同样是类级别访问
+        3. 尝试读取数据表最新的 id， 如果无法读取到， 将 self._last_id 设为 0， 同样
+           是类级别访问
+        """
         self.name = name
         self._db = db
         self._queries_cache = {}
@@ -207,7 +214,10 @@ class Table(object):
         :returns: all values
         :rtype: list
         """
-
+        """
+        1. Table._read 方法通过调用 TinyDB._read 方法， 给定当前的数据表名称作为参数
+           来读取当前数据表的内容           
+        """
         return self._db._read(self.name)
 
     def _write(self, values):
@@ -320,5 +330,8 @@ class Table(object):
     def _clear_query_cache(self):
         """
         Clear query cache.
+        """
+        """
+        1. 将查询缓存清除
         """
         self._queries_cache = {}
