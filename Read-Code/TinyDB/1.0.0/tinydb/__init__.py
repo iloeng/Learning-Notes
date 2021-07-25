@@ -227,7 +227,10 @@ class Table(object):
         :param values: the new values to write
         :type values: list
         """
-
+        """
+        1. 写入数据的时候， 首先会清除查询缓存中的数据
+        2. 然后在执行 TinyDB._write 方法， 执行该方法的时候， 指定了数据表
+        """
         self._clear_query_cache()
         self._db._write(values, self.name)
 
@@ -235,11 +238,17 @@ class Table(object):
         """
         Get the total number of elements in the table.
         """
+        """
+        1. 对 Table 对象实现了 len 方法， 更方便获取数据表中的元素数量
+        """
         return len(self.all())
 
     def __contains__(self, condition):
         """
         Equals to ``bool(table.search(condition)))``.
+        """
+        """
+        1. 实现了 in 操作符
         """
         return bool(self.search(condition))
 
@@ -252,7 +261,9 @@ class Table(object):
         :returns: a list with all elements.
         :rtype: list
         """
-
+        """
+        1. 读取当前 Table 对象里的所有数据
+        """
         return self._read()
 
     def insert(self, element):
@@ -286,6 +297,9 @@ class Table(object):
     def purge(self):
         """
         Purge the table by removing all elements.
+        """
+        """
+        1. 清除 Table 对象的数据信息
         """
         self._write([])
 
@@ -322,7 +336,10 @@ class Table(object):
         :returns: the element or None
         :rtype: dict or None
         """
-
+        """
+        1. 从 Table 对象中的所有数据进行迭代判断， 如果满足添加， 将返回当前数据， 从
+           而实现了 get 方法
+        """
         for el in self.all():
             if cond(el):
                 return el
