@@ -272,7 +272,12 @@ class Table(object):
 
         element has to be a dict, not containing the key 'id'.
         """
-
+        """
+        1. 首先保存当前最新的 id 为 next_id， 并更新 self._last_id
+        2. 将需要插入的 element 字典中添加 _id 属性， 值为当前最新 id : next_id
+        3. 然后使用 data 存储当前 Table 对象中所有的数据， 并把需要插入的数据加入到 data
+        4. 将处理好的 data 重新写入到 Table 数据表中
+        """
         next_id = self._last_id
         self._last_id += 1
 
@@ -290,7 +295,10 @@ class Table(object):
         :param cond: the condition to check against
         :type cond: query, int, list
         """
-
+        """
+        1. 先执行搜索操作， 将需要删除的东西查找出来存为 to_remove
+        2. 然后再从 Table 对象中所有的数据去除需要删除的数据后重新写入 Table 对象
+        """
         to_remove = self.search(cond)
         self._write([e for e in self.all() if e not in to_remove])
 
@@ -315,7 +323,12 @@ class Table(object):
         :returns: list of matching elements
         :rtype: list
         """
-
+        """
+        1. 检查当前的搜索条件是否在查询缓存当中， 如果在的话， 就返回当前的查询结果
+        2. 否则， 对表中的元素挨个进行判断， 满足条件就添加到 elems 中， 同时将最终的
+           满足条件的结果添加到查询缓存 self._queries_cache 里面
+        3. 最终返回满足条件的结果
+        """
         if cond in self._queries_cache:
             return self._queries_cache[where]
         else:
