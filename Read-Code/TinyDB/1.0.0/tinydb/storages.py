@@ -83,14 +83,26 @@ class JSONStorage(Storage):
         self._handle = open(path, 'r+')
 
     def __del__(self):
+        """
+        1. 删除对象就意味着关闭文件流
+        """
         self._handle.close()
 
     def write(self, data):
+        """
+        1. 文件从开头读取 seek(0)
+        2. 然后使用 json.dump 将 data 数据转换为 json 并存储到文件流
+        3. 然后使用 flush 方法刷新缓冲区（同时清空缓冲区）
+        """
         self._handle.seek(0)
         json.dump(data, self._handle)
         self._handle.flush()
 
     def read(self):
+        """
+        1. 文件从开头读取 seek(0)
+        2. 将文件流加载为 json
+        """
         self._handle.seek(0)
         return json.load(self._handle)
 
