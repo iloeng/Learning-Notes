@@ -116,13 +116,24 @@ class MemoryStorage(Storage):
         """
         Create a new instance.
         """
+        """
+        1. 将数据记录在内存中 self.memory 初始化为 None
+        """
         super(MemoryStorage, self).__init__()
         self.memory = None
 
     def write(self, data):
+        """
+        1. 将 data 数据赋值给 self.memory
+        """
         self.memory = data
 
     def read(self):
+        """
+        1. 读取内存中的数据
+        2. 如果数据为空， 抛出 ValueError 异常
+        3. 否则返回 self.memory
+        """
         if self.memory is None:
             raise ValueError
         return self.memory
