@@ -19,6 +19,7 @@
   - [ ] Flask 1.0 - Python
 - [x] TinyHTTPd 0.1.0 - C 
 - [ ] TinyDB - Python
+  - [ ] TinyDB 1.0.0 - Python 50%
 - [ ] Asyncio - Python
 - [ ] Pieces - Python 
 - [ ] Python - C 
