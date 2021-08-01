@@ -1,0 +1,77 @@
+C Version\s1.0\s(CVS\s499)
+D 2000-08-17T10:25:00
+F COPYRIGHT 74a8a6531a42e124df07ab5599aad63870fa0bd4
+F Makefile.in 8a4cc1bdcbb870f76d0c769136cf973af07586a4
+F README 51f6a4e7408b34afa5bc1c0485f61b6a4efb6958
+F VERSION 61652cd1568dcf2614df833eba241755eee34e89
+F configure 51063d594190fa085f909cefc9427241088bec4f x
+F configure.in a04f02ba61ed09a00e862b4f78b91b06a559e0b5
+F doc/lemon.html e233a3e97a779c7a87e1bc4528c664a58e49dd47
+F src/build.c 4d90e9e94750ca80249fc7958c617021d8bb7a50
+F src/dbbe.c 226daaf8c095ceb4aff48cad188dad90643f9867
+F src/dbbe.h 6337132f904e72ecb28b07390021c241397e4cbf
+F src/delete.c 4d491eaf61b515516749c7ed68fa3b2ee8a09065
+F src/expr.c 2fa63f086707176d09092e71832f9bbdc6a8ac85
+F src/insert.c f146f149ad2422a1dc3bfa7a1651a25940f98958
+F src/main.c ba16b81890d962821bb90f0a4de9a29b0e495eb2
+F src/parse.y 5d199034de5d29ebedb42c1c51f34db4df40cbe5
+F src/select.c d382e96c2221d08367cc87976f2b574537c9de97
+F src/shell.c 0aabf9e5e89fc8ac7a56de7f05255ed6864170f2
+F src/shell.tcl 27ecbd63dd88396ad16d81ab44f73e6c0ea9d20e
+F src/sqlite.h.in fe04454ae51f9f3717179ffe5a10a25874643ced
+F src/sqliteInt.h f6d1e139b3bfa4ceff2136684e19d76b53178ec0
+F src/tclsqlite.c 89dc4ba2b521f3e919d6d7aaa4cc1c2aba8e16f3
+F src/tokenize.c 097bec5843d4a0fb4509e036fee93bac080c5e73
+F src/update.c 51b9ef7434b15e31096155da920302e9db0d27fc
+F src/util.c b75b33e6bd5d47898bb7ed9fdd0dea4fe7c19b00
+F src/vdbe.c bdedf21230581f0cf73a2dcd8fe23f30cf30ebe6
+F src/vdbe.h 6c5653241633c583549c2d8097394ab52550eb63
+F src/where.c 420f666a38b405cd58bd7af832ed99f1dbc7d336
+F test/all.test 0950c135cab7e60c07bd745ccfad1476211e5bd7
+F test/copy.test b77a1214bd7756f2849d5c4fa6e715c0ff0c34eb
+F test/dbbe.test c6079572516aeb2739a35fd272b105c45c30cc76
+F test/delete.test 402ee3ccb6e544582d24c573ef70b34d09583ae7
+F test/expr.test 09b55ccf81cb8cc2f9cd83d592a2ba187ee48ba8
+F test/in.test 2c560c0f55fb777029fd9bb5378f2997582aa603
+F test/index.test 950be6116122c6e2db7c2c345eabcdb854ced1d0
+F test/insert.test 66f4c3bd600fec8eb1e733b928cbe6fa885eff0c
+F test/insert2.test 732405e30331635af8d159fccabe835eea5cd0c6
+F test/lock.test 72f3b11be44f29739cb270b14faea2687dedde7d
+F test/main.test b7366cc6f3690915a11834bc1090deeff08acaf9
+F test/select1.test 68ff778c24fc8982e63dda37acb5b0396913adf7
+F test/select2.test 45c28211702b5c82b06dd624a112ea17417f343c
+F test/select3.test a9234b8424b6c6d71de534f43b91ade9be68e9cc
+F test/select4.test cb5374d7c87680e294ac749307459a5cc547609d
+F test/select5.test e2b9d51d88cbd6c307c2c05b0ef55fe7ba811ac2
+F test/sort.test d582086c4bb7df3fbf50aa72e69d7e235e9f8e31
+F test/subselect.test bf8b251a92fb091973c1c469ce499dc9648a41d5
+F test/table.test 620cd72a6c29da3b9153d15c9e94abbbb282373b
+F test/tester.tcl 95b286791e6256bb6db0165f9342c70fff549a62
+F test/update.test 62f6ce99ff31756aab0ca832ff6d34c5a87b6250
+F test/vacuum.test 8becf5cfeb897108b35cdd996793e7f1df2f28fd
+F test/where.test bbab5a308055fb6087dc23d600b4ad2b72797397
+F tool/gdbmdump.c 529e67c78d920606ba196326ea55b57b75fcc82b
+F tool/lemon.c 1f0e96515c12e9e413f5b8fdebc79ddcf18ddc9d
+F tool/lempar.c a1eec94d6eacc12332368660ec65f3b248853833
+F tool/memleak.awk a0a11dd84bf4582acc81c3c61271021ae49b3f15
+F tool/opNames.awk 2bd9071a138e4e2be13dc98fe066398a61219e1e
+F tool/opcodeDoc.awk b3a2a3d5d3075b8bd90b7afe24283efdd586659c
+F tool/renumberOps.awk 6d067177ad5f8d711b79577b462da9b3634bd0a9
+F www/arch.fig 4e26e9dca3c49724fc8f554c695ddea9f2413156
+F www/arch.png c4d908b79065a72e7dcf19317f36d1324c550e87
+F www/arch.tcl 4f6a9afecc099a27bba17b4f8cc9561abc15dc40
+F www/c_interface.tcl 29593cf77025bab137b7ba64b9459eb5eb6b4873
+F www/changes.tcl 32a1a09297095ffa3e49473732e4b60fc6cdc7c1
+F www/crosscompile.tcl 19734ce7f18b16ff2ed8479412abf8aca56e1dcc
+F www/fileformat.tcl cfb7fba80b7275555281ba2f256c00734bcdd1c9
+F www/index.tcl 6dae7e07d110ce06c327223365dc1b475b4fb6ee
+F www/lang.tcl 9192e114b19987e630a41e879585b87006eb84a1
+F www/mingw.tcl fc5f4ba9d336b6e8c97347cc6496d6162461ef60
+F www/opcode.tcl cb3a1abf8b7b9be9f3a228d097d6bf8b742c2b6f
+F www/sqlite.tcl cb0d23d8f061a80543928755ec7775da6e4f362f
+F www/vdbe.tcl bcbfc33bcdd0ebad95eab31286adb9e1bc289520
+P 5ec2b094781bb3c32b0ef0284aa4dc2b26d9e873
+R 55d9f580b0fd85533f8ccc00b91b305d
+U drh
+Z f346b6602fac1a26cb3e2b4625824e0f
+# Remove this line to create a well-formed Fossil manifest.
