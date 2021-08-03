@@ -27,15 +27,28 @@ class _Request(urllib2.Request):
     """Hidden wrapper around the urllib2.Request object. Allows for manual
     setting of HTTP methods.
     """
-
+    """
+    1. _Request 类继承于 urllib2.Request 类
+    """
     def __init__(self, url, data=None, headers={}, origin_req_host=None,
                  unverifiable=False, method=None):
+        """
+        1. 初始化时包含了 url， data， headers， origin_req_host， unverifiable 和
+           method 一共 6 个参数， url 为必须参数， 初始化的时候必须拥有， 其余参数为
+           可选参数
+        2. 使用除 method 参数以外的 5 个参数初始化 urllib2.Request 类
+        3. 然后使用 self.method 保存 method， 使其类级别访问
+        """
         urllib2.Request.__init__(
             self, url, data, headers, origin_req_host, unverifiable
         )
         self.method = method
 
     def get_method(self):
+        """
+        1. 获取请求方法。 如果 self.method 有值， 就返回 self.method， 否则将从
+           urllib2.Request 中获取请求方法
+        """
         if self.method:
             return self.method
 
@@ -47,10 +60,16 @@ class Request(object):
     Requests. Recommended interface is with the Requests functions.
 
     """
-
+    """
+    1. Request 类包含了所有的请求功能
+    2. 请求方法共列出了 5 种， 分别是 GET， HEAD， PUT， POST， DELETE
+    """
     _METHODS = ('GET', 'HEAD', 'PUT', 'POST', 'DELETE')
 
     def __init__(self):
+        """
+        1. Request 类初始化， 共有 8 个属性
+        """
         self.url = None
         self.headers = dict()
         self.method = None
@@ -61,6 +80,11 @@ class Request(object):
         self.sent = False
 
     def __repr__(self):
+        """
+        1. __repr__ 函数会在类执行完毕后执行
+        2. 尝试打印类执行完毕后的请求方法， 此处有逻辑问题， 因为 self.method 是一直
+           有值的， 因此会一直打印 try 内部的语句， 并不会执行 except 的语句
+        """
         try:
             repr = '<Request [%s]>' % (self.method)
         except:
