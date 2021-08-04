@@ -92,6 +92,16 @@ class Request(object):
         return repr
 
     def __setattr__(self, name, value):
+        """
+        1. Request 类属性赋值方法
+        2. 当需要赋值的属性名称为 'method' 且 value 值存在的情况下， 判断 value 是否
+           是请求方法 self._METHODS 中的值， 不是就抛出 InvalidMethod 异常。 此处没
+           有考虑大小写的问题
+        3. 其他情况就直接赋值， 类似于：
+           >>>import requests
+           >>>a = requests.Request()
+           >>>a.method = 'GET'
+        """
         if (name == 'method') and (value):
             if not value in self._METHODS:
                 raise InvalidMethod()
@@ -100,14 +110,24 @@ class Request(object):
 
     def _checks(self):
         """Deterministic checks for consistiency."""
-
+        """
+        1. 对 Request 类进行连通性检查， 当 self.url 不存在时， 抛出 URLRequired 异常
+        """
         if not self.url:
             raise URLRequired
 
     def _get_opener(self):
         """ Creates appropriate opener object for urllib2.
         """
-
+        """
+        1. 创建正确的开启对象
+        2. 当当前 Request 对象需要认证时， 
+           a. 会先创建一个密码管理器 authr， 并对 authr 添加 url 的用户名和密码 
+           b. 然后以密码管理器创建句柄 urllib2.HTTPBasicAuthHandler(authr)
+           c. 最后以这个句柄创建开启对象， 并打开这个对象
+        
+        3. 如果是正常的连接， 无需认证， 直接就进行 url 打开操作： urllib2.urlopen
+        """
         if self.auth:
 
             # create a password manager
@@ -132,28 +152,42 @@ class Request(object):
             :param anyway: If True, request will be sent, even if it has
             already been sent.
         """
+        # 发送请求之前， 先检查当前 Request 对象
         self._checks()
 
         success = False
 
+        # 当请求方法 self.method 是 GET、 HEAD 或 DELETE 中的方法
         if self.method in ('GET', 'HEAD', 'DELETE'):
             if (not self.sent) or anyway:
 
+                # 当请求没有发送， 会执行 if 内部的语句
                 # url encode GET params if it's a dict
                 if isinstance(self.params, dict):
+                    # 当 self.params 为字典的时候， 将 self.params 进行 url 编码
                     params = urllib.urlencode(self.params)
                 else:
 
                     params = self.params
 
+                # 然后创建 _Request 类， 生成一个 urllib2.Request 对象
                 req = _Request(("%s?%s" % (self.url, params)), method=self.method)
 
                 if self.headers:
+                    # 把 req 的 headers 属性设为 self.headers
                     req.headers = self.headers
 
+                # 获取打开形式
                 opener = self._get_opener()
 
                 try:
+                    """
+                    1. 使用打开对象打开 _Request 对象
+                    2. 响应状态码设为打开对象后的状态码 resp.code
+                    3. 响应头设为 resp.info().dict
+                    4. 当请求方法是 get 的时候， 响应内容就是打开对象 read() 的内容
+                    5. 执行完毕后将 success 设为 True
+                    """
                     resp = opener(req)
                     self.response.status_code = resp.code
                     self.response.headers = resp.info().dict
@@ -164,6 +198,7 @@ class Request(object):
                 except urllib2.HTTPError, why:
                     self.response.status_code = why.code
 
+        # 1. 请求方法为 PUT 和 POST 时， 操作步骤类似于上述步骤
         elif self.method == 'PUT':
             if (not self.sent) or anyway:
 
@@ -217,6 +252,7 @@ class Request(object):
 
         self.sent = True if success else False
 
+        # 最终返回发送结果
         return success
 
 
