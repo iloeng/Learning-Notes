@@ -261,13 +261,20 @@ class Response(object):
     :class:`Request.response <response>` attribute, which is an instance of
     this class.
     """
-
+    # Response 类即是响应对象， 含有 3 个属性， self.content 是响应内容， 初始为 None；
+    # self.status_code 是响应状态码， 初始为 None； self.headers 是响应头部， 初始
+    # 为空字典
     def __init__(self):
         self.content = None
         self.status_code = None
         self.headers = dict()
 
     def __repr__(self):
+        """
+        1. __repr__ 函数会在类执行完毕后执行， 同 Request 中的描述
+        2. 尝试打印类执行完毕后的请求方法， 此处有逻辑问题， 因为 self.status_code
+           是一直有值的， 因此会一直打印 try 内部的语句， 并不会执行 except 的语句
+        """
         try:
             repr = '<Response [%s]>' % (self.status_code)
         except:
