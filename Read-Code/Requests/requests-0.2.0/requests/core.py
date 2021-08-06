@@ -291,7 +291,7 @@ class AuthObject(object):
     :param username: Username to authenticate with.
     :param password: Password for given username.
     """
-
+    # 一个认证对象， 初始化时需要两个参数， 用户名和密码
     def __init__(self, username, password):
         self.username = username
         self.password = password
@@ -305,7 +305,13 @@ def get(url, params={}, headers={}, auth=None):
     :param headers: (optional) Dictionary of HTTP Headers to sent with the :class:`Request`.
     :param auth: (optional) AuthObject to enable Basic HTTP Auth.
     """
-
+    """
+    1. GET 请求
+    2. 首先创建一个 Request 对象
+    3. 分别设置这个 Request 对象的相关属性
+    4. 然后发送
+    5. 最终返回请求之后的响应对象
+    """
     r = Request()
 
     r.method = 'GET'
