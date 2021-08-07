@@ -333,7 +333,13 @@ def head(url, params={}, headers={}, auth=None):
     :param headers: (optional) Dictionary of HTTP Headers to sent with the :class:`Request`.
     :param auth: (optional) AuthObject to enable Basic HTTP Auth.
     """
-
+    """
+    1. head 请求
+    2. 首先创建一个 Request 对象
+    3. 分别设置这个 Request 对象的相关属性
+    4. 然后发送
+    5. 最终返回请求之后的响应对象
+    """
     r = Request()
 
     r.method = 'HEAD'
@@ -356,7 +362,13 @@ def post(url, data={}, headers={}, auth=None):
     :param headers: (optional) Dictionary of HTTP Headers to sent with the :class:`Request`.
     :param auth: (optional) AuthObject to enable Basic HTTP Auth.
     """
-
+    """
+    1. post 请求
+    2. 首先创建一个 Request 对象
+    3. 分别设置这个 Request 对象的相关属性
+    4. 然后发送
+    5. 最终返回请求之后的响应对象
+    """
     r = Request()
 
     r.url = url
@@ -379,7 +391,13 @@ def put(url, data='', headers={}, auth=None):
     :param headers: (optional) Dictionary of HTTP Headers to sent with the :class:`Request`.
     :param auth: (optional) AuthObject to enable Basic HTTP Auth.
     """
-
+    """
+    1. put 请求
+    2. 首先创建一个 Request 对象
+    3. 分别设置这个 Request 对象的相关属性
+    4. 然后发送
+    5. 最终返回请求之后的响应对象
+    """
     r = Request()
 
     r.url = url
@@ -402,7 +420,13 @@ def delete(url, params={}, headers={}, auth=None):
     :param headers: (optional) Dictionary of HTTP Headers to sent with the :class:`Request`.
     :param auth: (optional) AuthObject to enable Basic HTTP Auth.
     """
-
+    """
+    1. delete 请求
+    2. 首先创建一个 Request 对象
+    3. 分别设置这个 Request 对象的相关属性
+    4. 然后发送
+    5. 最终返回请求之后的响应对象
+    """
     r = Request()
 
     r.url = url
@@ -432,6 +456,12 @@ def add_autoauth(url, authobject):
     :param url: Base URL for given AuthObject to auto-activate for.
     :param authobject: AuthObject to auto-activate.
     """
+    """
+    1. 将 url 添加到自动认证列表
+    2. AUTOAUTHS 是全局变量， 如果需要使用， 需使用 global 关键字
+    3. 添加到 AUTOAUTHS 时， 格式是固定的， 最终结果如下：
+       [(url1, authobj1), (url2, authobj2), ...]
+    """
     global AUTOAUTHS
 
     AUTOAUTHS.append((url, authobject))
@@ -440,14 +470,25 @@ def add_autoauth(url, authobject):
 def _detect_auth(url, auth):
     """Returns registered AuthObject for given url if available, defaulting to
     given AuthObject."""
-
+    """
+    1. 检测 url 是否需要认证
+    2. return _get_autoauth(url) if not auth else auth 类似于如下代码：
+       if not auth:
+           return _get_autoath(url)
+       else:
+           return auth
+    """
     return _get_autoauth(url) if not auth else auth
 
 
 def _get_autoauth(url):
     """Returns registered AuthObject for given url if available.
     """
-
+    """
+    1. 获取自动认证对象
+    2. 从 AUTOAUTHS 迭代判断， 当 url 中包含 autoauth_url 时， 就返回 auth 对象， 
+       否则返回 None
+    """
     for (autoauth_url, auth) in AUTOAUTHS:
         if autoauth_url in url:
             return auth
