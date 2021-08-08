@@ -192,11 +192,11 @@ struct saveparam {
 
 /* Global server state structure */
 struct redisServer {
-    int port;
-    int fd;
-    redisDb *db;
-    dict *sharingpool;
-    unsigned int sharingpoolsize;
+    int port; // server 端口， int 类型
+    int fd;   // server 的文件描述符， int 类型
+    redisDb *db;  // redis db 数据库， redisDb 结构
+    dict *sharingpool; // 共享池， dict 结构
+    unsigned int sharingpoolsize; // 共享池大小， 无符号整数
     long long dirty;            /* changes to DB from the last save */
     list *clients;
     list *slaves, *monitors;
@@ -793,8 +793,8 @@ static void ResetServerSaveParams() {
 }
 
 static void initServerConfig() {
-    server.dbnum = REDIS_DEFAULT_DBNUM;
-    server.port = REDIS_SERVERPORT;
+    server.dbnum = REDIS_DEFAULT_DBNUM; // redis server 的默认数据库数量 16
+    server.port = REDIS_SERVERPORT;     // redis server 的默认端口 6379
     server.verbosity = REDIS_DEBUG;
     server.maxidletime = REDIS_MAXIDLETIME;
     server.saveparams = NULL;
@@ -3549,6 +3549,7 @@ static void daemonize(void) {
 }
 
 int main(int argc, char **argv) {
+    // 首先初始化 server 的配置文件
     initServerConfig();
     if (argc == 2) {
         ResetServerSaveParams();
