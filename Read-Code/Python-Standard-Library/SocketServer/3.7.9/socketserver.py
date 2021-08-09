@@ -1,34 +1,45 @@
-"""Generic socket server classes.
+"""
+Generic socket server classes.
+通用 socket 服务器类
 
 This module tries to capture the various aspects of defining a server:
+该模块试图捕捉定义服务器的各个方面：
 
 For socket-based servers:
+对于基于 socket 的服务器：
 
 - address family:
-        - AF_INET{,6}: IP (Internet Protocol) sockets (default)
-        - AF_UNIX: Unix domain sockets
-        - others, e.g. AF_DECNET are conceivable (see <socket.h>
+        - AF_INET{,6}: IP (Internet Protocol) sockets (default) IP 套接字
+        - AF_UNIX: Unix domain sockets  Unix 域套接字
+        - others, e.g. AF_DECNET are conceivable (see <socket.h> 其他
 - socket type:
-        - SOCK_STREAM (reliable stream, e.g. TCP)
-        - SOCK_DGRAM (datagrams, e.g. UDP)
+        - SOCK_STREAM (reliable stream, e.g. TCP)   可靠的： TCP
+        - SOCK_DGRAM (datagrams, e.g. UDP)          数据包： UDP
 
 For request-based servers (including socket-based):
+对于基于请求的服务器 （包括基于 socket）
 
 - client address verification before further looking at the request
+  在进一步查看请求之前验证客户端地址
         (This is actually a hook for any processing that needs to look
          at the request before anything else, e.g. logging)
+        （这实际上是任何需要先查看请求的处理的钩子，例如 日志记录）
 - how to handle multiple requests:
-        - synchronous (one request is handled at a time)
-        - forking (each request is handled by a new process)
-        - threading (each request is handled by a new thread)
+  如何处理多个请求
+        - synchronous (one request is handled at a time)  同步处理（一次处理一个请求）
+        - forking (each request is handled by a new process) 分叉（每个请求都由一个新进程处理）
+        - threading (each request is handled by a new thread) 线程（每个请求都由一个新线程处理）
 
 The classes in this module favor the server type that is simplest to
 write: a synchronous TCP/IP server.  This is bad class design, but
 saves some typing.  (There's also the issue that a deep class hierarchy
 slows down method lookups.)
+本模块中的类支持最容易编写的服务器类型：同步 TCP/IP 服务器。 这是糟糕的类设计，
+但可以节省一些输入。 （还有一个问题，即深层次的类层次会减慢方法查找的速度。）
 
 There are five classes in an inheritance diagram, four of which represent
 synchronous servers of four types:
+一个继承图中有五个类，其中四个代表四种类型的同步服务器：
 
         +------------+
         | BaseServer |
@@ -48,27 +59,38 @@ Note that UnixDatagramServer derives from UDPServer, not from
 UnixStreamServer -- the only difference between an IP and a Unix
 stream server is the address family, which is simply repeated in both
 unix server classes.
+请注意， UnixDatagramServer 派生自 UDPServer，而不是 UnixStreamServer —— IP 和
+Unix 流服务器之间的唯一区别是地址族，这在两个 unix 服务器类中都简单重复。
 
 Forking and threading versions of each type of server can be created
 using the ForkingMixIn and ThreadingMixIn mix-in classes.  For
 instance, a threading UDP server class is created as follows:
+可以使用 ForkingMixIn 和 ThreadingMixIn 混合类创建每种类型服务器的分叉和线程版本。
+例如，一个线程 UDP 服务器类的创建如下：
 
         class ThreadingUDPServer(ThreadingMixIn, UDPServer): pass
 
 The Mix-in class must come first, since it overrides a method defined
 in UDPServer! Setting the various member variables also changes
 the behavior of the underlying server mechanism.
+Mix-in 类必须先出现，因为它覆盖了 UDPServer 中定义的方法！ 设置各种成员变量也会改变底
+层服务器机制的行为
 
 To implement a service, you must derive a class from
 BaseRequestHandler and redefine its handle() method.  You can then run
 various versions of the service by combining one of the server classes
 with your request handler class.
+要实现服务，您必须从 BaseRequestHandler 派生一个类并重新定义其 handle() 方法。 然后，
+您可以通过将服务器类之一与您的请求处理程序类组合来运行服务的各种版本。
 
 The request handler class must be different for datagram or stream
 services.  This can be hidden by using the request handler
 subclasses StreamRequestHandler or DatagramRequestHandler.
+数据报或流服务的请求处理程序类必须不同。 这可以通过使用请求处理程序子类
+StreamRequestHandler 或 DatagramRequestHandler 来隐藏。
 
 Of course, you still have to use your head!
+当然，你还是得用你的脑袋！
 
 For instance, it makes no sense to use a forking server if the service
 contains state in memory that can be modified by requests (since the
@@ -77,6 +99,9 @@ kept in the parent process and passed to each child).  In this case,
 you can use a threading server, but you will probably have to use
 locks to avoid two requests that come in nearly simultaneous to apply
 conflicting changes to the server state.
+例如，如果服务在内存中包含可由请求修改的状态，那么使用分叉服务器是没有意义的（因为子进程
+中的修改永远不会达到父进程中保存的初始状态并传递给每个子进程） . 在这种情况下，您可以使
+用线程服务器，但您可能必须使用锁来避免两个几乎同时出现的请求以将冲突更改应用于服务器状态。
 
 On the other hand, if you are building e.g. an HTTP server, where all
 data is stored externally (e.g. in the file system), a synchronous
@@ -84,12 +109,17 @@ class will essentially render the service "deaf" while one request is
 being handled -- which may be for a very long time if a client is slow
 to read all the data it has requested.  Here a threading or forking
 server is appropriate.
+另一方面，如果您正在构建例如 一个 HTTP 服务器，其中所有数据都存储在外部（例如在文件系统
+中），同步类本质上将在处理一个请求时使服务“聋”——如果客户端很慢，这可能会持续很长时间读取
+它请求的所有数据。 这里适合使用线程或分叉服务器。
 
 In some cases, it may be appropriate to process part of a request
 synchronously, but to finish processing in a forked child depending on
 the request data.  This can be implemented by using a synchronous
 server and doing an explicit fork in the request handler class
 handle() method.
+在某些情况下，同步处理请求的一部分可能是合适的，但根据请求数据在分叉的子进程中完成处理。
+这可以通过使用同步服务器并在请求处理程序类 handle() 方法中执行显式分叉来实现。
 
 Another approach to handling multiple simultaneous requests in an
 environment that supports neither threads nor fork (or where these are
@@ -99,22 +129,32 @@ decide which request to work on next (or whether to handle a new
 incoming request).  This is particularly important for stream services
 where each client can potentially be connected for a long time (if
 threads or subprocesses cannot be used).
+在既不支持线程也不支持 fork 的环境中处理多个同时请求的另一种方法（或者这些对服务来说太
+昂贵或不合适的地方）是维护一个部分完成的请求的显式表，并使用选择器来决定哪个请求工作 在
+下一个（或是否处理新的传入请求）。 这对于每个客户端可能连接很长时间的流服务尤其重要（如
+果不能使用线程或子进程）。
 
 Future work:
 - Standard classes for Sun RPC (which uses either UDP or TCP)
+  Sun RPC 的标准类（使用 UDP 或 TCP）
 - Standard mix-in classes to implement various authentication
   and encryption schemes
+  标准混合类以实现各种身份验证和加密方案
 
 XXX Open problems:
 - What to do with out-of-band data?
+  如何处理带外数据？
 
 BaseServer:
 - split generic "request" functionality out into BaseServer class.
+  将通用“请求”功能拆分为 BaseServer 类。
   Copyright (C) 2000  Luke Kenneth Casson Leighton <lkcl@samba.org>
 
   example: read entries from a SQL database (requires overriding
   get_request() to return a table entry from the database).
   entry is processed by a RequestHandlerClass.
+  从 SQL 数据库读取条目（需要覆盖 get_request() 以从数据库返回表条目）。 条目由
+  RequestHandlerClass 处理。
 
 """
 
