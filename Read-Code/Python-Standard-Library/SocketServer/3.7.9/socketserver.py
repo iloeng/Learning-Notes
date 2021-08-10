@@ -239,6 +239,16 @@ class BaseServer:
 
     def __init__(self, server_address, RequestHandlerClass):
         """Constructor.  May be extended, do not override."""
+        """
+        1. BaseServer 基类初始化
+        2. 拥有两个参数， server_address 和 RequestHandlerClass
+        3. 拥有 4 个属性， 可以被继承， 不能被重写
+        4. self.server_address 就是传的第一个参数 server_address， self.RequestHandlerClass
+           是传的第二个参数 RequestHandlerClass； self.__is_shut_down 是 threading.Event()
+           线程的 Event() 对象， 以双下划线开头，表示为私有成员，只允许类本身访问，
+           子类也不行。在文本上被替换为_class__method；  self.__shutdown_request 
+           初始为 False
+        """
         self.server_address = server_address
         self.RequestHandlerClass = RequestHandlerClass
         self.__is_shut_down = threading.Event()
@@ -249,6 +259,7 @@ class BaseServer:
 
         May be overridden.
 
+        server_activate 方法可能被重写
         """
         pass
 
@@ -392,6 +403,7 @@ class BaseServer:
 
         May be overridden.
 
+        关闭 server， 100% 可能被重写
         """
         pass
 
@@ -421,9 +433,17 @@ class BaseServer:
         print('-'*40, file=sys.stderr)
 
     def __enter__(self):
+        """
+        1. __enter__ 和 __exit__ 构成上下文， 可以使用 with 关键字
+        2. 使用 with 时， 先执行 __enter__， with 内的语句执行完毕后执行 __exit__
+        """
         return self
 
     def __exit__(self, *args):
+        """
+        1. 同 __enter__ 函数中的描述， BaseServer 执行完毕后， 会执行 __exit__ 函数
+           从而调用 server_close 来关闭 server
+        """
         self.server_close()
 
 
