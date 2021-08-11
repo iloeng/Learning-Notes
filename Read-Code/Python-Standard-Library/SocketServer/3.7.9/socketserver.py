@@ -378,6 +378,9 @@ class BaseServer:
         """Called if no new request arrives within self.timeout.
 
         Overridden by ForkingMixIn.
+
+        这个函数会在当 self.timeout 时间内没有新的请求到来时调用， 会被 ForkingMixIn
+        重写
         """
         pass
 
@@ -386,6 +389,7 @@ class BaseServer:
 
         Return True if we should proceed with this request.
 
+        验证给定的请求， 当完成这个请求的时候， 返回 True
         """
         return True
 
@@ -394,6 +398,8 @@ class BaseServer:
 
         Overridden by ForkingMixIn and ThreadingMixIn.
 
+        处理请求函数， 会被 ForkingMixIn 和 ThreadingMixIn 类重写， 完成一个请求后再
+        关闭这个请求
         """
         self.finish_request(request, client_address)
         self.shutdown_request(request)
@@ -409,14 +415,17 @@ class BaseServer:
 
     def finish_request(self, request, client_address):
         """Finish one request by instantiating RequestHandlerClass."""
+        """ 用一个实例化的 RequestHandlerClass 完成一个请求 """
         self.RequestHandlerClass(request, client_address, self)
 
     def shutdown_request(self, request):
         """Called to shutdown and close an individual request."""
+        """ 与 close_request 功能一致， 但是有可能会被重写 """
         self.close_request(request)
 
     def close_request(self, request):
         """Called to clean up an individual request."""
+        """ 用于关闭一个单独的请求， 100% 会被重写， 因为该函数中就一个 pass """
         pass
 
     def handle_error(self, request, client_address):
@@ -424,6 +433,9 @@ class BaseServer:
 
         The default is to print a traceback and continue.
 
+        """
+        """
+        1. 当处理出错时， 将错误信息按照一定格式输出到标准输出中
         """
         print('-'*40, file=sys.stderr)
         print('Exception happened during processing of request from',
