@@ -269,6 +269,12 @@ class BaseServer:
         Polls for shutdown every poll_interval seconds. Ignores
         self.timeout. If you need to do periodic tasks, do them in
         another thread.
+
+        一次处理一个请求直到关闭
+        每 poll_interval 秒轮询一次关机。 忽略 self.timeout。 如果您需要执行周期性任
+        务，请在另一个线程中执行。
+
+        1. 首先重置 __is_shut_down
         """
         self.__is_shut_down.clear()
         try:
@@ -298,6 +304,12 @@ class BaseServer:
         Blocks until the loop has finished. This must be called while
         serve_forever() is running in another thread, or it will
         deadlock.
+
+        停止 serve_forever 循环， 阻塞 serve_forever 直到循环停止。 这个方法只能在
+        serve_forever 在另一回线程中执行的时候调用， 否则将会死锁
+
+        执行这个函数后 __shutdown_request 属性将会置为 True， 并执行 __is_shut_down.wait
+        函数
         """
         self.__shutdown_request = True
         self.__is_shut_down.wait()
@@ -307,6 +319,9 @@ class BaseServer:
 
         May be overridden by a subclass / Mixin to implement any code that
         needs to be run during the loop.
+
+        在 serve_forever 循环中被调用， 可能会被子类或混合类重写为任何需要在循环中执
+        行的代码
         """
         pass
 
@@ -325,6 +340,9 @@ class BaseServer:
         """Handle one request, possibly blocking.
 
         Respects self.timeout.
+
+        1. 处理请求， 很可能会阻塞
+        2. 首先获取超时时间
         """
         # Support people who used socket.settimeout() to escape
         # handle_request before self.timeout was available.
@@ -344,6 +362,7 @@ class BaseServer:
             while True:
                 ready = selector.select(timeout)
                 if ready:
+                    # 当请求 ready 时， 执行 _handle_request_noblock 进行非阻塞的请求处理
                     return self._handle_request_noblock()
                 else:
                     if timeout is not None:
@@ -357,12 +376,18 @@ class BaseServer:
         I assume that selector.select() has returned that the socket is
         readable before this function was called, so there should be no risk of
         blocking in get_request().
+
+        1. 无阻塞处理请求
+        2. 假设 selector.select() 在调用这个函数之前已经返回套接字是可读的，所以在
+           get_request() 中应该没有阻塞的风险
         """
         try:
             request, client_address = self.get_request()
         except OSError:
             return
         if self.verify_request(request, client_address):
+            # 当 request 应该继续处理时， 就尝试执行 process_request， 当出现其他情
+            # 况时， 就直接处理相关的错误， 并关闭这个请求
             try:
                 self.process_request(request, client_address)
             except Exception:
@@ -372,6 +397,7 @@ class BaseServer:
                 self.shutdown_request(request)
                 raise
         else:
+            # 当不应该继续处理时， 直接关闭请求
             self.shutdown_request(request)
 
     def handle_timeout(self):
@@ -389,7 +415,7 @@ class BaseServer:
 
         Return True if we should proceed with this request.
 
-        验证给定的请求， 当完成这个请求的时候， 返回 True
+        验证给定的请求， 当应该继续处理这个请求的时候， 返回 True
         """
         return True
 
