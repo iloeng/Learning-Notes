@@ -532,21 +532,28 @@ class TCPServer(BaseServer):
 
     """
 
-    address_family = socket.AF_INET
+    address_family = socket.AF_INET    # IP 协议
 
-    socket_type = socket.SOCK_STREAM
+    socket_type = socket.SOCK_STREAM   # TCP
 
-    request_queue_size = 5
+    request_queue_size = 5             # 请求队列为 5
 
-    allow_reuse_address = False
+    allow_reuse_address = False        # 不允许重复使用地址
 
     def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
         """Constructor.  May be extended, do not override."""
+
+        # TCPServer 继承 BaseServer, server_address 需包含端口 ('127.0.0.1', 8080)
         BaseServer.__init__(self, server_address, RequestHandlerClass)
-        self.socket = socket.socket(self.address_family,
-                                    self.socket_type)
+
+        # 创建一个 TCP 类型的套接字 socket
+        self.socket = socket.socket(self.address_family, self.socket_type)
+
+        # bind_and_activate 初始化默认为 True
         if bind_and_activate:
             try:
+                # 尝试执行 server_bind 和 server_activate， 绑定服务器并将服务器激活
+                # 否则就关闭服务器
                 self.server_bind()
                 self.server_activate()
             except:
@@ -558,6 +565,9 @@ class TCPServer(BaseServer):
 
         May be overridden.
 
+        1. 当允许重用地址时， 执行 socket.setsockopt 方法
+        2. 然后进行 socket 绑定
+        3. 在从绑定好的 socket 中拿到 socket 名称赋值给  self.server_address
         """
         if self.allow_reuse_address:
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -569,6 +579,7 @@ class TCPServer(BaseServer):
 
         May be overridden.
 
+        1. 激活服务器就是监听套接字， 队列长度是 request_queue_size
         """
         self.socket.listen(self.request_queue_size)
 
@@ -577,6 +588,7 @@ class TCPServer(BaseServer):
 
         May be overridden.
 
+        1. 关闭 server 就是关闭 socket
         """
         self.socket.close()
 
@@ -585,6 +597,7 @@ class TCPServer(BaseServer):
 
         Interface required by selector.
 
+        1. 返回 socket 的文件描述符
         """
         return self.socket.fileno()
 
