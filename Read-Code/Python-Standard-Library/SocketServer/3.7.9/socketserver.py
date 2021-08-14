@@ -606,6 +606,7 @@ class TCPServer(BaseServer):
 
         May be overridden.
 
+        1. accept 方法会返回两个值， 一个是一个新的表示连接的 socket， 另一个是 client 的 address
         """
         return self.socket.accept()
 
@@ -614,13 +615,18 @@ class TCPServer(BaseServer):
         try:
             #explicitly shutdown.  socket.close() merely releases
             #the socket and waits for GC to perform the actual close.
+            # 对传入的 request 请求关闭 socket 读写 SHUT_WR(write/read)
             request.shutdown(socket.SHUT_WR)
         except OSError:
             pass #some platforms may raise ENOTCONN here
+        # 再关闭 request
         self.close_request(request)
 
     def close_request(self, request):
         """Called to clean up an individual request."""
+        """
+        1. request 的关闭直接使用 close 函数
+        """
         request.close()
 
 
