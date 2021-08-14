@@ -616,6 +616,13 @@ class TCPServer(BaseServer):
             #explicitly shutdown.  socket.close() merely releases
             #the socket and waits for GC to perform the actual close.
             # 对传入的 request 请求关闭 socket 读写 SHUT_WR(write/read)
+            # 1.SHUT_RD：值为0，关闭连接的读这一半，套接字中不再有数据接收，且套接字接
+            #   收缓冲区中的现有数据全都被丢弃，该套接字描述符不能再被进程调用，对端发
+            #   送的数据会被确认，然后丢弃。
+            # 2.SHUT_WR：值为1，关闭连接的写这一半。这称为半关闭，当前在套接字发送缓冲
+            #   区数据被发送，然后连接终止序列。不论套接字描述符引用技术是否等于0，写
+            #   半部都会被关闭。
+            # 3.SHUT_RDWR：值为2，连接的读和写都关闭。相当于先调用SHUT_RD，再调用SHUT_WR。
             request.shutdown(socket.SHUT_WR)
         except OSError:
             pass #some platforms may raise ENOTCONN here
@@ -634,26 +641,39 @@ class UDPServer(TCPServer):
 
     """UDP server class."""
 
-    allow_reuse_address = False
+    allow_reuse_address = False        # 禁止重用地址
 
-    socket_type = socket.SOCK_DGRAM
+    socket_type = socket.SOCK_DGRAM    # 数据报 （UDP）
 
-    max_packet_size = 8192
+    max_packet_size = 8192             # 每个数据包的最大长度是 8192
 
     def get_request(self):
+        """
+        1. UDP server 获取请求
+        2. 直接通过  socket.recvfrom 获取传输的数据和 client address
+        3. 返回传输的数据和当前 socket 以及 client address
+        """
         data, client_addr = self.socket.recvfrom(self.max_packet_size)
         return (data, self.socket), client_addr
 
     def server_activate(self):
         # No need to call listen() for UDP.
+        # UDP server 不需要监听
         pass
 
     def shutdown_request(self, request):
         # No need to shutdown anything.
+        """
+        1. close 函数函数会关闭套接字，如果由其他进程共享着这个套接字，那么它仍然是打开
+           的，这个连接仍然可以用来读和写。
+        2. shutdown会切断进程共享的套接字的所有连接，不管引用计数是否为 0，由第二个参
+           数选择断连的方式。
+        """
         self.close_request(request)
 
     def close_request(self, request):
         # No need to close anything.
+        # UDP server 不需要主动关闭
         pass
 
 if hasattr(os, "fork"):
