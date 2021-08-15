@@ -677,6 +677,7 @@ class UDPServer(TCPServer):
         pass
 
 if hasattr(os, "fork"):
+    # fork 在 Linux 系统中存在， 所以这个 ForkingMixIn 类只能在 Linux 系列系统中存在
     class ForkingMixIn:
         """Mix-in class to handle each request in a new process."""
 
@@ -770,9 +771,9 @@ class ThreadingMixIn:
 
     # Decides how threads will act upon termination of the
     # main process
-    daemon_threads = False
+    daemon_threads = False  # 守护线程 False
     # If true, server_close() waits until all non-daemonic threads terminate.
-    block_on_close = True
+    block_on_close = True   # 关闭是阻塞线程
     # For non-daemonic threads, list of threading.Threading objects
     # used by server_close() to wait for all threads completion.
     _threads = None
@@ -782,6 +783,8 @@ class ThreadingMixIn:
 
         In addition, exception handling is done here.
 
+        线程处理请求， 正常情况下执行 finish_request， 异常情况下执行 handle_error，
+        最终都会执行 shutdown_request
         """
         try:
             self.finish_request(request, client_address)
@@ -792,8 +795,13 @@ class ThreadingMixIn:
 
     def process_request(self, request, client_address):
         """Start a new thread to process the request."""
-        t = threading.Thread(target = self.process_request_thread,
-                             args = (request, client_address))
+        """
+        1. 对 process_request_thread 创建新的线程 t
+        2. 将 self.daemon_threads 的值赋给 t.daemon
+        3. 当 t.daemon 为假且 self.block_on_close 为真是， 将线程 t 添加到  self._threads
+        4. 执行这个线程
+        """
+        t = threading.Thread(target=self.process_request_thread, args=(request, client_address))
         t.daemon = self.daemon_threads
         if not t.daemon and self.block_on_close:
             if self._threads is None:
@@ -802,6 +810,9 @@ class ThreadingMixIn:
         t.start()
 
     def server_close(self):
+        """
+        thread 后面需要了解一下
+        """
         super().server_close()
         if self.block_on_close:
             threads = self._threads
