@@ -29,6 +29,8 @@
 - [ ] SQLite - C
 - [ ] Python Standard Library - Python
   - [ ] String - Python
+  - [x] SocketServer - Python 3
+  - [ ] Socket - Python 3
 
 ## 目录
 
