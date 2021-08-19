@@ -45,6 +45,7 @@
 
 #define REDIS_NOTUSED(V) ((void) V)
 
+// 静态 config 结构， 由 char 数组和数字端口组成， 只能在本文件中使用
 static struct config {
     char *hostip;
     int hostport;

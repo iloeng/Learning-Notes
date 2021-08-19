@@ -795,17 +795,17 @@ static void ResetServerSaveParams() {
 static void initServerConfig() {
     server.dbnum = REDIS_DEFAULT_DBNUM; // redis server 的默认数据库数量 16
     server.port = REDIS_SERVERPORT;     // redis server 的默认端口 6379
-    server.verbosity = REDIS_DEBUG;
-    server.maxidletime = REDIS_MAXIDLETIME;
-    server.saveparams = NULL;
+    server.verbosity = REDIS_DEBUG;     // redis server 日志等级
+    server.maxidletime = REDIS_MAXIDLETIME; // redis server 连接默认超时时间
+    server.saveparams = NULL;           // redis server
     server.logfile = NULL; /* NULL = log on standard output */
-    server.bindaddr = NULL;
-    server.glueoutputbuf = 1;
-    server.daemonize = 0;
-    server.pidfile = "/var/run/redis.pid";
-    server.dbfilename = "dump.rdb";
+    server.bindaddr = NULL;             // redis server 绑定的地址
+    server.glueoutputbuf = 1;           // 输出缓冲
+    server.daemonize = 0;               // 守护进程
+    server.pidfile = "/var/run/redis.pid"; // 进程 pid 文件地址
+    server.dbfilename = "dump.rdb";     // 数据文件
     server.requirepass = NULL;
-    server.shareobjects = 0;
+    server.shareobjects = 0;            // 共享对象初始为 0
     ResetServerSaveParams();
 
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
@@ -3549,7 +3549,7 @@ static void daemonize(void) {
 }
 
 int main(int argc, char **argv) {
-    // 首先初始化 server 的配置文件
+    // 首先初始化 server 的配置
     initServerConfig();
     if (argc == 2) {
         ResetServerSaveParams();
