@@ -786,12 +786,18 @@ static void appendServerSaveParams(time_t seconds, int changes) {
     server.saveparamslen++;
 }
 
+/*
+ * 1. 静态函数， 只能在此文件中使用
+ * 2. 重置 server.saveparams， 将 server.saveparams 的值置为 NULL， server.saveparamslen
+ *    长度 置为 0
+ */
 static void ResetServerSaveParams() {
     zfree(server.saveparams);
     server.saveparams = NULL;
     server.saveparamslen = 0;
 }
 
+// 静态函数， 只能在此文件中使用
 static void initServerConfig() {
     server.dbnum = REDIS_DEFAULT_DBNUM; // redis server 的默认数据库数量 16
     server.port = REDIS_SERVERPORT;     // redis server 的默认端口 6379
@@ -806,17 +812,17 @@ static void initServerConfig() {
     server.dbfilename = "dump.rdb";     // 数据文件
     server.requirepass = NULL;
     server.shareobjects = 0;            // 共享对象初始为 0
-    ResetServerSaveParams();
+    ResetServerSaveParams();            // 重置 server.saveparams 和 server.saveparamslen
 
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
     appendServerSaveParams(300,100);  /* save after 5 minutes and 100 changes */
     appendServerSaveParams(60,10000); /* save after 1 minute and 10000 changes */
     /* Replication related */
-    server.isslave = 0;
-    server.masterhost = NULL;
-    server.masterport = 6379;
-    server.master = NULL;
-    server.replstate = REDIS_REPL_NONE;
+    server.isslave = 0;                 // 是否是从机
+    server.masterhost = NULL;           // 主机的 host
+    server.masterport = 6379;           // 主机的端口
+    server.master = NULL;               //
+    server.replstate = REDIS_REPL_NONE; //
 }
 
 static void initServer() {
@@ -869,6 +875,10 @@ static void emptyDb() {
 
 /* I agree, this is a very rudimental way to load a configuration...
    will improve later if the config gets more complex */
+/*
+ * 1. 静态函数， 只能在此文件中使用
+ * 2. 加载给定路径的配置文件
+ */
 static void loadServerConfig(char *filename) {
     FILE *fp = fopen(filename,"r");
     char buf[REDIS_CONFIGLINE_MAX+1], *err = NULL;
@@ -3552,12 +3562,15 @@ int main(int argc, char **argv) {
     // 首先初始化 server 的配置
     initServerConfig();
     if (argc == 2) {
+        // 如果是两个参数， 表明使用命令行中给的配置文件， 重置 server params 相关
+        // 的数据后， 加载命令中指定的配置
         ResetServerSaveParams();
         loadServerConfig(argv[1]);
     } else if (argc > 2) {
         fprintf(stderr,"Usage: ./redis-server [/path/to/redis.conf]\n");
         exit(1);
     }
+    // 开始初始化 server
     initServer();
     if (server.daemonize) daemonize();
     redisLog(REDIS_NOTICE,"Server started, Redis version " REDIS_VERSION);
