@@ -3572,14 +3572,20 @@ int main(int argc, char **argv) {
     }
     // 开始初始化 server
     initServer();
+    // 如果 server.daemonize 非零， 则执行 daemonize() 函数以守护进程的方式启动 serverv
     if (server.daemonize) daemonize();
+    // 启动 server 时记录日志
     redisLog(REDIS_NOTICE,"Server started, Redis version " REDIS_VERSION);
+    // 正常加载数据库
     if (rdbLoad(server.dbfilename) == REDIS_OK)
         redisLog(REDIS_NOTICE,"DB loaded from disk");
+    // 创建事件轮询
     if (aeCreateFileEvent(server.el, server.fd, AE_READABLE,
         acceptHandler, NULL, NULL) == AE_ERR) oom("creating file event");
     redisLog(REDIS_NOTICE,"The server is now ready to accept connections on port %d", server.port);
+    // 事件循环， 执行完毕后删除事件轮询
     aeMain(server.el);
+    // 删除事件轮询
     aeDeleteEventLoop(server.el);
     return 0;
 }
