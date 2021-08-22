@@ -825,6 +825,9 @@ static void initServerConfig() {
     server.replstate = REDIS_REPL_NONE; //
 }
 
+/*
+ * 1. 初始化 Server
+ */
 static void initServer() {
     int j;
 
@@ -3570,9 +3573,10 @@ int main(int argc, char **argv) {
         fprintf(stderr,"Usage: ./redis-server [/path/to/redis.conf]\n");
         exit(1);
     }
-    // 开始初始化 server
+    // 开始初始化 server， 会将 server 的各个配置的值进行初始化， 需要注意的是 server
+    // 在本文件中是一个全局变量
     initServer();
-    // 如果 server.daemonize 非零， 则执行 daemonize() 函数以守护进程的方式启动 serverv
+    // 如果 server.daemonize 非零， 则执行 daemonize() 函数以守护进程的方式启动 server
     if (server.daemonize) daemonize();
     // 启动 server 时记录日志
     redisLog(REDIS_NOTICE,"Server started, Redis version " REDIS_VERSION);
