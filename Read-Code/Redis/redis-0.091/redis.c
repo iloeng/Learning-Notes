@@ -523,24 +523,42 @@ int stringmatchlen(const char *pattern, int patternLen,
     return 0;
 }
 
+/*
+ * 1. 记录 redis 运行日志
+ * 2. 该函数不确定有多少参数， 但是有两个是可以确定的：
+ *    a. level: 日志的级别
+ *    b. fmt: 日志字符串
+ *    c. ...: 为不确定部分， 这部分需要在 va_start 和 va_end 之间进行解析
+ */
 void redisLog(int level, const char *fmt, ...)
 {
     va_list ap;
     FILE *fp;
 
-    fp = (server.logfile == NULL) ? stdout : fopen(server.logfile,"a");
-    if (!fp) return;
+    // 确认 server.logfile 是否为 NULL， 为 NULL 时直接输出到标准输出 stdout
+    // 否则以追加的形式添加到 logfile 中
+	fp = (server.logfile == NULL) ? stdout : fopen(server.logfile,"a");
 
+	// 此处是为了拿到日志文件的文件描述符， 只有上一个步骤中 logfile 为非空情况下，
+	// 才能拿到 fp， 否则的话， 直接输出到 stdout 中， 并在此处返回， 就没有后面的
+	// 步骤了
+	if (!fp) return;
+
+	// 开始解析其余的参数， 其他不确定参数是在 fmt 参数后面
     va_start(ap, fmt);
-    if (level >= server.verbosity) {
+    if (level >= server.verbosity) {   // server.verbosity 这个配置还没完全弄明白
         char *c = ".-*";
-        fprintf(fp,"%c ",c[level]);
-        vfprintf(fp, fmt, ap);
-        fprintf(fp,"\n");
-        fflush(fp);
+        fprintf(fp,"%c ",c[level]);    // 将格式化字符串输出到 fp 文件中
+        // 会根据参数 fmt 字符串来转换并格式化数据，然后将结果输出到参数 stream 
+        // 指定的文件中，直到出现字符串结束（'\0'）为止
+		vfprintf(fp, fmt, ap);         
+        fprintf(fp,"\n");              // 换行
+		// 刷新流 stream 的输出缓冲区
+		fflush(fp);
     }
     va_end(ap);
 
+	// 记录日志完成后关闭这个文件流
     if (server.logfile) fclose(fp);
 }
 
