@@ -1,3 +1,8 @@
 .vscode/
 .idea/
 cmake-build-debug/
+
+# for source insight
+*.sisc
+*.sip_*
+*.siproj*
