@@ -845,6 +845,8 @@ static void initServerConfig() {
 
 /*
  * 1. 初始化 Server
+ * 2. server 在本文件中是一个全局变量， 因此在这里初始化后， 其他地方用到就是已经被
+ *    初始化后的值
  */
 static void initServer() {
     int j;
@@ -856,18 +858,26 @@ static void initServer() {
     server.slaves = listCreate();
     server.monitors = listCreate();
     server.objfreelist = listCreate();
+	// 创建共享对象 
     createSharedObjects();
+	// 初始化事件循环
     server.el = aeCreateEventLoop();
-    server.db = zmalloc(sizeof(redisDb)*server.dbnum);
+	// 分配内存， 其大小是单个 redisDb 的大小乘 dbnum (数据库的数量)
+	server.db = zmalloc(sizeof(redisDb)*server.dbnum);
+	// 创建共享池
     server.sharingpool = dictCreate(&setDictType,NULL);
     server.sharingpoolsize = 1024;
+	// 当 db， client, slaves， monitors， el 和 objfreelist 中任何一个为假， 报内存溢出异常
     if (!server.db || !server.clients || !server.slaves || !server.monitors || !server.el || !server.objfreelist)
         oom("server initialization"); /* Fatal OOM */
+	// 获取并设置 server 的文件描述符
     server.fd = anetTcpServer(server.neterr, server.port, server.bindaddr);
     if (server.fd == -1) {
+		// 文件描述符为 -1 时， 记录错误日志并退出程序
         redisLog(REDIS_WARNING, "Opening TCP port: %s", server.neterr);
         exit(1);
     }
+	// 当有多个 db 时， 循环初始化 db 相关的数据
     for (j = 0; j < server.dbnum; j++) {
         server.db[j].dict = dictCreate(&hashDictType,NULL);
         server.db[j].expires = dictCreate(&setDictType,NULL);
@@ -881,6 +891,7 @@ static void initServer() {
     server.stat_numcommands = 0;
     server.stat_numconnections = 0;
     server.stat_starttime = time(NULL);
+	// 创建一个时间事件
     aeCreateTimeEvent(server.el, 1000, serverCron, NULL, NULL);
 }
 
