@@ -57,15 +57,21 @@ void *zrealloc(void *ptr, size_t size) {
     used_memory += size;
     return (char*)newptr+sizeof(size_t);
 }
-
+/*
+ * 释放参数指针指向的内存
+ */
 void zfree(void *ptr) {
     void *realptr;
     size_t oldsize;
 
-    if (ptr == NULL) return;
+	// 当参数 ptr 为 NULL 时， 直接结束运行此函数
+	if (ptr == NULL) return;
+	// todo 此处运算没搞明白
     realptr = (char*)ptr-sizeof(size_t);
     oldsize = *((size_t*)realptr);
+	// used_memory 是本文件中的全局变量， 整个文件中都可以使用
     used_memory -= oldsize+sizeof(size_t);
+	// 最终释放真正的内存地址
     free(realptr);
 }
 
