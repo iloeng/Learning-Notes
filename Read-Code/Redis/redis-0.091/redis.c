@@ -796,12 +796,20 @@ static void createSharedObjects(void) {
     shared.select9 = createStringObject("select 9\r\n",10);
 }
 
+/*
+ * 初步观察， 该静态函数是保存了一些数据， 首先分配了 saveparam 这个结构体占用的空
+ * 间乘上 server.saveparamslen + 1 
+ * todo 需要后续阅读理解
+ */
 static void appendServerSaveParams(time_t seconds, int changes) {
     server.saveparams = zrealloc(server.saveparams,sizeof(struct saveparam)*(server.saveparamslen+1));
-    if (server.saveparams == NULL) oom("appendServerSaveParams");
-    server.saveparams[server.saveparamslen].seconds = seconds;
+	// 当 server.saveparams 为 NULL 时， 报错内存溢出
+	if (server.saveparams == NULL) oom("appendServerSaveParams");
+	// 将 second 和 changes 储存
+	server.saveparams[server.saveparamslen].seconds = seconds;
     server.saveparams[server.saveparamslen].changes = changes;
-    server.saveparamslen++;
+	// 上述存储完毕后， 将其长度自增加一
+	server.saveparamslen++;
 }
 
 /*
