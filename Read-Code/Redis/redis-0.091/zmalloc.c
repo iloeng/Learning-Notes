@@ -41,12 +41,16 @@ void *zmalloc(size_t size) {
     return (char*)ptr+sizeof(size_t);
 }
 
+/*
+ * 对已经分配好内存的 ptr 重新分配内存 
+ */
 void *zrealloc(void *ptr, size_t size) {
     void *realptr;
     size_t oldsize;
     void *newptr;
 
     if (ptr == NULL) return zmalloc(size);
+	// todo 此处的计算不太明白， 需要后续阅读理解
     realptr = (char*)ptr-sizeof(size_t);
     oldsize = *((size_t*)realptr);
     newptr = realloc(realptr,size+sizeof(size_t));
@@ -55,8 +59,10 @@ void *zrealloc(void *ptr, size_t size) {
     *((size_t*)newptr) = size;
     used_memory -= oldsize;
     used_memory += size;
+	// 最终返回重新分配内存的大小
     return (char*)newptr+sizeof(size_t);
 }
+
 /*
  * 释放参数指针指向的内存
  */
