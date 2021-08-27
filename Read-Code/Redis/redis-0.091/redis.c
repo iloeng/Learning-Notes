@@ -920,11 +920,13 @@ static void emptyDb() {
  * 2. 加载给定路径的配置文件
  */
 static void loadServerConfig(char *filename) {
-    FILE *fp = fopen(filename,"r");
+	// 打开文件流， filename 是文件名称， 应该是带有路径的
+	FILE *fp = fopen(filename,"r");
     char buf[REDIS_CONFIGLINE_MAX+1], *err = NULL;
     int linenum = 0;
     sds line = NULL;
-    
+
+	// 当 fp 文件句柄为假时， 说明没有正常打开配置文件， 将错误信息写入日志并退出程序
     if (!fp) {
         redisLog(REDIS_WARNING,"Fatal error, can't open config file");
         exit(1);
