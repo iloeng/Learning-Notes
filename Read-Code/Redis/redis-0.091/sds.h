@@ -33,8 +33,14 @@
 
 #include <sys/types.h>
 
+// simple dynamic string， 动态字符串
 typedef char *sds;
 
+/*
+ * 1. len: 记录 buf 数组中已使用字节的数量， 等于 sds 保存字符串的长度
+ * 2. free: 记录 buf 数组中未使用字节的数量
+ * 3. buf: 字节数组， 用于保存字符串
+ */
 struct sdshdr {
     long len;
     long free;
