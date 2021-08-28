@@ -931,7 +931,17 @@ static void loadServerConfig(char *filename) {
         redisLog(REDIS_WARNING,"Fatal error, can't open config file");
         exit(1);
     }
-    while(fgets(buf,REDIS_CONFIGLINE_MAX+1,fp) != NULL) {
+	/*
+	 * 1. 循环读取配置文件， 判断配置文件中的相关属性并赋值给 server 
+	 * 2. C 库函数 char *fgets(char *str, int n, FILE *stream) 从指定的流 stream fp 
+	 *    中读取一行， 并把它存储在 str(buf) 所指向的字符串内。当读取 (n-1) 即 
+	 *    REDIS_CONFIGLINE_MAX 个字符时，或者读取到换行符时，或者到达文件末尾时，
+	 *    它会停止，具体视情况而定。
+	 * 3. 如果成功，该函数返回相同的 str 参数。 如果到达文件末尾或者没有读取到任何
+	 *    字符， str 的内容保持不变，并返回一个空指针。
+	 *    如果发生错误，返回一个空指针。
+	 */
+    while(fgets(buf,REDIS_CONFIGLINE_MAX+1,fp) != NULL) {  //不为 NULL， 说明读到内容了
         sds *argv;
         int argc, j;
 

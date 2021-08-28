@@ -64,8 +64,13 @@ sds sdsempty(void) {
     return sdsnewlen("",0);
 }
 
+/*
+ * 1. 新建一个 sds 对象， 具体是做什么的看后面解析在分析
+ */
 sds sdsnew(const char *init) {
+    // 首先判断 init 参数是否为 NULL， 为空将 initlen 置为 0， 不为空则置为 strlen(init)
     size_t initlen = (init == NULL) ? 0 : strlen(init);
+	// 最终返回 sdsnewlen(init, initlen) 结果
     return sdsnewlen(init, initlen);
 }
 
