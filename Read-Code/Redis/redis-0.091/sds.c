@@ -36,15 +36,28 @@
 #include <ctype.h>
 #include "zmalloc.h"
 
+/*
+ * 内存溢出异常
+ */
 static void sdsOomAbort(void) {
+	// 1. C 库函数 int fprintf(FILE *stream, const char *format, ...) 发送格式化输
+	//    出到流 stream 中。 此函数中 stream 就是 stderr， 输出错误信息后， 停止运
+	//    行程序
+	// 2. 如果成功，则返回写入的字符总数，否则返回一个负数。
     fprintf(stderr,"SDS: Out Of Memory (SDS_ABORT_ON_OOM defined)\n");
-    abort();
+	// 1. C 库函数 void abort(void) 中止程序执行，直接从调用的地方跳出。
+	// 2. 该函数不返回任何值。
+	abort();
 }
 
 sds sdsnewlen(const void *init, size_t initlen) {
-    struct sdshdr *sh;
+	// 创建一个 redis 动态字符串结构 sh
+	struct sdshdr *sh;
 
+	// 分配内存空间， 空间大小是 sdshdr 的大小加上 initlen 在加 1
     sh = zmalloc(sizeof(struct sdshdr)+initlen+1);
+// 异常情况， 当定义了 SDS_ABORT_ON_OOM 且 sh 为空， 则执行 sdsOomAbort 
+// 否则直接返回 NULL
 #ifdef SDS_ABORT_ON_OOM
     if (sh == NULL) sdsOomAbort();
 #else
