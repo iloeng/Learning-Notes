@@ -50,6 +50,9 @@ static void sdsOomAbort(void) {
 	abort();
 }
 
+/*
+ * 创建一个新的动态字符串 sds
+ */
 sds sdsnewlen(const void *init, size_t initlen) {
 	// 创建一个 redis 动态字符串结构 sh
 	struct sdshdr *sh;
@@ -63,13 +66,31 @@ sds sdsnewlen(const void *init, size_t initlen) {
 #else
     if (sh == NULL) return NULL;
 #endif
+
+	// 开始对 sh 进行赋值， len 被赋值为 initlen， free 被赋值为 0
     sh->len = initlen;
     sh->free = 0;
-    if (initlen) {
+
+	// 当 initlen 不为 0 
+	if (initlen) {
+		// init 不为假
+		// 1. C 库函数 void *memcpy(void *str1, const void *str2, size_t n) 从存
+		//    储区 str2 复制 n 个字节到存储区 str1。 该函数返回一个指向目标存储
+		//    区 str1 的指针。
+		// 2. 即在此处为将 init 复制到 sh-> buf 中
         if (init) memcpy(sh->buf, init, initlen);
+
+		// 1. C 库函数 void *memset(void *str, int c, size_t n) 复制字符 c（一
+		//    个无符号字符）到参数 str 所指向的字符串的前 n 个字符。 该值返回一
+		//    个指向存储区 str 的指针。
+		// 2. 在此处的功能是当 init 为假时， 将 sh->buf 前 initlen 个字符填充 0
         else memset(sh->buf,0,initlen);
     }
+	
+	// 赋值完毕后， 将 sh->buf 中第 initlen 个字符设为结束符 \0
     sh->buf[initlen] = '\0';
+
+	// 最终返回动态字符串 sds
     return (char*)sh->buf;
 }
 
@@ -78,7 +99,7 @@ sds sdsempty(void) {
 }
 
 /*
- * 1. 新建一个 sds 对象， 具体是做什么的看后面解析在分析
+ * 新建一个 sds 动态字符串对象
  */
 sds sdsnew(const char *init) {
     // 首先判断 init 参数是否为 NULL， 为空将 initlen 置为 0， 不为空则置为 strlen(init)
