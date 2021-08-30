@@ -221,6 +221,9 @@ sds sdscatprintf(sds s, const char *fmt, ...) {
     return t;
 }
 
+/*
+ * 去除s字符串首尾的包含在cset中的字符，cset是一个c风格的字符串，返回去除首尾相关字符后的字符串。
+ */
 sds sdstrim(sds s, const char *cset) {
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
     char *start, *end, *sp, *ep;
