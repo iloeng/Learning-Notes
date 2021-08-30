@@ -117,8 +117,13 @@ sds sdsdup(const sds s) {
     return sdsnewlen(s, sdslen(s));
 }
 
+/*
+ * 释放字符串内存
+ */
 void sdsfree(sds s) {
-    if (s == NULL) return;
+	// 当 s 为空时， 直接返回 NULL
+	if (s == NULL) return;
+	// 否则释放 s-sizeof(struct sdshdr) 指向的内存
     zfree(s-sizeof(struct sdshdr));
 }
 
