@@ -947,6 +947,8 @@ static void loadServerConfig(char *filename) {
 
         linenum++;
         line = sdsnew(buf);
+
+		// 去除首尾的 " \t\r\n"
         line = sdstrim(line," \t\r\n");
 
         /* Skip comments and blank lines*/
