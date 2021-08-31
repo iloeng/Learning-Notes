@@ -958,7 +958,8 @@ static void loadServerConfig(char *filename) {
         }
 
         /* Split into arguments */
-        argv = sdssplitlen(line,sdslen(line)," ",1,&argc);
+		// 以空格进行拆分
+        argv = sdssplitlen(line,sdslen(line)," ",1,&argc); 
         sdstolower(argv[0]);
 
         /* Execute config directives */

@@ -274,6 +274,9 @@ sds sdsrange(sds s, long start, long end) {
     return s;
 }
 
+/*
+ * 将字符串 s 转换为小写
+ */
 void sdstolower(sds s) {
     int len = sdslen(s), j;
 
@@ -313,6 +316,9 @@ int sdscmp(sds s1, sds s2) {
  * This version of the function is binary-safe but
  * requires length arguments. sdssplit() is just the
  * same function but for zero-terminated strings.
+ */
+/*
+ * 以 sep 为分割符分割 s 字符串
  */
 sds *sdssplitlen(char *s, int len, char *sep, int seplen, int *count) {
     int elements = 0, slots = 5, start = 0, j;
