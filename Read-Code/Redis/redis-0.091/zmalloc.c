@@ -81,6 +81,9 @@ void zfree(void *ptr) {
     free(realptr);
 }
 
+/*
+ * zstrdup redis 字符串复制方法
+ */
 char *zstrdup(const char *s) {
     size_t l = strlen(s)+1;
     char *p = zmalloc(l);

@@ -964,12 +964,16 @@ static void loadServerConfig(char *filename) {
 
         /* Execute config directives */
         if (!strcmp(argv[0],"timeout") && argc == 2) {
+			// 1. C 库函数 int atoi(const char *str) 把参数 str 所指向的字符串转
+			//    换为一个整数（类型为 int 型）。 该函数返回转换后的长整数，如果
+			//    没有执行有效的转换，则返回零。
             server.maxidletime = atoi(argv[1]);
             if (server.maxidletime < 1) {
                 err = "Invalid timeout value"; goto loaderr;
             }
         } else if (!strcmp(argv[0],"port") && argc == 2) {
             server.port = atoi(argv[1]);
+			// 端口的返回是 1-65535
             if (server.port < 1 || server.port > 65535) {
                 err = "Invalid port"; goto loaderr;
             }
