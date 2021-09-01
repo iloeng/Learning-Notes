@@ -108,6 +108,9 @@ sds sdsnew(const char *init) {
     return sdsnewlen(init, initlen);
 }
 
+/*
+ * 返回 sds 对象的长度
+ */
 size_t sdslen(const sds s) {
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
     return sh->len;
