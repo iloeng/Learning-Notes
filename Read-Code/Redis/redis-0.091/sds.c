@@ -142,6 +142,9 @@ void sdsupdatelen(sds s) {
     sh->len = reallen;
 }
 
+/*
+ * 扩冲当前的 sds 字符串， 扩充大小为 addlen
+ */
 static sds sdsMakeRoomFor(sds s, size_t addlen) {
     struct sdshdr *sh, *newsh;
     size_t free = sdsavail(s);
@@ -164,6 +167,8 @@ static sds sdsMakeRoomFor(sds s, size_t addlen) {
 
 sds sdscatlen(sds s, void *t, size_t len) {
     struct sdshdr *sh;
+
+	// 当前的 sds 长度
     size_t curlen = sdslen(s);
 
     s = sdsMakeRoomFor(s,len);
