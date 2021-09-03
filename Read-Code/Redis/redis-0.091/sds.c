@@ -94,6 +94,9 @@ sds sdsnewlen(const void *init, size_t initlen) {
     return (char*)sh->buf;
 }
 
+/*
+ * 创建一个空的 sds
+ */
 sds sdsempty(void) {
     return sdsnewlen("",0);
 }
