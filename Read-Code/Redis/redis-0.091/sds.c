@@ -215,6 +215,9 @@ sds sdscpy(sds s, char *t) {
     return sdscpylen(s, t, strlen(t));
 }
 
+/*
+ * 在 s 后面格式化拼接字符串，fmt 格式化字符串， ap 可变参数
+ */
 sds sdscatprintf(sds s, const char *fmt, ...) {
     va_list ap;
     char *buf, *t;
