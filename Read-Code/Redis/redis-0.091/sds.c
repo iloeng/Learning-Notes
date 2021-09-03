@@ -168,6 +168,9 @@ static sds sdsMakeRoomFor(sds s, size_t addlen) {
     return newsh->buf;
 }
 
+/*
+ * 把字符串和另外的字符连接起来
+ */
 sds sdscatlen(sds s, void *t, size_t len) {
     struct sdshdr *sh;
 
@@ -184,6 +187,9 @@ sds sdscatlen(sds s, void *t, size_t len) {
     return s;
 }
 
+/*
+ * 把字符串和另外的字符连接起来
+ */
 sds sdscat(sds s, char *t) {
     return sdscatlen(s, t, strlen(t));
 }
