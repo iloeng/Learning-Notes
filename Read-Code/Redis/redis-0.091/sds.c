@@ -130,6 +130,9 @@ void sdsfree(sds s) {
     zfree(s-sizeof(struct sdshdr));
 }
 
+/*
+ * 获得 sds 未使用空间字节数
+ */
 size_t sdsavail(sds s) {
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
     return sh->free;
