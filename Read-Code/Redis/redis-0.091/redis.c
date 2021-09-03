@@ -917,7 +917,7 @@ static void emptyDb() {
    will improve later if the config gets more complex */
 /*
  * 1. 静态函数， 只能在此文件中使用
- * 2. 加载给定路径的配置文件
+ * 2. 加载给定路径的配置文件， 解析配置文件， 并将配置设置给 server
  */
 static void loadServerConfig(char *filename) {
 	// 打开文件流， filename 是文件名称， 应该是带有路径的
