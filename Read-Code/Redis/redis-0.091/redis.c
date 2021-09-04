@@ -759,6 +759,9 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     return 1000;
 }
 
+/*
+ * 创建一些共享的全局对象
+ */
 static void createSharedObjects(void) {
     shared.crlf = createObject(REDIS_STRING,sdsnew("\r\n"));
     shared.ok = createObject(REDIS_STRING,sdsnew("+OK\r\n"));
