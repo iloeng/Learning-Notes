@@ -259,6 +259,9 @@ typedef struct _redisSortOperation {
     robj *pattern;
 } redisSortOperation;
 
+/*
+ * 共享的对象
+ */
 struct sharedObjectsStruct {
     robj *crlf, *ok, *err, *emptybulk, *czero, *cone, *pong, *space,
     *colon, *nullbulk, *nullmultibulk,

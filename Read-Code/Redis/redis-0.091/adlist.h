@@ -39,6 +39,10 @@ typedef struct listNode {
     void *value;
 } listNode;
 
+/*
+ * list 结构体
+ * head: 头结点
+ */
 typedef struct list {
     listNode *head;
     listNode *tail;
