@@ -155,6 +155,12 @@
 /*================================= Data types ============================== */
 
 /* A redis object, that is a type able to hold a string / list / set */
+/*
+ * redis 对象
+ * ptr: 对象指针
+ * type: 类型 (string, list, set)
+ * refcount: 引用计数
+ */
 typedef struct redisObject {
     void *ptr;
     int type;
@@ -1501,6 +1507,9 @@ static void acceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
 /* ======================= Redis objects implementation ===================== */
 
+/*
+ * 创建 redis 对象
+ */
 static robj *createObject(int type, void *ptr) {
     robj *o;
 
