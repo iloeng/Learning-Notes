@@ -33,6 +33,12 @@
 
 /* Node, List, and Iterator are the only data structures used currently. */
 
+/*
+ * list 结点
+ * prev: 当前结点
+ * next: 下一个结点
+ * value: 当前结点的值
+ */
 typedef struct listNode {
     struct listNode *prev;
     struct listNode *next;
