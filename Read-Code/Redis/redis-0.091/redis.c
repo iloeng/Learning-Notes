@@ -1511,11 +1511,16 @@ static void acceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
  * 创建 redis 对象
  */
 static robj *createObject(int type, void *ptr) {
-    robj *o;
+	// 创建一个 redis 对象 o
+	robj *o;
 
+	// 当 server.objfreelist 长度不为空时
     if (listLength(server.objfreelist)) {
+		// 获取 server.objfreelist 中的第一个元素结点
         listNode *head = listFirst(server.objfreelist);
+		// 获取第一个元素结点的值
         o = listNodeValue(head);
+		// 
         listDelNode(server.objfreelist,head);
     } else {
         o = zmalloc(sizeof(*o));
