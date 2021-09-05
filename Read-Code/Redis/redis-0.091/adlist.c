@@ -130,18 +130,34 @@ list *listAddNodeTail(list *list, void *value)
  * It's up to the caller to free the private value of the node.
  *
  * This function can't fail. */
+/*
+ * list 删除结点
+ */
 void listDelNode(list *list, listNode *node)
 {
+	// 此处修改结点的 next 的值
+	// 如果当前结点 node 存在上一个结点， 说明是链表中的一个元素
     if (node->prev)
+		// node->prev->next 表示前结点的下一个结点， 即当前结点
+		// 将当前结点的前结点的下一个结点赋值为当前结点的下一个结点， 也就是删除当前结点
         node->prev->next = node->next;
     else
+		// else 说明是第一个结点， 直接把第一个结点指向下一个结点， 说明删除了头结点
         list->head = node->next;
+	// 此处开始修改结点的 prev 的值
     if (node->next)
+		// 1. node-next 存在说明并不是链表中的尾结点
+		// 2. node->next->prev 表示当前结点的下一个结点的上一个结点， 即当前结点
+		// 3. 把当前结点的下一个节点的前结点设置为当前结点的前结点， 删除了当前结点
         node->next->prev = node->prev;
     else
+		// else 说明是尾结点
+		// 直接把尾结点设置为当前结点的上一个结点， 说明删除了尾结点
         list->tail = node->prev;
+	// 当 list-> free 为真值时， 需要删除当前结点的 value 值， 释放内存
     if (list->free) list->free(node->value);
     zfree(node);
+	// 修改链表长度
     list->len--;
 }
 

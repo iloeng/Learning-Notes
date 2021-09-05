@@ -35,8 +35,8 @@
 
 /*
  * list 结点
- * prev: 当前结点
- * next: 下一个结点
+ * prev: 上一个结点指针
+ * next: 下一个结点指针
  * value: 当前结点的值
  */
 typedef struct listNode {
@@ -48,6 +48,7 @@ typedef struct listNode {
 /*
  * list 结构体
  * head: 头结点
+ * tail: 尾结点
  */
 typedef struct list {
     listNode *head;
@@ -65,12 +66,12 @@ typedef struct listIter {
 } listIter;
 
 /* Functions implemented as macros */
-#define listLength(l) ((l)->len)
-#define listFirst(l) ((l)->head)
+#define listLength(l) ((l)->len)  // 获取 list 的长度
+#define listFirst(l) ((l)->head)  // 获取 list 的第一个元素
 #define listLast(l) ((l)->tail)
 #define listPrevNode(n) ((n)->prev)
 #define listNextNode(n) ((n)->next)
-#define listNodeValue(n) ((n)->value)
+#define listNodeValue(n) ((n)->value) // 获取结点的值
 
 #define listSetDupMethod(l,m) ((l)->dup = (m))
 #define listSetFreeMethod(l,m) ((l)->free = (m))
