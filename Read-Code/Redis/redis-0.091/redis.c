@@ -1514,21 +1514,24 @@ static robj *createObject(int type, void *ptr) {
 	// 创建一个 redis 对象 o
 	robj *o;
 
-	// 当 server.objfreelist 长度不为空时
+	// 当 server.objfreelist 长度不为空时， 删除一个头结点， 并新建一个 redis 对象
     if (listLength(server.objfreelist)) {
 		// 获取 server.objfreelist 中的第一个元素结点
         listNode *head = listFirst(server.objfreelist);
 		// 获取第一个元素结点的值
         o = listNodeValue(head);
-		// 
+		// 删除 objfreelist 的头结点
         listDelNode(server.objfreelist,head);
     } else {
+		// 当 objfreelist 为空时， 说明没有需要释放的对象， 直接新建对象
         o = zmalloc(sizeof(*o));
     }
+	// 当 o 没有值的时候， 说明没有拿到 objfreelist 中值， 也没有分配到内存， 那么
+	// 内存不足
     if (!o) oom("createObject");
-    o->type = type;
-    o->ptr = ptr;
-    o->refcount = 1;
+    o->type = type;  // 创建对象的类型
+    o->ptr = ptr;    // 创建对象的地址指针
+    o->refcount = 1; // 新建对象的引用计数， 为 0 将会被删除
     return o;
 }
 
