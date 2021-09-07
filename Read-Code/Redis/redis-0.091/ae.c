@@ -39,6 +39,9 @@
 #include "ae.h"
 #include "zmalloc.h"
 
+/*
+ * 创建一个 aeEventLoop 事件循环 
+ */
 aeEventLoop *aeCreateEventLoop(void) {
     aeEventLoop *eventLoop;
 
