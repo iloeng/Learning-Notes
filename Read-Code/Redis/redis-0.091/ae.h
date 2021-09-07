@@ -62,6 +62,13 @@ typedef struct aeTimeEvent {
 } aeTimeEvent;
 
 /* State of an event based program */
+/*
+ * 事件循环结构体， 后面根据上下文理解这几个成员的含义
+ * timeEventNextId:
+ * fileEventHead:
+ * timeEventHead: 
+ * stop: 
+ */
 typedef struct aeEventLoop {
     long long timeEventNextId;
     aeFileEvent *fileEventHead;
