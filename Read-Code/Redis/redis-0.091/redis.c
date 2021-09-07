@@ -1530,12 +1530,17 @@ static robj *createObject(int type, void *ptr) {
 	// 内存不足
     if (!o) oom("createObject");
     o->type = type;  // 创建对象的类型
-    o->ptr = ptr;    // 创建对象的地址指针
+    o->ptr = ptr;    // 创建对象的指针
     o->refcount = 1; // 新建对象的引用计数， 为 0 将会被删除
     return o;
 }
 
+/*
+ * 创建 redis string 对象， 参数是 ptr 指针和 len 长度
+ */
 static robj *createStringObject(char *ptr, size_t len) {
+	// 调用 createObject 创建 type 为 REDIS_STRING 指针为 sdsnewlen(ptr,len) 的字符串对象
+	// sdsnewlen 新建了一个新的字符串， 长度是 len
     return createObject(REDIS_STRING,sdsnewlen(ptr,len));
 }
 
