@@ -821,7 +821,7 @@ static void createSharedObjects(void) {
  */
 static void appendServerSaveParams(time_t seconds, int changes) {
     server.saveparams = zrealloc(server.saveparams,sizeof(struct saveparam)*(server.saveparamslen+1));
-	// 当 server.saveparams 为 NULL 时， 报错内存溢出
+	// 当 server.saveparams 为 NULL 时， 报错内存不足
 	if (server.saveparams == NULL) oom("appendServerSaveParams");
 	// 将 second 和 changes 储存
 	server.saveparams[server.saveparamslen].seconds = seconds;

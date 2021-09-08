@@ -51,7 +51,7 @@ static void sdsOomAbort(void) {
 }
 
 /*
- * 创建一个新的动态字符串 sds
+ * 根据长度创建一个新的动态字符串 sds
  */
 sds sdsnewlen(const void *init, size_t initlen) {
 	// 创建一个 redis 动态字符串结构 sh

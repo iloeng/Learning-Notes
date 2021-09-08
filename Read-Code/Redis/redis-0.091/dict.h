@@ -57,6 +57,15 @@ typedef struct dictType {
     void (*valDestructor)(void *privdata, void *obj);
 } dictType;
 
+/*
+ * dict 数据结构
+ * table: 所在的数据表
+ * type: 类型
+ * size: 大小
+ * sizemask: 
+ * used: 是否被使用
+ * privdata: 数据
+ */
 typedef struct dict {
     dictEntry **table;
     dictType *type;
