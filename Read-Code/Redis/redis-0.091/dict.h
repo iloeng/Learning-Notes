@@ -42,6 +42,12 @@
 /* Unused arguments generate annoying warnings... */
 #define DICT_NOTUSED(V) ((void) V)
 
+/*
+ * dictEntry 数据结构， 存储着 dict 条目
+ * key: 键值对-键
+ * val: 键值对-值
+ * next: 下一个条目的指针
+ */
 typedef struct dictEntry {
     void *key;
     void *val;
