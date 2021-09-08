@@ -167,6 +167,12 @@ typedef struct redisObject {
     int refcount;
 } robj;
 
+/*
+ * redis 数据库结构体
+ * dict: 字典指针
+ * expires: 过期时间
+ * id: 数据编号 id
+ */
 typedef struct redisDb {
     dict *dict;
     dict *expires;
