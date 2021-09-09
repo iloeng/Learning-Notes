@@ -54,6 +54,9 @@ typedef struct dictEntry {
     struct dictEntry *next;
 } dictEntry;
 
+/*
+ * dictType 数据结构， 目前不确定是什么作用， 等后续上下文在理解
+ */
 typedef struct dictType {
     unsigned int (*hashFunction)(const void *key);
     void *(*keyDup)(void *privdata, const void *key);

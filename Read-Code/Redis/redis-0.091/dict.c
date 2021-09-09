@@ -46,6 +46,9 @@
 
 /* ---------------------------- Utility funcitons --------------------------- */
 
+/*
+ * 格式化输出字符串
+ */
 static void _dictPanic(const char *fmt, ...)
 {
     va_list ap;
@@ -59,6 +62,9 @@ static void _dictPanic(const char *fmt, ...)
 
 /* ------------------------- Heap Management Wrappers------------------------ */
 
+/*
+ * dict 分配内存
+ */
 static void *_dictAlloc(int size)
 {
     void *p = zmalloc(size);
