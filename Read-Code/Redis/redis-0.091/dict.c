@@ -118,6 +118,9 @@ unsigned int dictGenHashFunction(const unsigned char *buf, int len) {
 
 /* Reset an hashtable already initialized with ht_init().
  * NOTE: This function should only called by ht_destroy(). */
+/*
+ * 重置 dict 
+ */
 static void _dictReset(dict *ht)
 {
     ht->table = NULL;
@@ -140,6 +143,9 @@ dict *dictCreate(dictType *type,
 }
 
 /* Initialize the hash table */
+/*
+ * dict 字典初始化， 以给定的 dict, type, privDataPtr 初始化
+ */
 int _dictInit(dict *ht, dictType *type,
         void *privDataPtr)
 {
