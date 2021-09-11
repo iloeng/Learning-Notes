@@ -207,6 +207,9 @@ int anetWrite(int fd, char *buf, int count)
     return totlen;
 }
 
+/*
+ * 初步判断是起一个 TCP 服务， 但是需要进一步学习才能搞明白完整的含义
+ */
 int anetTcpServer(char *err, int port, char *bindaddr)
 {
     int s, on = 1;
