@@ -37,6 +37,8 @@ struct aeEventLoop;
 
 /* Types and data structures */
 typedef void aeFileProc(struct aeEventLoop *eventLoop, int fd, void *clientData, int mask);
+// 函数类型， 函数定义方法， 将函数作为类型来定义， 然后在结构体当中使用
+// 参考 https://blog.csdn.net/weixin_30670965/article/details/96135453
 typedef int aeTimeProc(struct aeEventLoop *eventLoop, long long id, void *clientData);
 typedef void aeEventFinalizerProc(struct aeEventLoop *eventLoop, void *clientData);
 
