@@ -101,22 +101,29 @@ void aeDeleteFileEvent(aeEventLoop *eventLoop, int fd, int mask)
     }
 }
 
+/* 
+ * 获取当前精确时间并赋值给参数 seconds 和 milliseconds 
+ */
 static void aeGetTime(long *seconds, long *milliseconds)
 {
     struct timeval tv;
-
+	// 获得当前精确时间（1970年1月1日到现在的时间）
     gettimeofday(&tv, NULL);
     *seconds = tv.tv_sec;
     *milliseconds = tv.tv_usec/1000;
 }
 
+/*
+ * 把毫秒加到当前的精确时间
+ */
 static void aeAddMillisecondsToNow(long long milliseconds, long *sec, long *ms) {
     long cur_sec, cur_ms, when_sec, when_ms;
 
     aeGetTime(&cur_sec, &cur_ms);
     when_sec = cur_sec + milliseconds/1000;
     when_ms = cur_ms + milliseconds%1000;
-    if (when_ms >= 1000) {
+	// 当毫秒数大于等于 1000， 开始对秒进行进一操作， 同时毫秒减去 1000
+	if (when_ms >= 1000) {
         when_sec ++;
         when_ms -= 1000;
     }

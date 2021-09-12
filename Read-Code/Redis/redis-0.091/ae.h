@@ -53,6 +53,16 @@ typedef struct aeFileEvent {
 } aeFileEvent;
 
 /* Time event structure */
+/*
+ * 时间事件结构体
+ * id: 时间事件标识符
+ * when_sec: 秒
+ * when_ms: 毫秒
+ * timeProc:
+ * finalizerProc:
+ * clientData:
+ * next:
+ */
 typedef struct aeTimeEvent {
     long long id; /* time event identifier. */
     long when_sec; /* seconds */
