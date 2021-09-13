@@ -1958,8 +1958,12 @@ static int rdbLoadType(FILE *fp) {
     return type;
 }
 
+/*
+ * 从给定的文件流中获取 time
+ */
 static time_t rdbLoadTime(FILE *fp) {
     int32_t t32;
+	// 从 fp 文件流中读取 1 个 4 字节的数据并存储到 t32， 最终返回 t32(正常情况下) 
     if (fread(&t32,4,1,fp) == 0) return -1;
     return (time_t) t32;
 }
