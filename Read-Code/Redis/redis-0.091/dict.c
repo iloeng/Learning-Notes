@@ -331,19 +331,26 @@ void dictRelease(dict *ht)
     _dictFree(ht);
 }
 
+/*
+ * 从 dict 对象 ht 中查找字典
+ */
 dictEntry *dictFind(dict *ht, const void *key)
 {
     dictEntry *he;
     unsigned int h;
 
+	// 当时空字典的时候， 直接返回 NULL
     if (ht->size == 0) return NULL;
+	
     h = dictHashKey(ht, key) & ht->sizemask;
     he = ht->table[h];
     while(he) {
         if (dictCompareHashKeys(ht, key, he->key))
+			// 找得到就返回字典条目
             return he;
         he = he->next;
     }
+	// 找不到就是 NULL 
     return NULL;
 }
 

@@ -1610,6 +1610,9 @@ static void decrRefCount(void *obj) {
 }
 
 /* Try to share an object against the shared objects pool */
+/*
+ * 尝试创建一个共享对象
+ */
 static robj *tryObjectSharing(robj *o) {
     struct dictEntry *de;
     unsigned long c;
@@ -1973,6 +1976,10 @@ static time_t rdbLoadTime(FILE *fp) {
  *
  * isencoded is set to 1 if the readed length is not actually a length but
  * an "encoding type", check the above comments for more info */
+/*
+ * 从 db 文件中加载长度 len， 有点儿小复杂
+ * todo
+ */
 static uint32_t rdbLoadLen(FILE *fp, int rdbver, int *isencoded) {
     unsigned char buf[2];
     uint32_t len;
@@ -2005,6 +2012,9 @@ static uint32_t rdbLoadLen(FILE *fp, int rdbver, int *isencoded) {
     }
 }
 
+/*
+ * 加载整数类型对象
+ */
 static robj *rdbLoadIntegerObject(FILE *fp, int enctype) {
     unsigned char enc[4];
     long long val;
@@ -2047,6 +2057,9 @@ err:
     return NULL;
 }
 
+/*
+ * 加载字符串对象
+ */
 static robj *rdbLoadStringObject(FILE*fp, int rdbver) {
     int isencoded;
     uint32_t len;
