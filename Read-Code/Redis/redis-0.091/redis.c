@@ -1948,8 +1948,12 @@ static int rdbSaveBackground(char *filename) {
     return REDIS_OK; /* unreached */
 }
 
+/*
+ * 从给定的文件流中获取 type
+ */
 static int rdbLoadType(FILE *fp) {
     unsigned char type;
+	// 从 fp 文件流中读取 1 个 1 字节的数据并存储到 type， 最终返回 type(正常情况下) 
     if (fread(&type,1,1,fp) == 0) return -1;
     return type;
 }
@@ -2067,6 +2071,9 @@ static robj *rdbLoadStringObject(FILE*fp, int rdbver) {
     return tryObjectSharing(createObject(REDIS_STRING,val));
 }
 
+/*
+ * 加载 redis 数据文件
+ */
 static int rdbLoad(char *filename) {
     FILE *fp;
     robj *keyobj = NULL;
@@ -2077,17 +2084,29 @@ static int rdbLoad(char *filename) {
     char buf[1024];
     time_t expiretime = -1, now = time(NULL);
 
+	// 打开文件流
     fp = fopen(filename,"r");
     if (!fp) return REDIS_ERR;
+	// C 库函数 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) 
+	// 从给定流 stream 读取数据到 ptr 所指向的数组中。成功读取的元素总数会以 
+	// size_t 对象返回，size_t 对象是一个整型数据类型。如果总数与 nmemb 参数不同，
+	// 则可能发生了一个错误或者到达了文件末尾。
     if (fread(buf,9,1,fp) == 0) goto eoferr;
     buf[9] = '\0';
+	// C 库函数 int memcmp(const void *str1, const void *str2, size_t n)) 把存储
+	// 区 str1 和存储区 str2 的前 n 个字节进行比较。
+	// 如果返回值 < 0，则表示 str1 小于 str2。
+	// 如果返回值 > 0，则表示 str1 大于 str2。
+	// 如果返回值 = 0，则表示 str1 等于 str2。
     if (memcmp(buf,"REDIS",5) != 0) {
+		// 不相等的话， 说明加载的文件不是 redis 数据文件
         fclose(fp);
         redisLog(REDIS_WARNING,"Wrong signature trying to load DB from file");
         return REDIS_ERR;
     }
     rdbver = atoi(buf+5);
     if (rdbver > 1) {
+		// rdb 版本不对
         fclose(fp);
         redisLog(REDIS_WARNING,"Can't handle RDB format version %d",rdbver);
         return REDIS_ERR;
