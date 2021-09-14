@@ -125,7 +125,9 @@ typedef struct dictIterator {
 // 将 key 进行 hash 运算
 #define dictHashKey(ht, key) (ht)->type->hashFunction(key)
 
+// 获取给定字典条目的 key
 #define dictGetEntryKey(he) ((he)->key)
+// 获取给定字典条目的 val
 #define dictGetEntryVal(he) ((he)->val)
 #define dictSlots(ht) ((ht)->size)
 #define dictSize(ht) ((ht)->used)

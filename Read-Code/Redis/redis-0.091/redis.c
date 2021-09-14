@@ -1564,30 +1564,48 @@ static robj *createSetObject(void) {
     return createObject(REDIS_SET,d);
 }
 
+/*
+ * 释放字符串对象的内存
+ */
 static void freeStringObject(robj *o) {
     sdsfree(o->ptr);
 }
 
+/*
+ * 释放链表对象的内存
+ */
 static void freeListObject(robj *o) {
     listRelease((list*) o->ptr);
 }
 
+/*
+ * 释放集合对象的内存
+ */
 static void freeSetObject(robj *o) {
     dictRelease((dict*) o->ptr);
 }
 
+/*
+ * 释放 hash 对象的内存
+ */
 static void freeHashObject(robj *o) {
     dictRelease((dict*) o->ptr);
 }
 
+/*
+ * 增加 redis 对象的引用计数
+ */
 static void incrRefCount(robj *o) {
-    o->refcount++;
+    o->refcount++; // 自增加 1
 #ifdef DEBUG_REFCOUNT
     if (o->type == REDIS_STRING)
         printf("Increment '%s'(%p), now is: %d\n",o->ptr,o,o->refcount);
 #endif
 }
 
+/*
+ * 减少 redis 对象的引用计数
+ */
 static void decrRefCount(void *obj) {
     robj *o = obj;
 
@@ -1595,7 +1613,9 @@ static void decrRefCount(void *obj) {
     if (o->type == REDIS_STRING)
         printf("Decrement '%s'(%p), now is: %d\n",o->ptr,o,o->refcount-1);
 #endif
+	// 先减一才等于 0 说明引用计数开始为 1
     if (--(o->refcount) == 0) {
+		// 根据 redis 对象的类型执行响应的处理
         switch(o->type) {
         case REDIS_STRING: freeStringObject(o); break;
         case REDIS_LIST: freeListObject(o); break;
