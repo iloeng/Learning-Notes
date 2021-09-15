@@ -299,6 +299,9 @@ int dictDeleteNoFree(dict *ht, const void *key) {
 }
 
 /* Destroy an entire hash table */
+/*
+ * 清除一个完整的 hash 表
+ */
 int _dictClear(dict *ht)
 {
     unsigned int i;
@@ -325,6 +328,9 @@ int _dictClear(dict *ht)
 }
 
 /* Clear & Release the hash table */
+/*
+ * 清空并释放 hash 表
+ */
 void dictRelease(dict *ht)
 {
     _dictClear(ht);

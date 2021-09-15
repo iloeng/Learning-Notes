@@ -58,6 +58,9 @@ list *listCreate(void)
 /* Free the whole list.
  *
  * This function can't fail. */
+/*
+ * 清空整个链表
+ */
 void listRelease(list *list)
 {
     unsigned int len;
