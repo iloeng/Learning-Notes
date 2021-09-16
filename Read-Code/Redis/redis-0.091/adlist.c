@@ -83,6 +83,9 @@ void listRelease(list *list)
  * On error, NULL is returned and no operation is performed (i.e. the
  * list remains unaltered).
  * On success the 'list' pointer you pass to the function is returned. */
+/*
+ * 添加一个节点作为头结点
+ */
 list *listAddNodeHead(list *list, void *value)
 {
     listNode *node;
@@ -91,14 +94,20 @@ list *listAddNodeHead(list *list, void *value)
         return NULL;
     node->value = value;
     if (list->len == 0) {
+		// 当是空链表的时候， 直接将添加的值作为头结点
         list->head = list->tail = node;
         node->prev = node->next = NULL;
     } else {
+		// 非空链表时， 将要加入的前结点设为空
         node->prev = NULL;
+		// 下一节点设为当前链表的头结点
         node->next = list->head;
+		// 同时将当前链表的头结点的前结点设为要加入的节点
         list->head->prev = node;
+		// 最后将当前链表的头结点设为要加入的节点
         list->head = node;
     }
+	// 链表长度加一
     list->len++;
     return list;
 }

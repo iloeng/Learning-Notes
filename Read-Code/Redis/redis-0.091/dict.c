@@ -73,6 +73,9 @@ static void *_dictAlloc(int size)
     return p;
 }
 
+/*
+ * 释放 dict 占用的内存
+ */
 static void _dictFree(void *ptr) {
     zfree(ptr);
 }
@@ -399,6 +402,9 @@ void dictReleaseIterator(dictIterator *iter)
 
 /* Return a random entry from the hash table. Useful to
  * implement randomized algorithms */
+/*
+ * 从 dict 里面随机拿一个 key
+ */
 dictEntry *dictGetRandomKey(dict *ht)
 {
     dictEntry *he;
@@ -407,8 +413,11 @@ dictEntry *dictGetRandomKey(dict *ht)
 
     if (ht->size == 0) return NULL;
     do {
-        h = random() & ht->sizemask;
+		// 产生 [0, ht->sizemask) 随机数
+        h = random() & ht->sizemask; 
+		// ht->table[h] 必然是存在的
         he = ht->table[h];
+	// 当 he 为非空时退出循环， 因为 he 非空的时候， he==NULL 为假
     } while(he == NULL);
 
     /* Now we found a non empty bucket, but it is a linked
@@ -417,12 +426,14 @@ dictEntry *dictGetRandomKey(dict *ht)
      * select a random index. */
     listlen = 0;
     while(he) {
+		// 从 he 开始到 hash 表最后
         he = he->next;
         listlen++;
     }
     listele = random() % listlen;
     he = ht->table[h];
     while(listele--) he = he->next;
+	// 最终返回选定的 he (hash entry), ht (hash table)
     return he;
 }
 

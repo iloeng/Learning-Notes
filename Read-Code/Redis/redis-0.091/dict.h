@@ -55,7 +55,13 @@ typedef struct dictEntry {
 } dictEntry;
 
 /*
- * dictType 数据结构， 目前不确定是什么作用， 等后续上下文在理解
+ * dictType 数据结构， 字典的特定函数
+ *
+ *
+ *
+ *
+ * keyDestructor: 键销毁函数
+ * valDestructor: 值销毁函数
  */
 typedef struct dictType {
     unsigned int (*hashFunction)(const void *key);
@@ -71,7 +77,7 @@ typedef struct dictType {
  * table: 所在的数据表
  * type: 类型
  * size: 大小
- * sizemask: 
+ * sizemask: hash 表大小掩码， 总等于 size-1
  * used: 是否被使用
  * privdata: 数据
  */
@@ -94,6 +100,10 @@ typedef struct dictIterator {
 #define DICT_HT_INITIAL_SIZE     16
 
 /* ------------------------------- Macros ------------------------------------*/
+/*
+ * ht 表示的是 dict, entry 是 dictEntry
+ * 当传入的 dict ht 的 type 的 valDestructor 非空时， 执行这个销毁函数
+ */
 #define dictFreeEntryVal(ht, entry) \
     if ((ht)->type->valDestructor) \
         (ht)->type->valDestructor((ht)->privdata, (entry)->val)
@@ -105,6 +115,10 @@ typedef struct dictIterator {
         entry->val = (_val_); \
 } while(0)
 
+/*
+ * ht 表示的是 dict, entry 是 dictEntry
+ * 当传入的 dict ht 的 type 的 keyDestructor 非空时， 执行这个销毁函数
+ */
 #define dictFreeEntryKey(ht, entry) \
     if ((ht)->type->keyDestructor) \
         (ht)->type->keyDestructor((ht)->privdata, (entry)->key)
@@ -130,6 +144,7 @@ typedef struct dictIterator {
 // 获取给定字典条目的 val
 #define dictGetEntryVal(he) ((he)->val)
 #define dictSlots(ht) ((ht)->size)
+// dict size 就是 dict 已经使用的数量
 #define dictSize(ht) ((ht)->used)
 
 /* API */
