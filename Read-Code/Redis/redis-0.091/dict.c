@@ -221,6 +221,9 @@ int dictExpand(dict *ht, unsigned int size)
 }
 
 /* Add an element to the target hash table */
+/*
+ * 添加元素到 dict 里面
+ */
 int dictAdd(dict *ht, void *key, void *val)
 {
     int index;
@@ -261,6 +264,9 @@ int dictReplace(dict *ht, void *key, void *val)
 }
 
 /* Search and remove an element */
+/*
+ * 搜索并删除一个元素
+ */
 static int dictGenericDelete(dict *ht, const void *key, int nofree)
 {
     unsigned int h;
@@ -293,6 +299,9 @@ static int dictGenericDelete(dict *ht, const void *key, int nofree)
     return DICT_ERR; /* not found */
 }
 
+/*
+ * 删除 dict 中的某个键值对
+ */
 int dictDelete(dict *ht, const void *key) {
     return dictGenericDelete(ht,key,0);
 }
