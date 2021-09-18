@@ -449,6 +449,10 @@ dictEntry *dictGetRandomKey(dict *ht)
 /* ------------------------- private functions ------------------------------ */
 
 /* Expand the hash table if needed */
+/*
+ * 如有需要， 扩大这个 dict， 如果是空 dict， 则扩大到初始化大小， 如果已经满了
+ * 则扩大一倍
+ */
 static int _dictExpandIfNeeded(dict *ht)
 {
     /* If the hash table is empty expand it to the intial size,
@@ -477,6 +481,9 @@ static unsigned int _dictNextPower(unsigned int size)
 /* Returns the index of a free slot that can be populated with
  * an hash entry for the given 'key'.
  * If the key already exists, -1 is returned. */
+/*
+ * 返回一个可以被填充的自由插槽， 如果这个 key 已经存在， 就返回 -1
+ */
 static int _dictKeyIndex(dict *ht, const void *key)
 {
     unsigned int h;
