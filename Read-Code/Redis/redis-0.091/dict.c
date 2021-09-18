@@ -170,6 +170,9 @@ int dictResize(dict *ht)
 }
 
 /* Expand or create the hashtable */
+/*
+ * 扩大或创建 dict
+ */
 int dictExpand(dict *ht, unsigned int size)
 {
     dict n; /* the new hashtable */
@@ -465,6 +468,9 @@ static int _dictExpandIfNeeded(dict *ht)
 }
 
 /* Our hash table capability is a power of two */
+/*
+ * 平方的安全实现
+ */
 static unsigned int _dictNextPower(unsigned int size)
 {
     unsigned int i = DICT_HT_INITIAL_SIZE;
