@@ -176,19 +176,24 @@ int dictResize(dict *ht)
 int dictExpand(dict *ht, unsigned int size)
 {
     dict n; /* the new hashtable */
+	// 为何这里有 i？
     unsigned int realsize = _dictNextPower(size), i;
 
     /* the size is invalid if it is smaller than the number of
      * elements already inside the hashtable */
+    // 此处 size 会一直大于 ht->used， 因为当 ht 为非空的时候， 在 _dictExpandIfNeeded 
+    // 调用的时候是两倍的 ht->size
     if (ht->used > size)
         return DICT_ERR;
 
+	// 初始化 dict
     _dictInit(&n, ht->type, ht->privdata);
     n.size = realsize;
     n.sizemask = realsize-1;
     n.table = _dictAlloc(realsize*sizeof(dictEntry*));
 
     /* Initialize all the pointers to NULL */
+	// 填充 realsize*sizeof(dictEntry*) 个 0 到 n.table 中
     memset(n.table, 0, realsize*sizeof(dictEntry*));
 
     /* Copy all the elements from the old to the new table:
