@@ -108,6 +108,9 @@ typedef struct dictIterator {
     if ((ht)->type->valDestructor) \
         (ht)->type->valDestructor((ht)->privdata, (entry)->val)
 
+/*
+ * 设置 hash value
+ */
 #define dictSetHashVal(ht, entry, _val_) do { \
     if ((ht)->type->valDup) \
         entry->val = (ht)->type->valDup((ht)->privdata, _val_); \
@@ -123,6 +126,9 @@ typedef struct dictIterator {
     if ((ht)->type->keyDestructor) \
         (ht)->type->keyDestructor((ht)->privdata, (entry)->key)
 
+/*
+ * 设置 hash key
+ */
 #define dictSetHashKey(ht, entry, _key_) do { \
     if ((ht)->type->keyDup) \
         entry->key = (ht)->type->keyDup((ht)->privdata, _key_); \
