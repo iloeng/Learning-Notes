@@ -1550,14 +1550,21 @@ static robj *createStringObject(char *ptr, size_t len) {
     return createObject(REDIS_STRING,sdsnewlen(ptr,len));
 }
 
+/*
+ * 创建 redis list 对象
+ */
 static robj *createListObject(void) {
     list *l = listCreate();
 
     if (!l) oom("listCreate");
+	// 将这个创建的 list 的释放方法设置为 decrRefCount
     listSetFreeMethod(l,decrRefCount);
     return createObject(REDIS_LIST,l);
 }
 
+/*
+ * 创建 redis set 对象
+ */
 static robj *createSetObject(void) {
     dict *d = dictCreate(&setDictType,NULL);
     if (!d) oom("dictCreate");

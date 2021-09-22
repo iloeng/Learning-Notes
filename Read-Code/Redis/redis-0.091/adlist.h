@@ -74,6 +74,7 @@ typedef struct listIter {
 #define listNodeValue(n) ((n)->value) // 获取结点的值
 
 #define listSetDupMethod(l,m) ((l)->dup = (m))
+// list 的释放方法
 #define listSetFreeMethod(l,m) ((l)->free = (m))
 #define listSetMatchMethod(l,m) ((l)->match = (m))
 
