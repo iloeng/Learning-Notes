@@ -62,6 +62,9 @@ void aeStop(aeEventLoop *eventLoop) {
     eventLoop->stop = 1;
 }
 
+/*
+ * 创建一个文件事件
+ */
 int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
         aeFileProc *proc, void *clientData,
         aeEventFinalizerProc *finalizerProc)
@@ -216,7 +219,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
     aeFileEvent *fe = eventLoop->fileEventHead;
     aeTimeEvent *te;
     long long maxId;
-    AE_NOTUSED(flags);
+    AE_NOTUSED(flags);  // => void flags
 
     /* Nothing to do? return ASAP */
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;
@@ -373,9 +376,15 @@ int aeWait(int fd, int mask, long long milliseconds) {
     }
 }
 
+/*
+ * 事件轮询的主体
+ */
 void aeMain(aeEventLoop *eventLoop)
 {
+	// 将 eventLoop->stop 置为 0 
     eventLoop->stop = 0;
+	// 此处就是一个无限循环
     while (!eventLoop->stop)
+		// 处理事件
         aeProcessEvents(eventLoop, AE_ALL_EVENTS);
 }

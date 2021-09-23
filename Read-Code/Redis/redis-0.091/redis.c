@@ -1699,6 +1699,9 @@ static robj *lookupKeyWrite(redisDb *db, robj *key) {
     return lookupKey(db,key);
 }
 
+/*
+ * 删除 redis 数据库中的 redis 对象
+ */
 static int deleteKey(redisDb *db, robj *key) {
     int retval;
 
@@ -1706,9 +1709,14 @@ static int deleteKey(redisDb *db, robj *key) {
      * it may happen that 'key' is no longer valid if we don't increment
      * it's count. This may happen when we get the object reference directly
      * from the hash table with dictRandomKey() or dict iterators */
-    incrRefCount(key);
+	// 向对 key 这个对象的引用计数加 1， 防止删除的时候， key 的引用计数变成 0
+	incrRefCount(key);
+
+	// expires 字典为非空时， 执行 dictDelete 操作， 将 expires 字典中的 key 对象删除
     if (dictSize(db->expires)) dictDelete(db->expires,key);
+	// 在将 redis db 的 dict (此处应该是数据字典)， 将 key 对象删除
     retval = dictDelete(db->dict,key);
+	// 将 key 的引用计数减 1
     decrRefCount(key);
 
     return retval == DICT_OK;
@@ -3415,7 +3423,13 @@ static int removeExpire(redisDb *db, robj *key) {
     }
 }
 
+/*
+ * 设置过期时间
+ */
 static int setExpire(redisDb *db, robj *key, time_t when) {
+	// 当 dictAdd 正常操作， 就会执行 else 语句， 否则执行 return 0
+	// dictAdd 向数据库的 expires 字典中添加过期时间， key 是一个 redis
+	// 对象， 说明 redis 对象的过期时间
     if (dictAdd(db->expires,key,(void*)when) == DICT_ERR) {
         return 0;
     } else {
