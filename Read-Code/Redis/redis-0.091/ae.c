@@ -54,6 +54,9 @@ aeEventLoop *aeCreateEventLoop(void) {
     return eventLoop;
 }
 
+/*
+ * 释放事件轮询
+ */
 void aeDeleteEventLoop(aeEventLoop *eventLoop) {
     zfree(eventLoop);
 }
