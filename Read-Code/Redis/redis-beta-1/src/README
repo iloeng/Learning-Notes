@@ -1,0 +1,597 @@
+REDIS - REmote DIctionary Server
+
+=============
+WHAT'S REDIS?
+=============
+
+Redis is a database. To be more specific redis is a very simple database
+implementing a dictionary where keys are associated with values. For example
+I can set the key "surname_1992" to the string "Smith".
+
+Redis takes the whole dataset in memory, but the dataset is persistent
+since from time to time Redis writes a dump of the dataset on disk. The dump
+is loaded every time the server is restarted.
+
+This means that it can happen that after a system crash the last modifications
+of the dataset are lost, but it's the price to pay for a lot of speed.
+Redis is the right database for all the applications where it is acceptable
+after a crash that some modification gets lost, but where speed is very
+important.
+
+However you can configure Redis to save the DB after a given number of
+modifications and/or after a given amount of time since the last change
+in the dataset. Saving happens in background so the DB will continue to
+server queries while it is saving the DB dump on disk.
+
+=================================
+HOW REDIS DIFFERS FROM MEMCACHED?
+=================================
+
+Maily in two ways:
+
+- Memcached is not persistent, it just holds everything in memory
+  without saving since its main goal is to be used as a cache.
+  Redis instead can be used as the main DB for the application.
+- Like memcached Redis uses a key-value model, but while keys can just
+  be strings, values in Redis can be lists and sets, and complex
+  operations like intersections, set/get n-th element of lists, pop/push of
+  elements, can be performed against sets and lists. It is possible to
+  use lists as message queues.
+
+===========================
+DOES REDIS SUPPORT LOCKING?
+===========================
+
+No, the idea is to provide atomic primitives in order to make the programmer
+able to use redis with locking free algorithms. For example imagine you have
+10 computers and 1 redis server. You want to count words in a very large text.
+This large text is splitted among the 10 computers, every computer will process
+its part and use Redis's INCR command to atomically increment a counter
+for every occurrence of the word found.
+
+INCR/DECR are not the only atomic primitives, there are others like PUSH/POP
+on lists, POP RANDOM KEY operations, UPDATE and so on. For example you can
+use Redis like a Tuple Space (http://en.wikipedia.org/wiki/Tuple_space) in
+order to implement distributed algorithms.
+
+MULTIPLE DATABASES SUPPORT
+==========================
+
+Another synchronization primitive is the support for multiple DBs. By default DB 0 is selected for every new connection, but using the SELECT command it is possible to select a different database. The MOVE operation can move an item from one DB to another atomically. This can be used as a base for locking free algorithms together with the 'RANDOMKEY' or 'POPRANDOMKEY' commands.
+
+================
+REDIS DATA TYPES
+================
+
+Redis support the following three data types as values:
+
+- Strings: just any sequence of bytes. Redis strings are binary safe so they
+  can not just hold text, but images, compressed data and everything else.
+- Lists: lists of strings, with support for operations like append a new string on head, on tail, list length, obtain a range of elements, truncate the list to a given length, sort the list, and so on.
+- Sets: an unsorted set of strings. It is possible to add or delete elements from a set, to perform set intersection, union, subtraction, and so on.
+
+Values can be Strings, Lists or Sets. Keys can be a subset of strings not containing newlines ("\n") and spaces (" ").
+
+Note that sometimes strings may hold numeric vaules that must be parsed by
+Redis. An example is the INCR command that atomically increments the number
+stored at the specified key. In this case Redis is able to handle integers
+that can be stored inside a 'long long' type, that is a 64-bit signed integer.
+
+Implementation details
+----------------------
+
+Strings are implemented as dynamically allocated strings of characters.
+Lists are implemented as doubly liked lists with cached length.
+Sets are implemented using hash tables that use chaining to resolve collisions.
+
+==============
+REDIS TUTORIAL
+==============
+
+(note, you can skip this section if you are only interested in "formal" doc.)
+
+Later in this document you can find detailed information about Redis commands,
+the protocol specification, and so on. This kind of documentation is useful
+but... if you are new to Redis it is also BORING! The Redis protocol is designed
+so that is both pretty efficient to be parsed by computers, but simple enough
+to be used by humans just pocking around with the 'telnet' command, so this
+section will show to the reader how to play a bit with Redis to get an initial
+feeling about it, and how it works.
+
+To start just compile redis with 'make' and start it with './redis-server'.
+The server will start and log stuff on the standard output, if you want
+it to log more edit redis.conf, set the loglevel to debug, and restart it.
+
+You can specify a configuration file as unique parameter:
+
+    ./redis-server /etc/redis.conf
+
+This is NOT required. The server will start even without a configuration file
+using a default built-in configuration.
+
+Now let's try to set a key to a given value:
+
+$ telnet localhost 6379
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+SET foo 3  
+bar
++OK
+
+The first line we sent to the server is "set foo 3". This means "set the key
+foo with the following three bytes I'll send you". The following line is
+the "bar" string, that is, the three bytes. So the effect is to set the
+key "foo" to the value "bar". Very simple!
+
+(note that you can send commands in lowercase and it will work anyway,
+commands are not case sensitive)
+
+Note that after the first and the second line we sent to the server there
+is a newline at the end. The server expects commands terminated by "\r\n"
+and sequence of bytes terminated by "\r\n". This is a minimal overhead from
+the point of view of both the server and client but allow us to play with
+Redis with the telnet command easily.
+
+The last line of the chat between server and client is "+OK". This means
+our key was added without problems. Actually SET can never fail but
+the "+OK" sent makes us sure that the server received everything and
+the command was actually executed.
+
+Let's try to get the key content now:
+
+GET foo
+3
+bar
+
+Ok that's very similar to 'set', just the other way around. We sent "get foo",
+the server replied with a first line that is just a number of bytes the value
+stored at key contained, followed by the actual bytes. Again "\r\n" are appended
+both to the bytes count and the actual data.
+
+What about requesting a non existing key?
+
+GET blabla
+nil
+
+When the key does not exist instead of the length just the "nil" string is sent.
+Another way to check if a given key exists or not is indeed the EXISTS command:
+
+EXISTS nokey
+0
+EXISTS foo
+1
+
+As you can see the server replied '0' the first time since 'nokey' does not
+exist, and '1' for 'foo', a key that actually exists.
+
+Ok... now you know the basics, read the "REDIS COMMANDS REFERENCE" section to
+learn all the commands supported by Redis and the "PROTOCOL SPECIFICATION"
+section for more details about the protocol used if you plan to implement one
+for a language missing a decent client implementation.
+
+========================
+REDIS COMMANDS REFERENCE
+========================
+
+Connection handling
+-------------------
+
+QUIT
+    Ask the server to silently close the connection.
+
+Commands operating on string values
+-----------------------------------
+
+SET <key> <value>
+Time complexity: O(1)
+    Set the string <value> as value of the key.
+    The string can't be longer than 1073741824 bytes (1 GB).
+
+GET <key>
+Time complexity: O(1)
+    Get the value of the specified key. If the key
+    does not exist the special value 'nil' is returned.
+    If the value stored at <key> is not a string an error
+    is returned because GET can only handle string values.
+
+SETNX <key> <value>
+Time complexity: O(1)
+    SETNX works exactly like SET with the only difference that
+    if the key already exists no operation is performed.
+    SETNX actually means "SET if Not eXists".
+
+INCR <key>
+INCRBY <key> <value>
+Time complexity: O(1)
+    Increment the number stored at <key> by one. If the key does
+    not exist set the key to the value of "1" (like if the previous
+    value was zero). If the value at <key> is not a string value
+    an error is returned.
+
+    INCRBY works just like INCR but instead to increment by 1 the
+    increment is <value>.
+
+DECR <key>
+DECRBY <key> <value>
+Time complexity: O(1)
+    Decrement the number stored at <key> by one. If the key does
+    not exist set the key to the value of "-1" (like if the previous
+    value was zero). If the value at <key> is not a string value
+    an error is returned.
+
+    DECRBY works just like DECR but instead to decrement by 1 the
+    decrement is <value>.
+
+Commands operating on every value
+---------------------------------
+
+EXISTS <key>
+Time complexity: O(1)
+    Test of the specified key exists. The command returns
+    "0" if the key exists, otherwise "1" is returned.
+    Note that even keys set with an empty string as value will
+    return "1".
+
+DEL <key>
+Time complexity: O(1)
+    Remove the specified key. If the key does not exist
+    no operation is performed. The command always returns success.
+
+TYPE <key>
+Time complexity: O(1)
+    Return the type of the value stored at <key> in form of a
+    string. The type can be one of "NONE","STRING","LIST","SET".
+    NONE is returned if the key does not exist.
+
+KEYS <pattern>
+Time complexity: O(n) (with n being the number of keys in the DB)
+    Returns all the keys matching the glob-style <pattern> as
+    space separated strings. For example if you have in the
+    database the keys "foo" and "foobar" the command "KEYS foo*"
+    will return "foo foobar".
+
+    Note that while the time complexity for this operation is O(n)
+    the constant times are pretty low. For example Redis running
+    on an entry level laptop can scan a 1 million keys database
+    in 40 milliseconds. Still it's better to consider this one of
+    the slow commands that may ruin the DB performance if not used
+    with care.
+
+RANDOMKEY
+Time complexity: O(1)
+    Returns a random key from the currently seleted DB.
+
+RENAME <oldkey> <newkey>
+    Atomically renames the key <oldkey> to <newkey>. If the source and
+    destination name are the same an error is returned. If <newkey>
+    already exists it is overwritten.
+
+RENAMENX <oldkey> <newkey>
+    Just like RENAME but fails if the destination key <newkey>
+    already exists.
+
+Commands operating on lists
+---------------------------
+
+RPUSH <key> <string>
+Time complexity: O(1)
+    Add the given string to the head of the list contained at key.
+    If the key does not exist an empty list is created just before
+    the append operation. If the key exists but is not a List an error
+    is returned.
+
+LPUSH <key> <string>
+Time complexity: O(1)
+    Add the given string to the tail of the list contained at key.
+    If the key does not exist an empty list is created just before
+    the append operation. If the key exists but is not a List an error
+    is returned.
+
+LLEN <key>
+Time complexity: O(1)
+    Return the length of the list stored at the specified key. If the
+    key does not exist zero is returned (the same behaviour as for
+    empty lists). If the value stored at key is not a list an error
+    is returned.
+
+LRANGE <key> <start> <end>
+Time complexity: O(n) (with n being the length of the range)
+    Return the specified elements of the list stored at the specified
+    key. Start and end are zero-based indexes. 0 is the first element
+    of the list (the list head), 1 the next element and so on.
+
+    For example LRANGE foobar 0 2 will return the first three elements
+    of the list.
+
+    <start> and <end> can also be negative numbers indicating offsets
+    from the end of the list. For example -1 is the last element of
+    the list, -2 the penultimate element and so on.
+
+    Indexes out of range will not produce an error: if start is over
+    the end of the list, or start > end, an empty list is returned.
+    If end over the end of the list Redis will threat it just like
+    the last element of the list.
+
+LTRIM <key> <start> <end>
+Time complexity: O(n) (with n being len of list - len of range)
+    Trim an existing list so that it will contain only the specified
+    range of elements specified. Start and end are zero-based indexes.
+    0 is the first element of the list (the list head), 1 the next element
+    and so on.
+
+    For example LTRIM foobar 0 2 will modify the list stored at foobar
+    key so that only the first three elements of the list will remain.
+
+    <start> and <end> can also be negative numbers indicating offsets
+    from the end of the list. For example -1 is the last element of
+    the list, -2 the penultimate element and so on.
+
+    Indexes out of range will not produce an error: if start is over
+    the end of the list, or start > end, an empty list is left as value.
+    If end over the end of the list Redis will threat it just like
+    the last element of the list.
+
+    Hint: the obvious use of LTRIM is together with LPUSH/RPUSH. For example:
+
+        LPUSH mylist <someelement>
+        LTRIM mylist 0 99
+
+    The above two commands will push elements in the list taking care that
+    the list will not grow without limits. This is very useful when using
+    Redis to store logs for example. It is important to note that when used
+    in this way LTRIM is an O(1) operation because in the average case
+    just one element is removed from the tail of the list.
+
+LINDEX <key> <index>
+Time complexity: O(n) (with n being the length of the list)
+    Return the specified element of the list stored at the specified
+    key. 0 is the first element, 1 the second and so on. Negative indexes
+    are supported, for example -1 is the last element, -2 the penultimate
+    and so on.
+
+    If the value stored at key is not of list type an error is returned.
+    If the index is out of range an empty string is returned.
+
+    Note that even if the average time complexity is O(n) asking for
+    the first or the last element of the list is O(1).
+
+LPOP <key>
+Time complexity: O(1)
+    Atomically return and remove the first element of the list.
+    For example if the list contains the elements "a","b","c" LPOP
+    will return "a" and the list will become "b","c".
+
+    If the <key> does not exist or the list is already empty the special
+    value 'nil' is returned.
+
+RPOP <key>
+    This command works exactly like LPOP, but the last element instead
+    of the first element of the list is returned/deleted.
+
+Commands operating on sets
+--------------------------
+
+.... Sorry, this is a work in progress
+
+Multiple DB commands
+--------------------
+
+SELECT <index>
+    Select the DB with having the specified zero-based numeric index.
+    For default every new client connection is automatically selected
+    to DB 0.
+
+MOVE <key> <index>
+    Move the specified key from the currently selected DB to the specified
+    destination DB. If a key with the same name exists in the destination
+    DB an error is returned.
+
+Persistence control commands
+----------------------------
+
+SAVE
+    Save the DB on disk. The server hangs while the saving is not
+    completed, no connection is served in the meanwhile. An OK code
+    is returned when the DB was fully stored in disk.
+
+BGSAVE
+    Save the DB in background. The OK code is immediately returned.
+    Redis forks, the parent continues to server the clients, the child
+    saves the DB on disk then exit. A client my be able to check if the
+    operation succeeded using the LASTSAVE command.
+
+LASTSAVE
+    Return the UNIX TIME of the last DB save executed with success.
+    A client may check if a BGSAVE command succeeded reading the LASTSAVE
+    value, then issuing a BGSAVE command and checking at regular intervals
+    every N seconds if LASTSAVE changed.
+
+SHUTDOWN
+    Stop all the clients, save the DB, then quit the server. This commands
+    makes sure that the DB is switched off without the lost of any data.
+    This is not guaranteed if the client uses simply "SAVE" and then
+    "QUIT" because other clients may alter the DB data between the two
+    commands.
+
+======================
+PROTOCOL SPECIFICATION
+======================
+
+The Redis protocol is a compromise between being easy to parse by a computer
+and being easy to parse by an human. Before to read this section you are
+strongly encouraged to read the "REDIS TUTORIAL" section of this README in order
+to get a first feeling of the protocol playing with it by TELNET.
+
+Networking layer
+----------------
+
+A client connects to a Redis server creating a TCP connection to the port 6973.
+Every redis command or data transmitted by the client and the server is
+terminated by "\r\n" (CRLF).
+
+Simple INLINE commands
+----------------------
+
+The simplest commands are the inline commands. This is an example of a
+server/client chat (the server chat starts with S:, the client chat with C:)
+
+C: PING
+S: +PONG
+
+An inline command is a CRLF-terminated string sent to the client. The server
+usually replies to inline commands with a single line that can be a number
+or a return code.
+
+When the server replies with a return code, if the first character of the
+reply is a "+" then the command succeeded, if it is a "-" then the following
+part of the string is an error.
+
+The following is another example of an INLINE command returning an integer:
+
+C: EXISTS somekey
+S: 0
+
+Since 'somekey' does not exist the server returned '0'.
+
+Note that the EXISTS command takes one argument. Arguments are separated
+simply by spaces.
+
+Bulk commands
+-------------
+
+A bulk command is exactly like an inline command, but the last argument
+of the command must be a stream of bytes in order to send data to the server.
+the "SET" command is a bulk command, see the following example:
+
+C: SET mykey 6
+C: foobar
+S: +OK
+
+The last argument of the commnad is '6'. This specify the number of DATA
+bytes that will follow (note that even this bytes are terminated by two
+additional bytes of CRLF).
+
+All the bulk commands are in this exact form: instead of the last argument
+the number of bytes that will follow is specified, followed by the bytes,
+and CRLF. In order to be more clear for the programmer this is the string
+sent by the client in the above sample:
+
+    "SET mykey 6\r\nfoobar\r\n"
+
+Bulk replies
+------------
+
+The server may reply to an inline or bulk command with a bulk reply. See
+the following example:
+
+C: GET mykey
+S: 6
+S: foobar
+
+A bulk reply is very similar to the last argument of a bulk command. The
+server sends as the first line the number of bytes of the actual reply
+followed by CRLF, then the bytes are sent followed by additional two bytes
+for the final CRLF. The exact sequence sent by the server is:
+
+    "6\r\nfoobar\r\n"
+
+If the requested value does not exist the bulk reply will use the special
+value 'nil' instead to send the line containing the number of bytes to read.
+This is an example:
+
+C: GET nonexistingkey
+S: nil
+
+The client library API should not return an empty string, but a nil object.
+For example a Ruby library should return 'nil' while a C library should return
+NULL.
+
+Bulk reply error reporting
+--------------------------
+
+Bulk replies can signal errors, for example trying to use GET against a list
+value is not permitted. Bulk replies use a negative bytes count in order to
+signal an error. An error string of ABS(bytes_count) bytes will follow. See
+the following example:
+
+S: GET alistkey
+S: -38
+S: -ERR Requested element is not a string
+
+-38 means: sorry your operation resulted in an error, but a 38 bytes string
+that explains this error will follow. Client APIs should abort on this kind
+of errors, for example a PHP client should call the die() function.
+
+Multi-Bulk replies
+------------------
+
+In the specific case of the LRANGE command the server needs to return multiple
+values (every element of the list is a value, and LRANGE needs to return
+more than a single element). This is accomplished using multiple bulk writes,
+prefixed by an initial line indicating how many bulk writes will follow.
+Example:
+
+C: LRANGE mylist 0 3
+S: 4
+S: 3
+S: foo
+S: 3
+S: bar
+S: 5
+S: Hello
+S: 5
+S: World
+
+The first line the server sent is "4\r\n" in order to specify that four bulk
+write will follow. Then every bulk write is transmitted.
+
+If the specified key does not exist instead of the number of elements in the
+list, the special value 'nil' is sent. Example:
+
+C: LRANGE nokey 0 1
+S: nil
+
+A client library API should return a nil object and not an empty list when this
+happens.
+
+Multi-Bulk replies errors
+-------------------------
+
+Like bulk reply errors Multi-bulk reply errors are reported using a negative
+count. Example:
+
+C: LRANGE stringkey 0 1
+S: -38
+S: -ERR Requested element is not a string
+
+Check the Bulk replies errors section for more information.
+
+Multiple commands and pipelining
+--------------------------------
+
+A client can use the same connection in order to issue multiple commands.
+Pipelining is supported so multiple commands can be sent with a single
+write operation by the client, it is not needed to read the server reply
+in order to issue the next command. All the replies can be read at the end.
+
+Usually Redis server and client will have a very fast link so this is not
+very important to support this feature in a client implementation, still
+if an application needs to issue a very large number of commands in short
+time to use pipelining can be much faster.
+
+=======
+LICENSE
+=======
+
+Redis is released under the GPL license, version 2. See the COPYING file for
+more information.
+
+=======
+CREDITS
+=======
+
+Redis is written and maintained by Salvatore Sanfilippo, Aka 'antirez'.
+
+Enjoy,
+antirez

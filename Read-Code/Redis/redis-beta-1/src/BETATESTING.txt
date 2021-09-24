@@ -1,0 +1,13 @@
+Hello betatester!
+
+This Redis Server distribution is just a preview, it is by no mean an usable
+product, but probably it can already give you some feeling about what the
+final release is going to be.
+
+DON'T USE THIS CODE IN PRODUCTION, IT MAY RUN YOUR APPLICATION, DELETE ALL YOUR
+DATA, HANG YOUR SERVERS. Don't use it for real work.
+
+Please send feedbacks to antirez at gmail dot com.
+
+Enjoy,
+antirez
