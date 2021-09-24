@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 include_directories(.)
 
-add_executable(src
+add_executable(redis
         adlist.c
         adlist.h
         ae.c
