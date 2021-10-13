@@ -1,0 +1,3 @@
+[submodule "Read-Code/Redis"]
+	path = Read-Code/Redis
+	url = git@github.com:Deteriorator/Redis-Notes.git
