@@ -194,9 +194,9 @@ Code structure
     }
 
 我们还需要有删除 ``ht_items`` 和 ``ht_hash_tables`` 的函数 ， 它将释放我们分配的\
-内存 ， 所以我们不会导致 内存泄漏_ 。
+内存 ， 所以我们不会导致 `内存泄漏`_ 。
 
-.. _内存泄露: https://en.wikipedia.org/wiki/Memory_leak
+.. _`内存泄漏`: https://en.wikipedia.org/wiki/Memory_leak
 
 .. code-block:: C 
 
@@ -449,8 +449,8 @@ resizing_ 大小时 ， 哈希表的 ``count`` 属性将变得有用 。
 
 .. code-block:: C 
 
-// hash_table.c
-static ht_item HT_DELETED_ITEM = {NULL, NULL};
+    // hash_table.c
+    static ht_item HT_DELETED_ITEM = {NULL, NULL};
 
 
     void ht_delete(ht_hash_table* ht, const char* key) {
