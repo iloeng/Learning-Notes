@@ -1,0 +1,60 @@
+{# Sphinx layout template for the sphinxdoc theme. #}
+{%- extends "basic/layout.html" %}
+
+{% block extrahead %}
+{{ super() }}
+{%- if not embedded and pagename == 'index' %}
+<style>.related { display: none; }</style>
+{%- endif %}
+{% endblock %}
+
+{% block header %}
+<div class="pageheader">
+<a href="{{ pathto('index') }}">
+  <img src="{{ pathto('_static/sphinxheader.png', 1) }}" alt="SPHINX" />
+</a>
+</div>
+{% endblock %}
+
+{%- block relbar1 %}
+<div class="related" role="navigation" aria-label="related navigation">
+  <h3>{{ _('Navigation') }}</h3>
+  <ul>
+    <li><a href="{{ pathto('index') }}">Documentation</a> &raquo;</li>
+    {%- for parent in parents %}
+      <li class="nav-item nav-item-{{ loop.index }}"><a href="{{ parent.link|e }}" {% if loop.last %}{{ accesskey("U") }}{% endif %}>{{ parent.title }}</a>{{ reldelim1 }}</li>
+    {%- endfor %}
+    <li class="nav-item nav-item-this"><a href="{{ link|e }}">{{ title }}</a></li>
+  </ul>
+</div>
+{% endblock %}
+
+{%- block content %}
+<div class="document">
+  <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+    {%- include "searchbox.html" %}
+    <div class="sphinxsidebar-navigation__contents">
+      <h3>{{ _('On this page') }}</h3>
+      {{ toc }}
+    </div>
+    <div class="sphinxsidebar-navigation__pages">
+      <h3>{{ _('Site navigation') }}</h3>
+      {{ toctree(includehidden=True, maxdepth=3, titles_only=True) }}
+    </div>
+  </div>
+  {%- block document %}
+  <div class="body" role="main">
+    {% block body %}{% endblock %}
+  </div>
+  {%- endblock %}
+</div>
+{%- endblock %}
+
+{%- block relbar2 %}{% endblock %}
+
+{%- block footer %}
+<div class="footer" role="contentinfo">
+  {% trans path=pathto('copyright'), copyright=copyright|e %}&#169; <a href="{{ path }}">Copyright</a> {{ copyright }}.{% endtrans %}
+  {% trans sphinx_version=sphinx_version|e %}Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> {{ sphinx_version }}.{% endtrans %}
+</div>
+{%- endblock %}
