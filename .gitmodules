@@ -1,4 +1,3 @@
-
 [submodule "source/CodeReading/Redis"]
 	path = source/CodeReading/Redis
 	url = git@github.com:Deteriorator/Redis-Notes.git
