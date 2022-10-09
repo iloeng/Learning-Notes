@@ -210,7 +210,7 @@ PyStringObject 对象 。 这样当判断两个 PyStringObject 对象是否相�
 
 .. code-block:: c
 
-    [Objects/stringobject.c]
+    //[Objects/stringobject.c]
 
     void
     PyString_InternInPlace(PyObject **p)

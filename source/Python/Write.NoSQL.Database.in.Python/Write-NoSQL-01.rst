@@ -280,7 +280,7 @@ Request Messages
 
 - **VALUE TYPE** :  描述应该解释为什么类型的 **VALUE**
 
-  - 可能的值 ： INT , STRING , LIST
+  - 可能的值： INT, STRING, LIST
 
 Example
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
