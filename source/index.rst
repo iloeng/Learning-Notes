@@ -7,10 +7,10 @@ Welcome to Leon's Learning Notes documentation!
 ===============================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: 目录:
 
-   C/Let's.Build.a.Simple.Database/index.rst
+   C/Let's.Build.a.Simple.Database/Database-In-C.rst
 
 Indices and tables
 ==================
