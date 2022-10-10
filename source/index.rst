@@ -10,7 +10,7 @@ Welcome to Leon's Learning Notes documentation!
    :maxdepth: 1
    :caption: 目录:
 
-   C/Let's.Build.a.Simple.Database/Database-In-C.rst
+   C/Let's.Build.a.Simple.Database/index.rst
 
 Indices and tables
 ==================
