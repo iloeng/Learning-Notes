@@ -273,6 +273,14 @@ div.quotebar {
     margin-left: 1em;
 }
 
+/* copy from github */
+blockquote {
+    padding: 0 1em;
+    color: #57606a;
+    /* margin: 0; */
+    border-left: 0.25em solid #d0d7de;
+}
+
 blockquote.epigraph {
     font-size: 1.5em;
     padding-left: 1rem;
