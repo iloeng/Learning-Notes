@@ -1,4 +1,4 @@
 [submodule "source/CodeReading/Redis"]
 	path = source/CodeReading/Redis
-	url = git@github.com:Deteriorator/Redis-Notes.git
+	url = https://github.com/iloeng/Redis-Notes.git
 	update = merge
