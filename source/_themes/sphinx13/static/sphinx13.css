@@ -217,6 +217,15 @@ cite, code, tt {
     letter-spacing: -0.02em;
 }
 
+/* copy code style for github */
+code.docutils.literal.notranslate {
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    background-color: rgb(175 184 192 / 20%);
+    border-radius: 6px;
+}
+
 table.deprecated code.literal {
     word-break: break-all;
 }
