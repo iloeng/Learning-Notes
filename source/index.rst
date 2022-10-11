@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Leon's Learning Notes documentation!
+Welcome ~
 ===============================================
 
 .. toctree::
@@ -11,6 +11,7 @@ Welcome to Leon's Learning Notes documentation!
    :caption: 目录:
 
    C/Let's.Build.a.Simple.Database/index.rst
+   C/Write.a.Hash.Table/index.rst
 
 Indices and tables
 ==================
