@@ -285,7 +285,7 @@ Request Messages
 Example
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-.. code-block:: SQL 
+.. code-block:: bash
 
     "PUT;foo;1;INT"
 

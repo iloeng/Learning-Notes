@@ -153,7 +153,8 @@ html_sidebars = {'**': [
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = 'The Leon\'s Learning Notes Version %s' % release
+# html_title = 'The Leon\'s Learning Notes Version %s' % release
+html_title = 'The Leon\'s Learning Notes' 
 
 #html_additional_pages = {'contents': 'contents.html'}
 
