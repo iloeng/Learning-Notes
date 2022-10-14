@@ -1,0 +1,27 @@
+BEFORE REDIS 1.0.0-rc1
+
+- Fix INCRBY argument that is limited to 32bit int.
+- Add a new field as INFO output: bgsaveinprogress
+- Remove max number of args limit
+- GETSET
+- network layer stresser in test in demo
+- maxclients directive
+- check 'server.dirty' everywere
+- replication automated tests
+- replication non stopping master<->slave syncronization
+- an external tool able to perform the 'difference' between two Redis servers. It's like 'diff', but against Redis servers, and the output is the set of commands needed to turn the first server into the second, suitable to be sent via netcat.
+   $ ./redis-diff 192.168.1.1 192.168.1.2 > diff.txt
+   $ cat diff.txt | nc 192.168.1.1 6379
+   $ ./redis-diff 192.168.1.1 192.168.1.2
+   $ # No output now the servers are identical
+
+This command should be smart and don't use too much memory, that is, take two connections at the same time against the two servers and perform the comparison key by key. Probably the initial "KEYS *" is unavoidable.
+
+- Shutdown must kill other background savings before to start saving. Otherwise the DB can get replaced by the child that rename(2) after the parent for some reason.
+- Add missing commands in documentation
+- Document replication
+- Objects sharing configuration, add the directive "objectsharingpool <size>"
+
+FUTURE HINTS
+
+- if in-memory values compression will be implemented, make sure to implement this so that addReply() is able to handle compressed objects, just creating an uncompressed version on the fly and adding this to the output queue instead of the original one. When insetad we need to look at the object string value (SORT BY for example), call a function that will turn the object into an uncompresed one.

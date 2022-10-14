@@ -1,0 +1,573 @@
+Redis Beta 1 Read:
+
+Structures (22):
+	✔ aeEventLoop @done(21-10-18 21:56)
+	✔ aeFileEvent @done(21-10-18 21:56)
+	✔ aeTimeEvent @done(21-10-18 21:56)
+	✔ dict @done(21-10-17 15:56)
+	✔ dictEntry @done(21-10-17 15:47)
+	✔ dictIterator @done(21-11-06 22:45)
+	✔ dictType @done(21-10-17 15:56)
+	✔ list @done(21-10-17 16:14)
+	✔ listIter @done(21-10-31 22:45)
+	✔ listNode @done(21-10-17 16:14)
+	☐ picolCallFrame
+	☐ picolCmd
+	☐ picolInterp
+	☐ picolParser
+	☐ picolVar
+	✔ redisClient @done(21-10-31 22:45)
+	✔ redisCommand @done(21-11-26 23:16)
+	✔ redisObject @done(21-10-20 21:35)
+	✔ redisServer @done(21-10-18 21:56)
+	✔ saveparam @done(21-10-18 22:03)
+	✔ sdshdr @done(21-10-22 23:21)
+	✔ sharedObjectsStruct @done(21-10-20 21:35)
+
+Type Definitions (18):
+	✔ aeEventFinalizerProc @done(21-10-18 22:00)
+	✔ aeEventLoop @done(21-10-18 22:00)
+	✔ aeFileEvent @done(21-10-18 22:00)
+	✔ aeFileProc @done(21-10-18 21:55)
+	✔ aeTimeEvent @done(21-10-18 22:00)
+	✔ aeTimeProc @done(21-10-18 22:00)
+	✔ dict @done(21-10-18 22:00)
+	✔ dictEntry @done(21-10-18 22:00)
+	✔ dictIterator @done(21-11-06 22:45)
+	✔ dictType @done(21-10-18 22:00)
+	✔ list @done(21-10-18 22:00)
+	✔ listIter @done(21-10-31 22:45)
+	✔ listNode @done(21-10-18 22:00)
+	☐ picolCmdFunc
+	✔ redisClient @done(21-10-31 22:45)
+	✔ redisCommandProc @done(21-11-26 23:18)
+	✔ robj @done(21-10-20 21:35)
+	✔ sds @done(21-10-22 22:49)
+
+Enumerations (2):
+	☐ {anon_enum}
+	☐ {anon_enum}
+
+Constants (47):
+	☐ __ADLIST_H__
+	☐ AE_ALL_EVENTS
+	☐ AE_DONT_WAIT
+	✔ AE_ERR @done(21-10-27 22:07)
+	☐ AE_EXCEPTION
+	☐ AE_FILE_EVENTS
+	☐ __AE_H__
+	☐ AE_NOMORE
+	☐ AE_OK
+	☐ AE_READABLE
+	☐ AE_TIME_EVENTS
+	☐ AE_WRITABLE
+	✔ AL_START_HEAD @done(21-10-31 22:51)
+	✔ AL_START_TAIL @done(21-10-31 22:51)
+	☐ ANET_ERR
+	✔ ANET_ERR_LEN @done(21-10-25 21:55)
+	☐ ANET_H
+	☐ ANET_OK
+	✔ DICT_ERR @done(21-10-31 22:09)
+	☐ __DICT_H
+	✔ DICT_HT_INITIAL_SIZE @done(21-10-29 23:43)
+	✔ DICT_OK @done(21-10-27 22:00)
+	☐ DICT_STATS_VECTLEN
+	☐ REDIS_CMD_BULK
+	☐ REDIS_CMD_INLINE
+	☐ REDIS_CONFIGLINE_MAX
+	✔ REDIS_DEBUG @done(21-10-25 22:46)
+	☐ REDIS_DEFAULT_DBNUM
+	✔ REDIS_EOF @done(21-11-06 22:38)
+	✔ REDIS_ERR @done(21-11-06 22:38)
+	☐ REDIS_HEAD
+	☐ REDIS_HT_MINFILL
+	☐ REDIS_HT_MINSLOTS
+	✔ REDIS_LIST @done(21-11-06 22:38)
+	✔ REDIS_LOADBUF_LEN @done(21-11-18 21:47)
+	☐ REDIS_MAXIDLETIME
+	☐ REDIS_MAX_ARGS
+	✔ REDIS_NOTICE @done(21-10-25 22:46)
+	✔ REDIS_OK @done(21-11-18 22:01)
+	✔ REDIS_QUERYBUF_LEN @done(21-11-26 22:28)
+	✔ REDIS_SELECTDB @done(21-11-06 22:37)
+	☐ REDIS_SERVERPORT
+	☐ REDIS_SET
+	✔ REDIS_STRING @done(21-10-20 21:40)
+	☐ REDIS_TAIL
+	✔ REDIS_WARNING @done(21-10-25 22:46)
+	☐ __SDS_H
+
+Enum Constants (12):
+	☐ PICOL_BREAK
+	☐ PICOL_CONTINUE
+	☐ PICOL_ERR
+	☐ PICOL_OK
+	☐ PICOL_RETURN
+	☐ PT_CMD
+	☐ PT_EOF
+	☐ PT_EOL
+	☐ PT_ESC
+	☐ PT_SEP
+	☐ PT_STR
+	☐ PT_VAR
+
+Variables (10):
+	☐ CCOPT
+	✔ cmdTable @done(21-11-28 22:43)
+	☐ dictTypeHeapStringCopyKey
+	☐ dictTypeHeapStringCopyKeyValue
+	☐ dictTypeHeapStrings
+	☐ OBJ
+	☐ PRGNAME
+	✔ sdsDictType @done(21-10-25 22:24)
+	✔ server @done(21-10-20 21:03)
+	✔ shared @done(21-10-20 21:03)
+
+External Variables (3):
+	☐ dictTypeHeapStringCopyKey
+	☐ dictTypeHeapStringCopyKeyValue
+	☐ dictTypeHeapStrings
+
+Functions (188):
+	✔ acceptHandler @done(21-11-21 22:01)
+	✔ addReply @done(21-11-28 23:16)
+	✔ addReplySds @done(21-11-28 22:50)
+	✔ aeAddMillisecondsToNow @done(21-10-27 22:31)
+	✔ aeCreateEventLoop @done(21-10-23 23:23)
+	✔ aeCreateFileEvent @done(21-11-20 23:16)
+	✔ aeCreateTimeEvent @done(21-10-27 22:31)
+	☐ aeDeleteEventLoop
+	✔ aeDeleteFileEvent @done(21-11-01 22:57)
+	☐ aeDeleteTimeEvent
+	✔ aeGetTime @done(21-10-27 22:44)
+	✔ aeMain @done(21-12-08 23:21)
+	☐ aeProcessEvents
+	✔ aeSearchNearestTimer @done(21-12-07 23:19)
+	☐ aeStop
+	✔ anetAccept @done(21-11-21 22:34)
+	✔ anetNonBlock @done(21-11-22 21:52)
+	☐ anetRead
+	☐ anetResolve
+	✔ anetSetError @done(21-10-25 21:55)
+	☐ anetSetSendBuffer
+	☐ anetTcpConnect
+	☐ anetTcpKeepAlive
+	✔ anetTcpNoDelay @done(21-11-22 21:59)
+	✔ anetTcpServer @done(21-10-25 21:42)
+	☐ anetWrite
+	✔ appendServerSaveParams @done(21-10-19 22:01)
+	☐ bgsaveCommand
+	✔ closeTimedoutClients @done(21-10-31 23:01)
+	✔ createClient @done(21-11-22 21:52)
+	✔ createListObject @done(21-11-17 23:07)
+	✔ createObject @done(21-10-20 21:31)
+	✔ createSharedObjects @done(21-11-07 23:12)
+	☐ dbsizeCommand
+	☐ decrCommand
+	✔ decrRefCount @done(21-11-17 23:22)
+	☐ delCommand
+	✔ dictAdd @done(21-11-18 22:18)
+	✔ _dictAlloc @done(21-10-26 23:28)
+	☐ _dictClear
+	✔ dictCreate @done(21-10-25 23:06)
+	☐ dictDelete
+	☐ dictDeleteNoFree
+	✔ dictExpand @done(21-10-31 22:06)
+	✔ _dictExpandIfNeeded @done(21-11-18 22:36)
+	☐ dictFind
+	✔ _dictFree @done(21-11-06 23:21)
+	☐ dictGenericDelete
+	✔ dictGenHashFunction @done(21-10-31 22:28)
+	✔ dictGetIterator @done(21-11-06 22:49)
+	☐ dictGetRandomKey
+	☐ dictIdentityHashFunction
+	✔ _dictInit @done(21-10-27 21:39)
+	☐ dictIntHashFunction
+	✔ _dictKeyIndex @done(21-11-18 22:36)
+	✔ dictNext @done(21-11-06 23:02)
+	✔ _dictNextPower @done(21-11-06 23:03)
+	✔ _dictPanic @done(21-10-26 23:32)
+	☐ dictPrintStats
+	☐ dictRelease
+	✔ dictReleaseIterator @done(21-11-06 23:21)
+	☐ dictReplace
+	✔ _dictReset @done(21-10-27 21:46)
+	✔ dictResize @done(21-10-29 23:43)
+	☐ _dictStringCopyHTHashFunction
+	☐ _dictStringCopyHTKeyCompare
+	☐ _dictStringCopyHTKeyDestructor
+	☐ _dictStringCopyHTKeyDup
+	☐ _dictStringKeyValCopyHTValDestructor
+	☐ _dictStringKeyValCopyHTValDup
+	☐ echoCommand
+	☐ existsCommand
+	✔ freeClient @done(21-11-01 22:26)
+	✔ freeClientArgv @done(21-11-03 21:50)
+	✔ freeListObject @done(21-11-18 21:32)
+	✔ freeSetObject @done(21-11-18 21:32)
+	✔ freeStringObject @done(21-11-18 21:32)
+	☐ getCommand
+	☐ incrCommand
+	☐ incrDecrCommand
+	✔ incrRefCount @done(21-11-28 23:21)
+	✔ initServer @done(21-11-18 21:41)
+	✔ initServerConfig @done(21-10-18 22:12)
+	☐ keysCommand
+	☐ lastsaveCommand
+	☐ lindexCommand
+	✔ listAddNodeHead @done(21-11-18 21:41)
+	✔ listAddNodeTail @done(21-11-18 22:05)
+	✔ listCreate @done(21-10-19 22:36)
+	✔ listDelNode @done(21-10-20 22:12)
+	☐ listDup
+	✔ listGetIterator @done(21-10-31 23:07)
+	☐ listIndex
+	✔ listNextElement @done(21-11-01 22:07)
+	✔ listRelease @done(21-11-02 23:32)
+	✔ listReleaseIterator @done(21-11-03 22:15)
+	✔ listSearchKey @done(21-11-03 22:03)
+	☐ llenCommand
+	✔ loadDb @done(21-11-18 22:00)
+	✔ loadServerConfig @done(21-11-14 22:28)
+	✔ lookupCommand @done(21-11-28 22:49)
+	☐ lpopCommand
+	☐ lpushCommand
+	☐ lrangeCommand
+	☐ ltrimCommand
+	☐ main
+	☐ main
+	☐ moveCommand
+	✔ oom @done(21-10-23 23:47)
+	☐ picolArityErr
+	☐ picolCommandCallProc
+	☐ picolCommandIf
+	☐ picolCommandMath
+	☐ picolCommandProc
+	☐ picolCommandPuts
+	☐ picolCommandRetCodes
+	☐ picolCommandReturn
+	☐ picolCommandSet
+	☐ picolCommandWhile
+	☐ picolDropCallFrame
+	☐ picolEval
+	☐ picolGetCommand
+	☐ picolGetToken
+	☐ picolGetVar
+	☐ picolInitInterp
+	☐ picolInitParser
+	☐ picolParseBrace
+	☐ picolParseCommand
+	☐ picolParseComment
+	☐ picolParseEol
+	☐ picolParseSep
+	☐ picolParseString
+	☐ picolParseVar
+	☐ picolRegisterCommand
+	☐ picolRegisterCoreCommands
+	☐ picolSetResult
+	☐ picolSetVar
+	☐ pingCommand
+	☐ popGenericCommand
+	✔ processCommand @done(21-11-28 22:35)
+	☐ pushGenericCommand
+	☐ randomkeyCommand
+	✔ readQueryFromClient @done(21-11-26 22:59)
+	✔ redisLog @done(21-10-25 22:44)
+	☐ renameCommand
+	☐ renameGenericCommand
+	☐ renamenxCommand
+	✔ resetClient @done(21-12-06 22:52)
+	✔ ResetServerSaveParams @done(21-10-19 22:01)
+	☐ rpopCommand
+	☐ rpushCommand
+	☐ saveCommand
+	✔ saveDb @done(21-11-06 22:38)
+	✔ saveDbBackground @done(21-11-03 22:39)
+	✔ sdsavail @done(21-11-14 22:14)
+	✔ sdscat @done(21-11-14 22:05)
+	✔ sdscatlen @done(21-11-14 22:05)
+	✔ sdscatprintf @done(21-11-13 21:52)
+	☐ sdscmp
+	☐ sdscpy
+	☐ sdscpylen
+	✔ sdsDictHashFunction @done(21-10-31 22:24)
+	✔ sdsDictKeyCompare @done(21-11-20 22:47)
+	✔ sdsDictKeyDestructor @done(21-12-04 15:27)
+	✔ sdsDictValDestructor @done(21-12-04 15:40)
+	☐ sdsdup
+	✔ sdsempty @done(21-11-13 21:46)
+	✔ sdsfree @done(21-11-01 23:13)
+	✔ sdslen @done(21-11-06 23:16)
+	✔ sdsMakeRoomFor @done(21-11-14 22:14)
+	✔ sdsnew @done(21-10-22 22:50)
+	✔ sdsnewlen @done(21-10-22 23:21)
+	✔ sdsOomAbort @done(21-10-23 23:24)
+	✔ sdsrange @done(21-12-06 23:00)
+	✔ sdssplitlen @done(21-11-13 21:24)
+	✔ sdstolower @done(21-11-28 22:40)
+	✔ sdstoupper @done(21-11-28 22:40)
+	✔ sdstrim @done(21-11-09 22:43)
+	☐ sdsupdatelen
+	☐ selectCommand
+	✔ selectDb @done(21-11-22 22:02)
+	✔ sendReplyToClient @done(21-11-28 23:16)
+	✔ serverCron @done(21-10-28 23:19)
+	☐ setCommand
+	☐ setGenericCommand
+	☐ setnxCommand
+	☐ shutdownCommand
+	☐ stringmatchlen
+
+Macros (26):
+	✔ AE_NOTUSED @done(21-12-06 23:04)
+	✔ dictCompareHashKeys @done(21-11-19 23:20)
+	☐ dictFreeEntryKey
+	☐ dictFreeEntryVal
+	✔ dictGetEntryKey @done(21-11-06 23:09)
+	✔ dictGetEntryVal @done(21-11-06 23:09)
+	✔ dictGetHashTableSize @done(21-10-27 22:55)
+	✔ dictGetHashTableUsed @done(21-10-27 22:55)
+	✔ dictHashKey @done(21-10-31 22:19)
+	✔ dictSetHashKey @done(21-11-20 22:57)
+	✔ dictSetHashVal @done(21-11-20 22:57)
+	✔ DICT_NOTUSED @done(21-11-20 22:50)
+	✔ listFirst @done(21-10-20 22:02)
+	☐ listGetDupMethod
+	☐ listGetFree
+	☐ listGetMatchMethod
+	☐ listLast
+	✔ listLength @done(21-10-20 22:02)
+	☐ listNextNode
+	✔ listNodeValue @done(21-10-20 22:06)
+	☐ listPrevNode
+	☐ listSetDupMethod
+	✔ listSetFreeMethod @done(21-11-17 23:07)
+	☐ listSetMatchMethod
+	☐ PICOL_NOTUSED
+	✔ REDIS_NOTUSED @done(21-10-27 22:44)
+
+Function Prototypes (111):
+	✔ addReply @done(21-11-28 23:16)
+	✔ addReplySds @done(21-11-28 22:50)
+	✔ aeCreateEventLoop @done(21-11-07 23:13)
+	✔ aeCreateFileEvent @done(21-11-20 23:16)
+	✔ aeCreateTimeEvent @done(21-10-27 22:31)
+	☐ aeDeleteEventLoop
+	✔ aeDeleteFileEvent @done(21-11-01 22:58)
+	☐ aeDeleteTimeEvent
+	✔ aeMain @done(21-12-08 23:21)
+	☐ aeProcessEvents
+	☐ aeStop
+	✔ anetAccept @done(21-11-21 22:34)
+	✔ anetNonBlock @done(21-11-22 21:52)
+	☐ anetRead
+	☐ anetResolve
+	☐ anetTcpConnect
+	☐ anetTcpKeepAlive
+	✔ anetTcpNoDelay @done(21-11-22 21:59)
+	✔ anetTcpServer @done(21-10-27 21:39)
+	☐ anetWrite
+	☐ bgsaveCommand
+	✔ createObject @done(21-10-20 21:41)
+	☐ dbsizeCommand
+	☐ decrCommand
+	✔ decrRefCount @done(21-11-17 23:22)
+	☐ delCommand
+	✔ dictAdd @done(21-11-18 22:18)
+	✔ dictCreate @done(21-10-27 21:39)
+	☐ dictDelete
+	☐ dictDeleteNoFree
+	✔ dictExpand @done(21-10-31 22:07)
+	✔ _dictExpandIfNeeded @done(21-11-18 22:36)
+	☐ dictFind
+	✔ dictGenHashFunction @done(21-10-31 22:28)
+	✔ dictGetIterator @done(21-11-06 22:49)
+	☐ dictGetRandomKey
+	✔ _dictInit @done(21-10-27 21:39)
+	✔ _dictKeyIndex @done(21-11-18 22:36)
+	✔ dictNext @done(21-11-06 23:02)
+	✔ _dictNextPower @done(21-10-31 22:19)
+	☐ dictPrintStats
+	☐ dictRelease
+	✔ dictReleaseIterator @done(21-11-06 23:21)
+	☐ dictReplace
+	✔ dictResize @done(21-10-29 23:43)
+	☐ echoCommand
+	☐ existsCommand
+	✔ freeClient @done(21-11-01 22:26)
+	✔ freeListObject @done(21-11-18 21:32)
+	✔ freeSetObject @done(21-11-18 21:32)
+	✔ freeStringObject @done(21-11-18 21:32)
+	☐ getCommand
+	☐ incrCommand
+	✔ incrRefCount @done(21-11-28 23:21)
+	☐ keysCommand
+	☐ lastsaveCommand
+	☐ lindexCommand
+	✔ listAddNodeHead @done(21-11-18 21:41)
+	✔ listAddNodeTail @done(21-11-18 22:05)
+	✔ listCreate @done(21-11-07 23:09)
+	✔ listDelNode @done(21-11-07 23:10)
+	☐ listDup
+	✔ listGetIterator @done(21-10-31 23:07)
+	☐ listIndex
+	✔ listNextElement @done(21-11-01 22:07)
+	✔ listRelease @done(21-11-02 23:32)
+	✔ listReleaseIterator @done(21-11-07 23:28)
+	✔ listSearchKey @done(21-11-03 22:03)
+	☐ llenCommand
+	✔ loadDb @done(21-11-18 22:00)
+	☐ lpopCommand
+	☐ lpushCommand
+	☐ lrangeCommand
+	☐ ltrimCommand
+	☐ moveCommand
+	☐ picolEval
+	☐ picolGetVar
+	☐ picolInitInterp
+	☐ picolRegisterCommand
+	☐ picolSetResult
+	☐ picolSetVar
+	☐ pingCommand
+	☐ randomkeyCommand
+	☐ renameCommand
+	☐ renamenxCommand
+	☐ rpopCommand
+	☐ rpushCommand
+	☐ saveCommand
+	✔ saveDbBackground @done(21-11-06 22:38)
+	✔ sdsavail @done(21-11-14 22:14)
+	✔ sdscat @done(21-11-14 22:05)
+	✔ sdscatlen @done(21-11-14 22:05)
+	✔ sdscatprintf @done(21-11-13 21:52)
+	☐ sdscmp
+	☐ sdscpy
+	☐ sdscpylen
+	☐ sdsdup
+	✔ sdsempty @done(21-11-13 21:46)
+	✔ sdsfree @done(21-11-01 23:13)
+	✔ sdslen @done(21-11-06 23:16)
+	✔ sdsnew @done(21-10-22 22:50)
+	✔ sdsnewlen @done(21-10-22 23:21)
+	✔ sdsrange @done(21-12-06 23:01)
+	✔ sdssplitlen @done(21-11-13 21:24)
+	✔ sdstolower @done(21-11-28 22:40)
+	✔ sdstrim @done(21-11-09 22:43)
+	☐ sdsupdatelen
+	☐ selectCommand
+	☐ setCommand
+	☐ setnxCommand
+	☐ shutdownCommand
+
+Data Members (111):
+	✔ aeEventLoop::fileEventHead @done(21-11-14 22:15)
+	✔ aeEventLoop::stop @done(21-11-14 22:15)
+	✔ aeEventLoop::timeEventNextId @done(21-11-14 22:16)
+	✔ aeEventLoop::timeEventHead @done(21-11-14 22:15)
+	✔ aeFileEvent::clientData @done(21-11-14 22:16)
+	✔ aeFileEvent::fd @done(21-11-14 22:16)
+	✔ aeFileEvent::fileProc @done(21-11-14 22:16)
+	✔ aeFileEvent::finalizerProc @done(21-11-14 22:16)
+	✔ aeFileEvent::mask @done(21-11-14 22:16)
+	✔ aeFileEvent::next @done(21-11-14 22:16)
+	✔ aeTimeEvent::clientData @done(21-11-14 22:16)
+	✔ aeTimeEvent::finalizerProc @done(21-11-14 22:16)
+	✔ aeTimeEvent::id @done(21-11-14 22:16)
+	✔ aeTimeEvent::next @done(21-11-14 22:16)
+	✔ aeTimeEvent::timeProc @done(21-11-14 22:16)
+	✔ aeTimeEvent::when_ms @done(21-11-14 22:16)
+	✔ aeTimeEvent::when_sec @done(21-11-14 22:16)
+	✔ dict::privdata @done(21-10-20 21:42)
+	✔ dict::size @done(21-10-20 21:42)
+	✔ dict::sizemask @done(21-10-20 21:42)
+	✔ dict::table @done(21-10-20 21:42)
+	✔ dict::type @done(21-10-20 21:42)
+	✔ dict::used @done(21-10-20 21:42)
+	✔ dictEntry::key @done(21-10-20 21:41)
+	✔ dictEntry::next @done(21-10-20 21:41)
+	✔ dictEntry::val @done(21-10-20 21:41)
+	✔ dictIterator::entry @done(21-11-14 22:15)
+	✔ dictIterator::ht @done(21-11-14 22:15)
+	✔ dictIterator::nextEntry @done(21-11-14 22:15)
+	✔ dictIterator::index @done(21-11-14 22:15)
+	✔ dictType::hashFunction @done(21-11-14 22:15)
+	✔ dictType::keyCompare @done(21-11-14 22:15)
+	✔ dictType::keyDestructor @done(21-11-14 22:15)
+	✔ dictType::valDestructor @done(21-11-14 22:15)
+	✔ list::free @done(21-11-14 22:15)
+	✔ list::head @done(21-11-14 22:15)
+	✔ list::len @done(21-11-14 22:15)
+	✔ list::match @done(21-11-14 22:15)
+	✔ list::tail @done(21-11-14 22:15)
+	✔ listIter::direction @done(21-11-14 22:15)
+	✔ listIter::next @done(21-11-14 22:15)
+	✔ listIter::prev @done(21-11-14 22:15)
+	✔ listNode::next @done(21-11-14 22:15)
+	✔ listNode::prev @done(21-11-14 22:15)
+	✔ listNode::value @done(21-11-14 22:15)
+	☐ picolCallFrame::parent
+	☐ picolCallFrame::vars
+	☐ picolCmd::func
+	☐ picolCmd::name
+	☐ picolCmd::next
+	☐ picolCmd::privdata
+	☐ picolInterp::callframe
+	☐ picolInterp::commands
+	☐ picolInterp::level
+	☐ picolInterp::result
+	☐ picolParser::end
+	☐ picolParser::insidequote
+	☐ picolParser::len
+	☐ picolParser::p
+	☐ picolParser::start
+	☐ picolParser::text
+	☐ picolParser::type
+	☐ picolVar::name
+	☐ picolVar::next
+	☐ picolVar::val
+	✔ redisClient::argc @done(21-11-14 22:15)
+	✔ redisClient::argv @done(21-11-14 22:15)
+	✔ redisClient::bulklen @done(21-11-14 22:15)
+	✔ redisClient::dict @done(21-11-14 22:15)
+	✔ redisClient::fd @done(21-11-14 22:15)
+	✔ redisClient::lastinteraction @done(21-11-14 22:15)
+	✔ redisClient::querybuf @done(21-11-14 22:15)
+	✔ redisClient::reply @done(21-11-14 22:15)
+	✔ redisClient::sentlen @done(21-11-14 22:15)
+	✔ redisCommand::arity @done(21-11-14 22:15)
+	✔ redisCommand::name @done(21-11-14 22:15)
+	✔ redisCommand::proc @done(21-11-14 22:15)
+	✔ redisCommand::type @done(21-11-14 22:15)
+	✔ redisObject::ptr @done(21-10-20 21:42)
+	✔ redisObject::refcount @done(21-10-20 21:42)
+	✔ redisObject::type @done(21-10-20 21:42)
+	✔ redisServer::bgsaveinprogress @done(21-11-14 22:15)
+	✔ redisServer::clients @done(21-11-14 22:15)
+	✔ redisServer::cronloops @done(21-11-14 22:15)
+	✔ redisServer::dbnum @done(21-11-14 22:15)
+	✔ redisServer::dict @done(21-11-14 22:15)
+	✔ redisServer::dirty @done(21-11-14 22:15)
+	✔ redisServer::el @done(21-11-14 22:15)
+	✔ redisServer::fd @done(21-11-14 22:15)
+	✔ redisServer::lastsave @done(21-11-14 22:15)
+	✔ redisServer::logfile @done(21-11-14 22:15)
+	✔ redisServer::maxidletime @done(21-11-14 22:15)
+	✔ redisServer::neterr @done(21-11-14 22:15)
+	✔ redisServer::objfreelist @done(21-11-14 22:15)
+	✔ redisServer::port @done(21-11-14 22:15)
+	✔ redisServer::saveparams @done(21-11-14 22:15)
+	✔ redisServer::saveparamslen @done(21-11-14 22:15)
+	✔ redisServer::verbosity @done(21-11-14 22:15)
+	✔ saveparam::changes @done(21-11-14 22:15)
+	✔ saveparam::seconds @done(21-11-14 22:15)
+	✔ sdshdr::buf @done(21-10-22 23:22)
+	✔ sdshdr::free @done(21-10-22 23:22)
+	✔ sdshdr::len @done(21-10-22 23:22)
+	✔ sharedObjectsStruct::crlf @done(21-11-14 22:15)
+	✔ sharedObjectsStruct::err @done(21-11-14 22:15)
+	✔ sharedObjectsStruct::nil @done(21-11-14 22:15)
+	✔ sharedObjectsStruct::ok @done(21-11-14 22:15)
+	✔ sharedObjectsStruct::pong @done(21-11-14 22:15)
+	✔ sharedObjectsStruct::one @done(21-11-14 22:15)
+	✔ sharedObjectsStruct::zero @done(21-11-14 22:15)
+	✔ sharedObjectsStruct::zerobulk @done(21-11-14 22:15)

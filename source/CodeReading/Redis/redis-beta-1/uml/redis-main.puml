@@ -1,0 +1,40 @@
+@startuml main
+
+title main
+
+start
+
+:initServerConfig; 
+
+:initServer; 
+
+if (argc = 2?) then (yes)
+  :ResetServerSaveParams;
+  :loadServerConfig;
+  :redisLog - Configuration loaded;
+else (no)
+  :fprintf - usage;
+  :exit;
+  end
+endif
+
+:redisLog - Server started;
+
+if (loadDb success?) then (yes)
+  :redisLog - DB loaded from disk;
+endif
+
+if (aeCreateFileEvent failed?) then (yes)
+  :oom - creating file event;
+  end
+endif
+
+:redisLog - The server is already;
+
+:aeMain;
+
+:aeDeleteEventLoop;
+
+stop
+
+@enduml

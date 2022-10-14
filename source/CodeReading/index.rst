@@ -11,6 +11,7 @@
    Pieces/index.rst
    Python/index.rst
    Python-Standard-Library/index.rst
+   Redis/index.rst
    Requests/index.rst
    TinyDB/index.rst
    TinyHTTPd/index.rst
