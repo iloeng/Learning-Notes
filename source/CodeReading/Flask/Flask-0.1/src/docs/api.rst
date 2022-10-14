@@ -1,9 +1,10 @@
-.. _api:
+.. _api-0.1:
 
 API
 ===
 
 .. module:: flask
+   :noindex:
 
 This part of the documentation covers all the interfaces of Flask.  For
 parts where Flask depends on external libraries, we document the most
@@ -22,6 +23,7 @@ Incoming Request Data
 .. autoclass:: Request
 
 .. class:: request
+   :noindex:
 
    To access incoming request data, you can use the global `request`
    object.  Flask parses incoming request data for you and gives you
@@ -33,28 +35,33 @@ Incoming Request Data
    subclass and provides all of the attributes Werkzeug defines.  This
    just shows a quick overview of the most important ones.
 
-   .. attribute:: form
+   .. attribute:: form 
+      :noindex:
 
       A :class:`~werkzeug.MultiDict` with the parsed form data from `POST`
       or `PUT` requests.  Please keep in mind that file uploads will not
       end up here,  but instead in the :attr:`files` attribute.
 
    .. attribute:: args
+      :noindex:
 
       A :class:`~werkzeug.MultiDict` with the parsed contents of the query
       string.  (The part in the URL after the question mark).
 
    .. attribute:: values
+      :noindex:
 
       A :class:`~werkzeug.CombinedMultiDict` with the contents of both
       :attr:`form` and :attr:`args`.
 
    .. attribute:: cookies
+      :noindex:
 
       A :class:`dict` with the contents of all cookies transmitted with
       the request.
 
    .. attribute:: stream
+      :noindex:
 
       If the incoming form data was not encoded with a known encoding (for
       example it was transmitted as JSON) the data is stored unmodified in
@@ -64,6 +71,7 @@ Incoming Request Data
           json_body = simplejson.load(request.stream)
 
    .. attribute:: files
+      :noindex:
 
       A :class:`~werkzeug.MultiDict` with files uploaded as part of a
       `POST` or `PUT` request.  Each file is stored as
@@ -73,18 +81,25 @@ Incoming Request Data
       store the file on the filesystem.
 
    .. attribute:: environ
+      :noindex:
 
       The underlying WSGI environment.
 
    .. attribute:: method
+      :noindex:
 
       The current request method (``POST``, ``GET`` etc.)
 
    .. attribute:: path
+      :noindex:
    .. attribute:: script_root
+      :noindex:
    .. attribute:: url
+      :noindex:
    .. attribute:: base_url
+      :noindex:
    .. attribute:: url_root
+      :noindex:
 
       Provides different ways to look at the current URL.  Imagine your
       application is listening on the following URL::
@@ -134,6 +149,7 @@ something complex and unguessable.
 To access the current session you can use the :class:`session` object:
 
 .. class:: session
+   :noindex:
 
    The session object works pretty much like an ordinary dict, with the
    difference that it keeps track on modifications.
@@ -141,10 +157,12 @@ To access the current session you can use the :class:`session` object:
    The following attributes are interesting:
 
    .. attribute:: new
+      :noindex:
 
       `True` if the session is new, `False` otherwise.
 
    .. attribute:: modified
+      :noindex:
 
       `True` if the session object detected a modification.  Be advised
       that modifications on mutable structures are not picked up
@@ -169,6 +187,7 @@ different values for each request.  In a nutshell: it does the right
 thing, like it does for :class:`request` and :class:`session`.
 
 .. data:: g
+   :noindex:
    
    Just store on this whatever you want.  For example a database
    connection or the user that is currently logged in.
@@ -180,6 +199,7 @@ Useful Functions and Classes
 .. autofunction:: url_for
 
 .. function:: abort(code)
+   :noindex:
 
    Raises an :exc:`~werkzeug.exception.HTTPException` for the given
    status code.  For example to abort request handling with a page not

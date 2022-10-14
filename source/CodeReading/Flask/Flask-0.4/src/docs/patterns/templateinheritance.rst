@@ -1,4 +1,4 @@
-.. _template-inheritance:
+.. _template-inheritance-0.4:
 
 Template Inheritance
 ====================

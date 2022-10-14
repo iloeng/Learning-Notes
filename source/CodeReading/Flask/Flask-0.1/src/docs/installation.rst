@@ -1,4 +1,4 @@
-.. _installation:
+.. _installation-0.1:
 
 Installation
 ============
@@ -52,7 +52,7 @@ even in your package manager (on ubuntu try ``sudo apt-get install
 python-virtualenv``).
 
 If you are on Windows and missing the `easy_install` command you have to
-install it first.  Check the :ref:`windows-easy-install` section for more
+install it first.  Check the :ref:`windows-easy-install-0.1` section for more
 information about how to do that.
 
 So now that you have virtualenv running just fire up a shell and create
@@ -103,7 +103,7 @@ Now I really don't recommend this way on using Flask, but you can do that
 of course as well.  Download the `dip` zipfile from the website and unzip
 it next to your application.
 
-.. _windows-easy-install:
+.. _windows-easy-install-0.1:
 
 `easy_install` on Windows
 -------------------------

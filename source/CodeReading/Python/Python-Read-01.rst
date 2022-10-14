@@ -1,3 +1,7 @@
+##############################################################################
+Python 源码阅读系列 1
+##############################################################################
+
 ..
     # with overline, for parts
     * with overline, for chapters
@@ -5,10 +9,6 @@
     -, for subsections
     ^, for subsubsections
     ", for paragraphs
-
-##############################################################################
-Python 源码阅读系列 1
-##############################################################################
 
 此文档为学习 《Python 源码剖析》 笔记 。 代码基于 Python 2.5 。
 
@@ -275,25 +275,25 @@ new 操作符视之 ； 凡是以 Malloc 结尾的 ， 都以 C 中的 malloc �
 
 .. code-block:: c 
 
-    [PyString_FromString() in stringobject.c]
+    //[PyString_FromString() in stringobject.c]
 
     op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
 
-    等效于：
+    // 等效于：
     
     PyStringObject* op = (PyStringObject*)malloc(sizeof(PyStringObject) + size)
 
-    [PyList_New() in listobject.c]
+    //[PyList_New() in listobject.c]
     
     op = PyObject_GC_New(PyListObject, &PyList_Type);
     
-    等效于：
+    // 等效于：
     
     PyListObject* op = new PyList_Type();
 
     op->ob_item = (PyObject **) PyMem_MALLOC(nbytes);
     
-    等效于：
+    // 等效于：
     
     op->ob_item = (PyObject **)malloc(nbytes);
 

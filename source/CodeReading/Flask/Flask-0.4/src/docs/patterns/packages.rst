@@ -1,4 +1,4 @@
-.. _larger-applications:
+.. _larger-applications-0.4:
 
 Larger Applications
 ===================
@@ -100,7 +100,7 @@ You should then end up with something like that::
 
    There are still some problems with that approach but if you want to use
    decorators there is no way around that.  Check out the
-   :ref:`becomingbig` section for some inspiration how to deal with that.
+   :ref:`becomingbig-0.4` section for some inspiration how to deal with that.
 
 
 .. _working-with-modules:

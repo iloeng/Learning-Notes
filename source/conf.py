@@ -111,7 +111,10 @@ language = 'zh_CN'
 # This pattern also affects html_static_path and html_extra_path.
 today_fmt = '%B %d, %Y'
 
-exclude_patterns = []
+exclude_patterns = [
+    "./CodeReading/Flask/Flask-0.1/src",
+    "./CodeReading/TinyDB/1.0.0/docs"
+]
 
 add_module_names = False
 

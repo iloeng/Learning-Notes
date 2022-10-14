@@ -436,9 +436,9 @@ tp_itemsize 指明了由变长对象保存的元素 (item) 的单位长度 ， �
 Python 提供了两条路径 ， 从 C 中原生的字符串创建 PyStringObject 对象 。 先看一下最\
 一般的 PyString_FromString 。  
 
-.. code-block:: c 
+.. code-block:: C
 
-    [Objects/stringobject.c]
+    // [Objects/stringobject.c]
 
     PyObject *
     PyString_FromString(const char *str)
@@ -493,7 +493,7 @@ Python 提供了两条路径 ， 从 C 中原生的字符串创建 PyStringObjec
         return (PyObject *) op;
     }
 
-    上述代码是 Python 2.5 源码，以下是书中的代码
+    // 上述代码是 Python 2.5 源码，以下是书中的代码
 
     PyObject *
     PyString_FromString(const char *str)

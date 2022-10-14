@@ -27,7 +27,7 @@ So here a simple example of how you can use SQLite 3 with Flask::
         g.db.close()
         return response
 
-.. _easy-querying:
+.. _easy-querying-0.4:
 
 Easy Querying
 -------------

@@ -1,11 +1,11 @@
-.. _quickstart:
+.. _quickstart-0.1:
 
 Quickstart
 ==========
 
 Eager to get started?  This page gives a good introduction in how to gets
 started with Flask.  This assumes you already have Flask installed.  If
-you do not, head over to the :ref:`installation` section.
+you do not, head over to the :ref:`installation-0.1` section.
 
 
 A Minimal Application

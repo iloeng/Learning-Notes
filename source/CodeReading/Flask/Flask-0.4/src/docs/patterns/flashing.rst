@@ -1,4 +1,4 @@
-.. _message-flashing-pattern:
+.. _message-flashing-pattern-0.4:
 
 Message Flashing
 ================

@@ -1,11 +1,11 @@
-.. _quickstart:
+.. _quickstart-0.4:
 
 Quickstart
 ==========
 
 Eager to get started?  This page gives a good introduction in how to gets
 started with Flask.  This assumes you already have Flask installed.  If
-you do not, head over to the :ref:`installation` section.
+you do not, head over to the :ref:`installation-0.4` section.
 
 
 A Minimal Application
@@ -388,7 +388,7 @@ Inside templates you also have access to the :class:`~flask.request`,
 as well as the :func:`~flask.get_flashed_messages` function.
 
 Templates are especially useful if inheritance is used.  If you want to
-know how that works, head over to the :ref:`template-inheritance` pattern
+know how that works, head over to the :ref:`template-inheritance-0.4` pattern
 documentation.  Basically template inheritance makes it possible to keep
 certain elements on each page (like header, navigation and footer).
 
@@ -685,7 +685,7 @@ template that does this.
 
 To flash a message use the :func:`~flask.flash` method, to get hold of the
 messages you can use :func:`~flask.get_flashed_messages` which is also
-available in the templates.  Check out the :ref:`message-flashing-pattern`
+available in the templates.  Check out the :ref:`message-flashing-pattern-0.4`
 for a full example.
 
 Logging

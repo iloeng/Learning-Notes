@@ -1,4 +1,4 @@
-.. _patterns:
+.. _patterns-0.1:
 
 Patterns for Flask
 ==================
@@ -96,7 +96,7 @@ And this is what `views.py` would look like::
 
    There are still some problems with that approach but if you want to use
    decorators there is no way around that.  Check out the
-   :ref:`becomingbig` section for some inspiration how to deal with that.
+   :ref:`becomingbig-0.1` section for some inspiration how to deal with that.
 
 
 .. _database-pattern:

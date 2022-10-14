@@ -250,7 +250,7 @@ PyStringObject 对象 。 这样当判断两个 PyStringObject 对象是否相�
         PyString_CHECK_INTERNED(s) = SSTATE_INTERNED_MORTAL;
     }
 
-    [上述代码是代码包中的代码，下面的是书中的代码]
+    //[上述代码是代码包中的代码，下面的是书中的代码]
 
     void
     PyString_InternInPlace(PyObject **p)

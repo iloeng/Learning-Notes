@@ -1,4 +1,4 @@
-.. _patterns:
+.. _patterns-0.4:
 
 Patterns for Flask
 ==================

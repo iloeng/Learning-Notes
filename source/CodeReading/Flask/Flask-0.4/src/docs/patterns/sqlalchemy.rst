@@ -1,11 +1,11 @@
-.. _sqlalchemy-pattern:
+.. _sqlalchemy-pattern-0.4:
 
 SQLAlchemy in Flask
 ===================
 
 Many people prefer `SQLAlchemy`_ for database access.  In this case it's
 encouraged to use a package instead of a module for your flask application
-and drop the models into a separate module (:ref:`larger-applications`).
+and drop the models into a separate module (:ref:`larger-applications-0.4`).
 While that is not necessary, it makes a lot of sense.
 
 There are three very common ways to use SQLAlchemy.  I will outline each

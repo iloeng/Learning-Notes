@@ -1,17 +1,11 @@
 ###############################################################################
-源码阅读笔记
+Requests 源码阅读笔记
 ###############################################################################
 
 .. toctree::
    :maxdepth: 1
    :caption: 目录:
 
-   Asyncio/index.rst
-   Flask/index.rst
-   Pieces/index.rst
-   Python/index.rst
-   Python-Standard-Library/index.rst
-   Requests/index.rst
-   TinyDB/index.rst
-   TinyHTTPd/index.rst
-
+   requests-0.2.0/README.rst
+   requests-0.2.0/HISTORY.rst
+   requests-0.2.0/docs/index.rst

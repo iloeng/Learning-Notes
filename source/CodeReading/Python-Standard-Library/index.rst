@@ -1,17 +1,12 @@
 ###############################################################################
-源码阅读笔记
+Python Standard Library
 ###############################################################################
+
+Python 标准库代码笔记
 
 .. toctree::
    :maxdepth: 1
    :caption: 目录:
 
-   Asyncio/index.rst
-   Flask/index.rst
-   Pieces/index.rst
-   Python/index.rst
-   Python-Standard-Library/index.rst
-   Requests/index.rst
-   TinyDB/index.rst
-   TinyHTTPd/index.rst
-
+   Python-Standard-Library.rst
+   string/string-01.rst

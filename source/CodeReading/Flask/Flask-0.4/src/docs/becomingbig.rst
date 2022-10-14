@@ -1,4 +1,4 @@
-.. _becomingbig:
+.. _becomingbig-0.4:
 
 Becoming Big
 ============

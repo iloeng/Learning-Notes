@@ -1,4 +1,4 @@
-.. _testing:
+.. _testing-0.1:
 
 Testing Flask Applications
 ==========================
@@ -23,7 +23,7 @@ The Application
 ---------------
 
 First we need an application to test for functionality.  For the testing
-we will use the application from the :ref:`tutorial`.  If you don't have
+we will use the application from the :ref:`tutorial-0.1`.  If you don't have
 that application yet, get the sources from `the examples`_.
 
 .. _the examples:

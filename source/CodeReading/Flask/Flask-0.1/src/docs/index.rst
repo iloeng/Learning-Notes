@@ -7,12 +7,12 @@ Welcome to Flask
 
 Welcome to Flask's documentation.  This documentation is divided in
 different parts.  I would suggest to get started with the
-:ref:`installation` and then heading over to the :ref:`quickstart`.
-Besides the quickstart there is also a more detailed :ref:`tutorial` that
+:ref:`installation-0.1` and then heading over to the :ref:`quickstart-0.1`.
+Besides the quickstart there is also a more detailed :ref:`tutorial-0.1` that
 shows how to create a complete (albeit small) application with Flask.  If
 you rather want to dive into all the internal parts of Flask, check out
-the :ref:`api` documentation.  Common patterns are described in the
-:ref:`patterns` section.
+the :ref:`api-0.1` documentation.  Common patterns are described in the
+:ref:`patterns-0.1` section.
 
 Flask also depends on two external libraries: the `Jinja2`_ template
 engine and the `Werkzeug`_ WSGI toolkit.  both of which are not documented
