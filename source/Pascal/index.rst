@@ -4,5 +4,4 @@ Delphi/Pascal 语言
 
 .. toctree::
    :maxdepth: 1
-   :numbered:
    :caption: 目录:

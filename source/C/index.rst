@@ -4,7 +4,6 @@ C 语言
 
 .. toctree::
    :maxdepth: 1
-   :numbered:
    :caption: 目录:
 
    Let's.Build.a.Simple.Database/index.rst

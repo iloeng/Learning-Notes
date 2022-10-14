@@ -6,7 +6,6 @@
 
 .. toctree::
    :maxdepth: 1
-   :numbered:
    :caption: 目录:
 
    BitTorrent-in-Go/Go-BitTorrent.rst

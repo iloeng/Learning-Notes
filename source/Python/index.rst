@@ -4,7 +4,6 @@ Python 语言
 
 .. toctree::
    :maxdepth: 1
-   :numbered:
    :caption: 目录:
 
    Write.NoSQL.Database.in.Python/Write-NoSQL-01.rst

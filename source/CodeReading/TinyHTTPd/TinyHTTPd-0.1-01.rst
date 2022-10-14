@@ -21,7 +21,7 @@ Tinyhttpd 项目开始 。
 
 补充一下 ， 我的 WSL2 中的 GCC 版本为 10.2.1 20210110 ：
 
-.. code-block:: c
+.. code-block:: bash
 
     ┌──(home㉿Station)-[/mnt/c/Users/Darker]
     └─$ gcc -v
@@ -495,7 +495,7 @@ url[255] 和 path[512] 分别表示请求方法 、 URL 链接以及路径 ， �
 
     #define ISspace(x) isspace((int)(x))
 
-    isspace(int c) 检查所传的字符是否是空白字符。
+    isspace(int c) //检查所传的字符是否是空白字符。
     ' '     (0x20)    space (SPC) 空格符
     '\t'    (0x09)    horizontal tab (TAB) 水平制表符    
     '\n'    (0x0a)    newline (LF) 换行符
