@@ -16,8 +16,237 @@ Python 源码阅读系列 2
 第 1 章  Python 对象初探
 ******************************************************************************
 
+1.1 Python 内的对象
+==============================================================================
+
+对象是数据以及基于这些数据的操作的集合 。 在计算机中 ， 一个对象实际上就是一片被分配\
+的内存空间 ， 这些内存可能是连续的 ， 也可能是离散的 ， 这并不重要 ， 重要的是这片内\
+存在更高层次上可以作为一个整体来考虑 ， 这个整体就是一个对象 。 在这片内存中 ， 存储\
+着一系列的数据以及可以对这些数据进行修改或读取操作的一系列代码 。
+
+在 Python 中 ， 对象就是为 C 中的结构体在堆上申请的一块内存 ， 一般来说 ， 对象是不\
+能被静态初始化的 ， 而且也不能在栈空间上生存 。 唯一的例外就是类型对象 ， Python 中\
+所有的内建的类型对象 （如整数类型对象 ， 字符串类型对象） 都是被静态初始化的 。
+
+在 Python 中 ， 一个对象一旦被创建 ， 它在内存中的大小就是不变的了 。 这意味着那些\
+需要容纳可变长度数据的对象只能在对象内维护一个指向一块可变大小的内存区域的指针 。 
+
+1.1.1 Python 对象的基石 - PyObject
+------------------------------------------------------------------------------
+
+在 Python 中 ， 所有的东西都是对象 ， 而所有的对象都拥有一些相同的内容 ， 这些内容在 \
+PyObject 中定义 ， PyObject 是整个 Python 对象机制的核心 。
+
+.. code-block:: c
+
+    [Include/object.h]
+
+    typedef struct _object {
+        PyObject_HEAD
+    } PyObject;
+
+这个结构体是 Python 对象机制的核心基石 ， 从代码中可以看到 ， Python 对象的秘密都隐\
+藏在 PyObject_HEAD 这个宏中 。
+
+.. code-block:: c
+
+    [Include/object.h]
+
+    #ifdef Py_TRACE_REFS
+    /* Define pointers to support a doubly-linked list of all live heap objects. */
+    #define _PyObject_HEAD_EXTRA		\
+        struct _object *_ob_next;	\
+        struct _object *_ob_prev;
+
+    #define _PyObject_EXTRA_INIT 0, 0,
+
+    #else
+    #define _PyObject_HEAD_EXTRA
+    #define _PyObject_EXTRA_INIT
+    #endif
+
+    /* PyObject_HEAD defines the initial segment of every PyObject. */
+    #define PyObject_HEAD			\
+        _PyObject_HEAD_EXTRA		\
+        Py_ssize_t ob_refcnt;		\
+        struct _typeobject *ob_type;
+
+Release 编译 Python 的时候 ， 是不会定义符号 Py_TRACE_REFS 的 。 所以在实际发布的 \
+Python 中 ， PyObject 的定义非常简单 ： 
+
+.. code-block:: c
+
+    [Include/object.h]
+
+    typedef struct _object {
+        Py_ssize_t ob_refcnt;		// 书中是 int ob_refcnt; 对此我有点而疑惑
+        struct _typeobject *ob_type;
+    } PyObject;    
+
+在 PyObject 的定义中 ， 整型变量 ob_refcnt (目前不确定是不是整型 ， 但是书中是的) \
+与 Python 的内存管理机制有关 ， 它实现了基于引用计数的垃圾搜集机制 。 对于某一个对象 \
+A ， 当有一个新的 PyObject * 引用该对象时 ， A 的引用计数应该增加 ； 而当这个 \
+PyObject * 被删除时 ， A 的引用计数应该减少 。 当 A 的引用计数减少到 0 时 ， A 就\
+可以从堆上被删除 ， 以释放出内存供别的对象使用 。
+
+ob_type 是一个指向 _typeobject 结构体的指针 ， _typeobject 结构体对应着 Python 内\
+部的一种特殊对象 ， 用来指定一个对象类型的类型对象 。
+
+由此可以看出 ， 在 Python 中 ， 对象机制的核心其实非常简单 ， 一个是引用计数 ， 一个\
+就是类型信息 。
+
+在 PyObject 中定义了每个 Python 对象都必须有的内容 ， 这些内容将出现在每个 Python \
+对象所占有的内存的最开始的字节中 。 例如 ： 
+
+.. code-block:: c
+
+    [Include/intobject.h]
+
+    typedef struct {
+        PyObject_HEAD
+        long ob_ival;
+    } PyIntObject;
+
+Python 的整数对象中 ， 除了 PyObject ， 还有一个额外的 long 变量 ， 整数的值就保存\
+在 ob_ival 中 。 同样 ， 字符串对象 、 list对象 、 dict对象 、 其他对象 ， 都在 \
+PyObject 之外保存了属于自己的特殊信息 。
+
+1.1.2 定长对象和变长对象
+------------------------------------------------------------------------------
+
+整数对象的特殊信息是一个 C 中的整型变量 ， 无论这个整数对象的值有多大 ， 都可以保存在\
+这个整型变量 ( ob_ival ) 中 。 Python 在 PyObject 对象之外，还有一个表示这类对象的\
+结构体 - PyVarObject :
+
+.. code-block:: c 
+
+    [Include/object.h]
+
+    #define PyObject_VAR_HEAD		\
+        PyObject_HEAD			\
+        Py_ssize_t ob_size; /* Number of items in variable part */
+        // 此处书中是 int ob_size
+    
+    typedef struct {
+        PyObject_VAR_HEAD
+    } PyVarObject;
+
+把整数对象这样不包含可变数据的对象称为 "定长对象" ， 而字符串对象这样的包含了可变数据\
+的对象称为 "变长对象" 。 区别在于定长对象的不同对象占用的内存大小是一样的，而变长对象\
+的不同对象占用的内存可能是不一样的 。 比如 ， 整数对象 "1" 和 "100" 占用的内存大小都\
+是 sizeof(PyIntObject) ， 而字符串对象 "Python" 和 "Ruby" 占用的内存大小就不同了 \
+。 正是这种区别导致了 PyVarObject 对象中 ob_size 的出现 。 变长对象通常都是容器 ， \
+ob_size 这个成员实际上就是指明了变长对象中一共容纳了多少个元素 。 注意 ， ob_size 指\
+明的是所容纳元素的个数 ， 而不是字节的数量 。 例如 ， Python 中最常用的 list 就是一\
+个 PyVarObject 对象 ， 如果 list 中有 5 个元素 ， 那么 ob_size 的值就是 5 。
+
+从 PyObject_VAR_HEAD 的定义可以看出 ， PyVarObject 实际上只是对 PyObject 的一个拓\
+展 。 因此对于任何一个 PyVarObject ， 其所占用的内存 ， 开始部分的字节的意义和 \
+PyObject 是一样的 。 在 Python 内部 ， 每个对象都拥有相同的对象头部 ， 这使得 \
+Python 中对对象的引用变得非常统一 ， 只需要用一个 PyObject * 指针就可以引用任意的一\
+个对象 ， 不论该对象实际是什么对象 。
+
+.. image:: img/pyobject-1-1.png
+
 1.2 类型对象
 ==============================================================================
+
+当在内存中分配空间 ， 创建对象的时候 ， 必须要知道申请多大的空间 。 显然 ， 这不是一\
+个定值 ， 因为不同的对象需要不同的空间 。 对象所需的内存空间的大小信息虽然不显见于 \
+PyObject 的定义中 ， 但它却隐身于 PyObject 中 。
+
+实际上 ， 占用内存空间的大小是对象的一种元信息 ， 这样的元信息是与对象所属类型密切相\
+关的 ， 因此一定会出现在与对象所对应的类型对象中 ， 详细考察一下类型对象 _typeobject :
+
+.. code-block:: c 
+
+    [Include/object.h]
+
+    typedef struct _typeobject {
+        PyObject_VAR_HEAD
+        const char *tp_name; /* For printing, in format "<module>.<name>" */
+        Py_ssize_t tp_basicsize, tp_itemsize; /* For allocation */
+
+        /* Methods to implement standard operations */
+
+        destructor tp_dealloc;
+        printfunc tp_print;
+        getattrfunc tp_getattr;
+        setattrfunc tp_setattr;
+        cmpfunc tp_compare;
+        reprfunc tp_repr;
+
+        /* Method suites for standard classes */
+
+        PyNumberMethods *tp_as_number;
+        PySequenceMethods *tp_as_sequence;
+        PyMappingMethods *tp_as_mapping;
+
+        /* More standard operations (here for binary compatibility) */
+
+        hashfunc tp_hash;
+        ternaryfunc tp_call;
+        reprfunc tp_str;
+        getattrofunc tp_getattro;
+        setattrofunc tp_setattro;
+
+        /* Functions to access object as input/output buffer */
+        PyBufferProcs *tp_as_buffer;
+
+        /* Flags to define presence of optional/expanded features */
+        long tp_flags;
+
+        const char *tp_doc; /* Documentation string */
+
+        /* Assigned meaning in release 2.0 */
+        /* call function for all accessible objects */
+        traverseproc tp_traverse;
+
+        /* delete references to contained objects */
+        inquiry tp_clear;
+
+        /* Assigned meaning in release 2.1 */
+        /* rich comparisons */
+        richcmpfunc tp_richcompare;
+
+        /* weak reference enabler */
+        Py_ssize_t tp_weaklistoffset;
+
+        /* Added in release 2.2 */
+        /* Iterators */
+        getiterfunc tp_iter;
+        iternextfunc tp_iternext;
+
+        /* Attribute descriptor and subclassing stuff */
+        struct PyMethodDef *tp_methods;
+        struct PyMemberDef *tp_members;
+        struct PyGetSetDef *tp_getset;
+        struct _typeobject *tp_base;
+        PyObject *tp_dict;
+        descrgetfunc tp_descr_get;
+        descrsetfunc tp_descr_set;
+        Py_ssize_t tp_dictoffset;
+        initproc tp_init;
+        allocfunc tp_alloc;
+        newfunc tp_new;
+        freefunc tp_free; /* Low-level free-memory routine */
+        inquiry tp_is_gc; /* For PyObject_IS_GC */
+        PyObject *tp_bases;
+        PyObject *tp_mro; /* method resolution order */
+        PyObject *tp_cache;
+        PyObject *tp_subclasses;
+        PyObject *tp_weaklist;
+        destructor tp_del;
+
+    #ifdef COUNT_ALLOCS
+        /* these must be last and never explicitly initialized */
+        Py_ssize_t tp_allocs;
+        Py_ssize_t tp_frees;
+        Py_ssize_t tp_maxalloc;
+        struct _typeobject *tp_prev;
+        struct _typeobject *tp_next;
+    #endif
+    } PyTypeObject;
 
 承接上文 _typeobject 代码段 。 
 
