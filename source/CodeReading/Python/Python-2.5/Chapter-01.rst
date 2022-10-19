@@ -1,6 +1,6 @@
-##############################################################################
-Python 源码阅读系列 2
-##############################################################################
+###############################################################################
+Chapter 01 - Python 对象初探
+###############################################################################
 
 ..
     # with overline, for parts
@@ -12,82 +12,79 @@ Python 源码阅读系列 2
 
 .. contents::
 
-******************************************************************************
-第 1 章  Python 对象初探
-******************************************************************************
-
+*******************************************************************************
 1.1 Python 内的对象
-==============================================================================
+*******************************************************************************
 
-对象是数据以及基于这些数据的操作的集合 。 在计算机中 ， 一个对象实际上就是一片被分配\
-的内存空间 ， 这些内存可能是连续的 ， 也可能是离散的 ， 这并不重要 ， 重要的是这片内\
-存在更高层次上可以作为一个整体来考虑 ， 这个整体就是一个对象 。 在这片内存中 ， 存储\
-着一系列的数据以及可以对这些数据进行修改或读取操作的一系列代码 。
+对象是数据以及基于这些数据的操作的集合。 在计算机中， 一个对象实际上就是一片被分配的\
+内存空间， 这些内存可能是连续的， 也可能是离散的， 这并不重要， 重要的是这片内存在更\
+高层次上可以作为一个整体来考虑， 这个整体就是一个对象。 在这片内存中， 存储着一系列的\
+数据以及可以对这些数据进行修改或读取操作的一系列代码。
 
-在 Python 中 ， 对象就是为 C 中的结构体在堆上申请的一块内存 ， 一般来说 ， 对象是不\
-能被静态初始化的 ， 而且也不能在栈空间上生存 。 唯一的例外就是类型对象 ， Python 中\
-所有的内建的类型对象 （如整数类型对象 ， 字符串类型对象） 都是被静态初始化的 。
+在 Python 中， 对象就是为 C 中的结构体在堆上申请的一块内存， 一般来说， 对象是不能被\
+静态初始化的， 而且也不能在栈空间上生存。 唯一的例外就是类型对象， Python 中所有的内\
+建的类型对象 （如整数类型对象， 字符串类型对象） 都是被静态初始化的。
 
-在 Python 中 ， 一个对象一旦被创建 ， 它在内存中的大小就是不变的了 。 这意味着那些\
-需要容纳可变长度数据的对象只能在对象内维护一个指向一块可变大小的内存区域的指针 。 
+在 Python 中， 一个对象一旦被创建， 它在内存中的大小就是不变的了。 这意味着那些需要\
+容纳可变长度数据的对象只能在对象内维护一个指向一块可变大小的内存区域的指针。 
 
 1.1.1 Python 对象的基石 - PyObject
-------------------------------------------------------------------------------
+===============================================================================
 
-在 Python 中 ， 所有的东西都是对象 ， 而所有的对象都拥有一些相同的内容 ， 这些内容在 \
-PyObject 中定义 ， PyObject 是整个 Python 对象机制的核心 。
+在 Python 中， 所有的东西都是对象， 而所有的对象都拥有一些相同的内容， 这些内容在 \
+``PyObject`` 中定义， ``PyObject`` 是整个 Python 对象机制的核心。
 
-.. code-block:: c
+.. topic:: [Include/object.h]
 
-    [Include/object.h]
+    .. code-block:: c
 
-    typedef struct _object {
-        PyObject_HEAD
-    } PyObject;
+        typedef struct _object {
+            PyObject_HEAD
+        } PyObject;
 
-这个结构体是 Python 对象机制的核心基石 ， 从代码中可以看到 ， Python 对象的秘密都隐\
-藏在 PyObject_HEAD 这个宏中 。
+这个结构体是 Python 对象机制的核心基石， 从代码中可以看到， Python 对象的秘密都隐藏\
+在 ``PyObject_HEAD`` 这个宏中。
 
-.. code-block:: c
+.. topic:: [Include/object.h]
 
-    [Include/object.h]
+    .. code-block:: c
 
-    #ifdef Py_TRACE_REFS
-    /* Define pointers to support a doubly-linked list of all live heap objects. */
-    #define _PyObject_HEAD_EXTRA		\
-        struct _object *_ob_next;	\
-        struct _object *_ob_prev;
+        #ifdef Py_TRACE_REFS
+        /* Define pointers to support a doubly-linked list of all live heap objects. */
+        #define _PyObject_HEAD_EXTRA		\
+            struct _object *_ob_next;	\
+            struct _object *_ob_prev;
 
-    #define _PyObject_EXTRA_INIT 0, 0,
+        #define _PyObject_EXTRA_INIT 0, 0,
 
-    #else
-    #define _PyObject_HEAD_EXTRA
-    #define _PyObject_EXTRA_INIT
-    #endif
+        #else
+        #define _PyObject_HEAD_EXTRA
+        #define _PyObject_EXTRA_INIT
+        #endif
 
-    /* PyObject_HEAD defines the initial segment of every PyObject. */
-    #define PyObject_HEAD			\
-        _PyObject_HEAD_EXTRA		\
-        Py_ssize_t ob_refcnt;		\
-        struct _typeobject *ob_type;
+        /* PyObject_HEAD defines the initial segment of every PyObject. */
+        #define PyObject_HEAD			\
+            _PyObject_HEAD_EXTRA		\
+            Py_ssize_t ob_refcnt;		\
+            struct _typeobject *ob_type;
 
-Release 编译 Python 的时候 ， 是不会定义符号 Py_TRACE_REFS 的 。 所以在实际发布的 \
-Python 中 ， PyObject 的定义非常简单 ： 
+Release 编译 Python 的时候， 是不会定义符号 ``Py_TRACE_REFS`` 的。 所以在实际发布\
+的 Python 中， ``PyObject`` 的定义非常简单： 
 
-.. code-block:: c
+.. topic:: [Include/object.h]
 
-    [Include/object.h]
+    .. code-block:: c
 
-    typedef struct _object {
-        Py_ssize_t ob_refcnt;		// 书中是 int ob_refcnt; 对此我有点而疑惑
-        struct _typeobject *ob_type;
-    } PyObject;    
+        typedef struct _object {
+            Py_ssize_t ob_refcnt;		// 书中是 int ob_refcnt; 对此我有点儿疑惑
+            struct _typeobject *ob_type;
+        } PyObject;    
 
-在 PyObject 的定义中 ， 整型变量 ob_refcnt (目前不确定是不是整型 ， 但是书中是的) \
-与 Python 的内存管理机制有关 ， 它实现了基于引用计数的垃圾搜集机制 。 对于某一个对象 \
-A ， 当有一个新的 PyObject * 引用该对象时 ， A 的引用计数应该增加 ； 而当这个 \
-PyObject * 被删除时 ， A 的引用计数应该减少 。 当 A 的引用计数减少到 0 时 ， A 就\
-可以从堆上被删除 ， 以释放出内存供别的对象使用 。
+在 ``PyObject`` 的定义中， 整型变量 ``ob_refcnt`` (目前不确定是不是整型， 但是书中\
+是的) 与 Python 的内存管理机制有关， 它实现了基于引用计数的垃圾搜集机制。 对于某一个\
+对象 A， 当有一个新的 ``PyObject *`` 引用该对象时， A 的引用计数应该增加； 而当这\
+个 ``PyObject *`` 被删除时， A 的引用计数应该减少。 当 A 的引用计数减少到 0 时， A \
+就可以从堆上被删除， 以释放出内存供别的对象使用。
 
 ob_type 是一个指向 _typeobject 结构体的指针 ， _typeobject 结构体对应着 Python 内\
 部的一种特殊对象 ， 用来指定一个对象类型的类型对象 。

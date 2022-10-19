@@ -16,7 +16,7 @@ Python-2.5 源码笔记
    :caption: 目录:
 
    Chapter-00.rst
-   Python-Read-02.rst
+   Chapter-01.rst
    Python-Read-03.rst
    Python-Read-04.rst
    Python-Read-05.rst
