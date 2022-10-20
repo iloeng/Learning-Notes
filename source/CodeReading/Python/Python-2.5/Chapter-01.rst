@@ -306,294 +306,302 @@ Layer)。 这类 API 都具有诸如 ``PyObject_***`` 的形式， 可以应用�
 
     图 1-3 从 PyInt_Type 创建整数对象
 
-标上序号的虚线箭头代表了创建整数对象的函数调用流程 ， 首先 PyInt_Type 中的 tp_new \
-会被调用 ， 如果这个 tp_new 为 NULL (真正的 PyInt_Type 中并不为 NULL ， 只是举例\
-说明 tp_new 为 NULL 的情况) ， 那么会到 tp_base 指定的基类中去寻找 tp_new 操作 \
-， PyBaseObject_Type 的 tp_new 指向了 object_new 。 在 Python 2.2 之后的 new \
-style class 中 ， 所有的类都是以 object 为基类的 ， 所以最终会找到一个不为 NULL \
-的 tp_new 。 在 object_new 中 ， 会访问 PyInt_Type 中记录的 tp_basicsize 信息 \
-， 继而完成申请内存的操作 。 这个信息记录着一个整数对象应该占用多大内存，在 Python \
-源码中 ， 你会看到这个值被设置成了 sizeof(PyIntObject) 。 在调用 tp_new 完成 "创\
-建对象" 之后 ， 流程会转向 PyInt_Type 的 tp_init ， 完成 "初始化对象" 的工作 。 对\
-应到 C++ 中 ， tp_new 可以视为 new 操作符 ， 而 tp_init 则可以视为类的构造函数 。
+标上序号的虚线箭头代表了创建整数对象的函数调用流程， 首先 ``PyInt_Type`` 中的 \
+``tp_new`` 会被调用， 如果这个 ``tp_new`` 为 NULL (真正的 ``PyInt_Type`` 中并不\
+为 NULL， 只是举例说明 ``tp_new`` 为 NULL 的情况)， 那么会到 ``tp_base`` 指定的基\
+类中去寻找 ``tp_new`` 操作， ``PyBaseObject_Type`` 的 ``tp_new`` 指向了 \
+``object_new``。 在 Python 2.2 之后的 ``new style class`` 中， 所有的类都是以 \
+``object`` 为基类的， 所以最终会找到一个不为 NULL 的 ``tp_new``。 在 \
+``object_new`` 中， 会访问 ``PyInt_Type`` 中记录的 ``tp_basicsize`` 信息， 继而\
+完成申请内存的操作。 这个信息记录着一个整数对象应该占用多大内存， 在 Python 源码中\
+， 你会看到这个值被设置成了 ``sizeof(PyIntObject)``。 在调用 ``tp_new`` 完成 "创\
+建对象" 之后， 流程会转向 ``PyInt_Type`` 的 ``tp_init``， 完成 "初始化对象" 的工作\
+。 对应到 C++ 中， ``tp_new`` 可以视为 ``new`` 操作符， 而 ``tp_init`` 则可以视为\
+类的构造函数。
 
 1.2.2 对象的行为
-------------------------------------------------------------------------------
+===============================================================================
 
-在 PyTypeObject 中定义了大量对的函数指针 ， 最终都会指向某个函数 ， 或者指向 NULL \
-。 这些函数指针可以视为类型对象中所定义的操作 ， 而这些操作直接决定着一个对象在运行时\
-所表现的行为 。 
+在 ``PyTypeObject`` 中定义了大量对的函数指针， 最终都会指向某个函数， 或者指向 NULL\
+。 这些函数指针可以视为类型对象中所定义的操作， 而这些操作直接决定着一个对象在运行时\
+所表现的行为。 
 
-如 PyTypeObject 中的 tp_hash 指明对于该类型的对象 ， 如何生成其 Hash 值 。 可以看\
-到 tp_hash 是一个 hashfunc 类型的变量 ， 在 object.h 中 ， hashfunc 实际上是一个\
-函数指针 ： typedef long (\*hashfunc)(PyObject \*) 。 在上一节中看到了 tp_new ， \
-tp_init 是如何决定一个实例对象被创建出来并初始化的 。 在 PyTypeObject 中指定的不同\
-的操作信息也正是一种对象区别于另一种对象的关键所在 。
+如 ``PyTypeObject`` 中的 ``tp_hash`` 指明对于该类型的对象， 如何生成其 Hash 值。 \
+可以看到 ``tp_hash`` 是一个 ``hashfunc`` 类型的变量， 在 *object.h* 中， \
+``hashfunc`` 实际上是一个函数指针： ``typedef long (*hashfunc)(PyObject *)``。 \
+在上一节中看到了 ``tp_new``， ``tp_init`` 是如何决定一个实例对象被创建出来并初始化\
+的。 在 ``PyTypeObject`` 中指定的不同的操作信息也正是一种对象区别于另一种对象的关键\
+所在。
 
-在这些操作信息中 ， 有三组非常重要的操作族 ， 在 PyTypeObject 中 ， 它们是 \
-tp_as_number 、 tp_as_sequence 、 tp_as_mapping 。 它们分别指向 PyNumberMethods \
-、 PySequenceMethods 和 PyMappingMethods 函数族 ， 可以看一下 PyNumberMethods 函\
-数族 ： 
+在这些操作信息中， 有三组非常重要的操作族， 在 ``PyTypeObject`` 中， 它们是 \
+``tp_as_number``、 ``tp_as_sequence``、 ``tp_as_mapping``。 它们分别指向 \
+``PyNumberMethods``、 ``PySequenceMethods`` 和 ``PyMappingMethods`` 函数族， 可\
+以看一下 ``PyNumberMethods`` 函数族： 
 
-.. code-block:: c 
+.. topic:: [Include/object.h]
 
-    [Include/object.h]
+    .. code-block:: c 
 
-    typedef struct {
-        /* For numbers without flag bit Py_TPFLAGS_CHECKTYPES set, all
-        arguments are guaranteed to be of the object's type (modulo
-        coercion hacks -- i.e. if the type's coercion function
-        returns other types, then these are allowed as well).  Numbers that
-        have the Py_TPFLAGS_CHECKTYPES flag bit set should check *both*
-        arguments for proper type and implement the necessary conversions
-        in the slot functions themselves. */
+        typedef struct {
+            /* For numbers without flag bit Py_TPFLAGS_CHECKTYPES set, all
+            arguments are guaranteed to be of the object's type (modulo
+            coercion hacks -- i.e. if the type's coercion function
+            returns other types, then these are allowed as well).  Numbers that
+            have the Py_TPFLAGS_CHECKTYPES flag bit set should check *both*
+            arguments for proper type and implement the necessary conversions
+            in the slot functions themselves. */
 
-        binaryfunc nb_add;
-        binaryfunc nb_subtract;
-        binaryfunc nb_multiply;
-        binaryfunc nb_divide;
-        binaryfunc nb_remainder;
-        binaryfunc nb_divmod;
-        ternaryfunc nb_power;
-        unaryfunc nb_negative;
-        unaryfunc nb_positive;
-        unaryfunc nb_absolute;
-        inquiry nb_nonzero;
-        unaryfunc nb_invert;
-        binaryfunc nb_lshift;
-        binaryfunc nb_rshift;
-        binaryfunc nb_and;
-        binaryfunc nb_xor;
-        binaryfunc nb_or;
-        coercion nb_coerce;
-        unaryfunc nb_int;
-        unaryfunc nb_long;
-        unaryfunc nb_float;
-        unaryfunc nb_oct;
-        unaryfunc nb_hex;
-        /* Added in release 2.0 */
-        binaryfunc nb_inplace_add;
-        binaryfunc nb_inplace_subtract;
-        binaryfunc nb_inplace_multiply;
-        binaryfunc nb_inplace_divide;
-        binaryfunc nb_inplace_remainder;
-        ternaryfunc nb_inplace_power;
-        binaryfunc nb_inplace_lshift;
-        binaryfunc nb_inplace_rshift;
-        binaryfunc nb_inplace_and;
-        binaryfunc nb_inplace_xor;
-        binaryfunc nb_inplace_or;
+            binaryfunc nb_add;
+            binaryfunc nb_subtract;
+            binaryfunc nb_multiply;
+            binaryfunc nb_divide;
+            binaryfunc nb_remainder;
+            binaryfunc nb_divmod;
+            ternaryfunc nb_power;
+            unaryfunc nb_negative;
+            unaryfunc nb_positive;
+            unaryfunc nb_absolute;
+            inquiry nb_nonzero;
+            unaryfunc nb_invert;
+            binaryfunc nb_lshift;
+            binaryfunc nb_rshift;
+            binaryfunc nb_and;
+            binaryfunc nb_xor;
+            binaryfunc nb_or;
+            coercion nb_coerce;
+            unaryfunc nb_int;
+            unaryfunc nb_long;
+            unaryfunc nb_float;
+            unaryfunc nb_oct;
+            unaryfunc nb_hex;
+            /* Added in release 2.0 */
+            binaryfunc nb_inplace_add;
+            binaryfunc nb_inplace_subtract;
+            binaryfunc nb_inplace_multiply;
+            binaryfunc nb_inplace_divide;
+            binaryfunc nb_inplace_remainder;
+            ternaryfunc nb_inplace_power;
+            binaryfunc nb_inplace_lshift;
+            binaryfunc nb_inplace_rshift;
+            binaryfunc nb_inplace_and;
+            binaryfunc nb_inplace_xor;
+            binaryfunc nb_inplace_or;
 
-        /* Added in release 2.2 */
-        /* The following require the Py_TPFLAGS_HAVE_CLASS flag */
-        binaryfunc nb_floor_divide;
-        binaryfunc nb_true_divide;
-        binaryfunc nb_inplace_floor_divide;
-        binaryfunc nb_inplace_true_divide;
+            /* Added in release 2.2 */
+            /* The following require the Py_TPFLAGS_HAVE_CLASS flag */
+            binaryfunc nb_floor_divide;
+            binaryfunc nb_true_divide;
+            binaryfunc nb_inplace_floor_divide;
+            binaryfunc nb_inplace_true_divide;
 
-        /* Added in release 2.5 */
-        unaryfunc nb_index;
-    } PyNumberMethods;
+            /* Added in release 2.5 */
+            unaryfunc nb_index;
+        } PyNumberMethods;
 
-在 PyNumberMethods 中 ， 定义了作为一个数值对象应该支持的操作 。 如果一个对象被视为\
-数值对象 ， 那么其对象的类型对象 PyInt_Type 中 ， tp_as_number.nb_add 就指定了对该\
-对象进行加法操作时的具体行为 。 同样 ， PySequenceMethods 和 PyMappingMethods 中分\
-别定义了作为一个序列对象和关联对象应该支持的行为 ， 这两种对象的典型例子是 list 和 \
-dict 。
+在 ``PyNumberMethods`` 中， 定义了作为一个数值对象应该支持的操作。 如果一个对象被视\
+为数值对象， 那么其对象的类型对象 ``PyInt_Type`` 中， ``tp_as_number.nb_add`` 就\
+指定了对该对象进行加法操作时的具体行为。 同样 ``PySequenceMethods`` 和 \
+``PyMappingMethods`` 中分别定义了作为一个序列对象和关联对象应该支持的行为， 这两种\
+对象的典型例子是 ``list`` 和 ``dict``。
 
-对于一种类型 ， 可以完全同时定义三个函数族中的所有操作 。 即一个对象可以既表现出数值\
-对象的特性也可以表现出关联对象的特性 。 
+对于一种类型， 可以完全同时定义三个函数族中的所有操作。 即一个对象可以既表现出数值对\
+象的特性也可以表现出关联对象的特性。 
 
-.. image:: img/1-4.png
+.. figure:: img/1-4.png
+    :align: center
 
-图 1-4  数值对象和关联对象的混合体
+    图 1-4  数值对象和关联对象的混合体
 
-看上去 a['key'] 操作是一个类似于 dict 这样的对象才会支持的操作 。 从 int 继承出来\
-的 MyInt 应该自然就是一个数值对象 ， 但是通过重写 __getitem__ 这个 Python 中的 \
-special method ， 可以视为指定了 MyInt 在 Python 内部对应的 PyTypeObject 对象的 \
-tp_as_mapping.mp_subscript 操作 。 最终 MyInt 的实例对象可以 "表现" 得像一个关联\
-对象 。 归根结底在于 PyTypeObject 中允许一种类型同时指定三种不同对象的行为特性 。 
+看上去 ``a['key']`` 操作是一个类似于 ``dict`` 这样的对象才会支持的操作。 从 \
+``int`` 继承出来的 ``MyInt`` 应该自然就是一个数值对象， 但是通过重写 \
+``__getitem__`` 这个 Python 中的 special method， 可以视为指定了 ``MyInt`` 在 \
+Python 内部对应的 ``PyTypeObject`` 对象的 ``tp_as_mapping.mp_subscript`` 操作。 \
+最终 ``MyInt`` 的实例对象可以 "表现" 得像一个关联对象。 归根结底在于 \
+``PyTypeObject`` 中允许一种类型同时指定三种不同对象的行为特性。 
 
 1.2.3 类型的类型
-------------------------------------------------------------------------------
+===============================================================================
 
-在 PyTypeObject 定义的最开始 ， 可以发现 PyObject_VAR_HEAD ， 意味着 Python 中的\
-类型实际上也是一个对象 。 在 Python 中 ， 任何一个东西都是对象 ， 而每个对象都对应\
-一种类型 ， 那么类型对象的类型是什么 ？ 对于其他对象可以通过与其关联的类型对象确定其\
-类型 ， 可以通过 PyType_Type 来确定一个对象是类型对象 : 
+在 ``PyTypeObject`` 定义的最开始， 可以发现 ``PyObject_VAR_HEAD``， 意味着 \
+Python 中的类型实际上也是一个对象。 在 Python 中， 任何一个东西都是对象， 而每个对象\
+都对应一种类型， 那么类型对象的类型是什么？ 对于其他对象可以通过与其关联的类型对象确\
+定其类型， 可以通过 ``PyType_Type`` 来确定一个对象是类型对象: 
 
-.. code-block:: c
+.. topic:: [Objects/typeobject.c]
 
-    [Objects/typeobject.c]
+    .. code-block:: c
 
-    PyTypeObject PyType_Type = {
-        PyObject_HEAD_INIT(&PyType_Type)
-        0,					/* ob_size */
-        "type",					/* tp_name */
-        sizeof(PyHeapTypeObject),		/* tp_basicsize */
-        sizeof(PyMemberDef),			/* tp_itemsize */
-        (destructor)type_dealloc,		/* tp_dealloc */
-        0,					/* tp_print */
-        0,			 		/* tp_getattr */
-        0,					/* tp_setattr */
-        type_compare,				/* tp_compare */
-        (reprfunc)type_repr,			/* tp_repr */
-        0,					/* tp_as_number */
-        0,					/* tp_as_sequence */
-        0,					/* tp_as_mapping */
-        (hashfunc)_Py_HashPointer,		/* tp_hash */
-        (ternaryfunc)type_call,			/* tp_call */
-        0,					/* tp_str */
-        (getattrofunc)type_getattro,		/* tp_getattro */
-        (setattrofunc)type_setattro,		/* tp_setattro */
-        0,					/* tp_as_buffer */
-        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-            Py_TPFLAGS_BASETYPE,		/* tp_flags */
-        type_doc,				/* tp_doc */
-        (traverseproc)type_traverse,		/* tp_traverse */
-        (inquiry)type_clear,			/* tp_clear */
-        0,					/* tp_richcompare */
-        offsetof(PyTypeObject, tp_weaklist),	/* tp_weaklistoffset */
-        0,					/* tp_iter */
-        0,					/* tp_iternext */
-        type_methods,				/* tp_methods */
-        type_members,				/* tp_members */
-        type_getsets,				/* tp_getset */
-        0,					/* tp_base */
-        0,					/* tp_dict */
-        0,					/* tp_descr_get */
-        0,					/* tp_descr_set */
-        offsetof(PyTypeObject, tp_dict),	/* tp_dictoffset */
-        0,					/* tp_init */
-        0,					/* tp_alloc */
-        type_new,				/* tp_new */
-        PyObject_GC_Del,        		/* tp_free */
-        (inquiry)type_is_gc,			/* tp_is_gc */
-    };
+        PyTypeObject PyType_Type = {
+            PyObject_HEAD_INIT(&PyType_Type)
+            0,					/* ob_size */
+            "type",					/* tp_name */
+            sizeof(PyHeapTypeObject),		/* tp_basicsize */
+            sizeof(PyMemberDef),			/* tp_itemsize */
+            (destructor)type_dealloc,		/* tp_dealloc */
+            0,					/* tp_print */
+            0,			 		/* tp_getattr */
+            0,					/* tp_setattr */
+            type_compare,				/* tp_compare */
+            (reprfunc)type_repr,			/* tp_repr */
+            0,					/* tp_as_number */
+            0,					/* tp_as_sequence */
+            0,					/* tp_as_mapping */
+            (hashfunc)_Py_HashPointer,		/* tp_hash */
+            (ternaryfunc)type_call,			/* tp_call */
+            0,					/* tp_str */
+            (getattrofunc)type_getattro,		/* tp_getattro */
+            (setattrofunc)type_setattro,		/* tp_setattro */
+            0,					/* tp_as_buffer */
+            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+                Py_TPFLAGS_BASETYPE,		/* tp_flags */
+            type_doc,				/* tp_doc */
+            (traverseproc)type_traverse,		/* tp_traverse */
+            (inquiry)type_clear,			/* tp_clear */
+            0,					/* tp_richcompare */
+            offsetof(PyTypeObject, tp_weaklist),	/* tp_weaklistoffset */
+            0,					/* tp_iter */
+            0,					/* tp_iternext */
+            type_methods,				/* tp_methods */
+            type_members,				/* tp_members */
+            type_getsets,				/* tp_getset */
+            0,					/* tp_base */
+            0,					/* tp_dict */
+            0,					/* tp_descr_get */
+            0,					/* tp_descr_set */
+            offsetof(PyTypeObject, tp_dict),	/* tp_dictoffset */
+            0,					/* tp_init */
+            0,					/* tp_alloc */
+            type_new,				/* tp_new */
+            PyObject_GC_Del,        		/* tp_free */
+            (inquiry)type_is_gc,			/* tp_is_gc */
+        };
 
-PyType_Type 在 Python 的类型机制中是一个至关重要的对象 ， 所有用户自定义 class 所\
-对应的 PyTypeObject 对象都是通过这个对象创建的 。 
+``PyType_Type`` 在 Python 的类型机制中是一个至关重要的对象， 所有用户自定义 \
+``class`` 所对应的 ``PyTypeObject`` 对象都是通过这个对象创建的。 
 
-.. image:: img/1-5.png
+.. figure:: img/1-5.png
+    :align: center
 
-图 1-5 PyType_Type 与一般 PyTypeObject 的关系
+    图 1-5 PyType_Type 与一般 PyTypeObject 的关系
 
-图 1-5 中一再出现的 <type 'type'> 就是 Python 内部的 PyType_Type ， 它是所有 \
-class 的 class ， 所以在 Python 中被称为 metaclass 。 关于 PyType_Type 和 \
-metaclass 后面详细剖析 。
+图 1-5 中一再出现的 ``<type 'type'>`` 就是 Python 内部的 ``PyType_Type``， 它是所\
+有 class 的 class， 所以在 Python 中被称为 ``metaclass``。 关于 ``PyType_Type`` \
+和 ``metaclass`` 后面详细剖析。
 
-接着来看 PyInt_Type 是怎么与 PyType_Type 建立关系的 。 在 Python 中 ， 每个对象\
-都将自己的引用计数 、 类型信息保存在开始的部分中 ， 为了方便对这部分内存的初始化 \
-， Python 提供了有用的宏 ： 
+接着来看 ``PyInt_Type`` 是怎么与 ``PyType_Type`` 建立关系的。 在 Python 中， 每个\
+对象都将自己的引用计数、 类型信息保存在开始的部分中， 为了方便对这部分内存的初始化， \
+Python 提供了有用的宏： 
 
-.. code-block:: c 
+.. topic:: [Include/object.h]
 
-    [Include/object.h]
+    .. code-block:: c 
 
-    #ifdef Py_TRACE_REFS
-    /* Define pointers to support a doubly-linked list of all live heap objects. */
-        #define _PyObject_HEAD_EXTRA		\
-            struct _object *_ob_next;	\
-            struct _object *_ob_prev;
-
-    #define _PyObject_EXTRA_INIT 0, 0,
-
-    #else
-    #define _PyObject_HEAD_EXTRA
-    #define _PyObject_EXTRA_INIT
-    #endif
-
-Python 2.5 的代码是上述内容，书中的代码如下：
-
-.. code-block:: c 
-
-    [Include/object.h]
-
-    #ifdef Py_TRACE_REFS
+        #ifdef Py_TRACE_REFS
+        /* Define pointers to support a doubly-linked list of all live heap objects. */
+            #define _PyObject_HEAD_EXTRA		\
+                struct _object *_ob_next;	\
+                struct _object *_ob_prev;
 
         #define _PyObject_EXTRA_INIT 0, 0,
 
-    #else
-    
+        #else
+        #define _PyObject_HEAD_EXTRA
         #define _PyObject_EXTRA_INIT
-    #endif
+        #endif
 
-    #define PyObject_HEAD_INIT(type)    \
-        _PyObject_EXTRA_INIT    \
-        1, type,
+Python 2.5 的代码是上述内容，书中的代码如下：
 
-回顾一下 PyObject 和 PyVarObject 的定义 ， 初始化的动作就一目了然了 。 实际上 ， \
-这些宏在各种內建类型对象的初始化中被大量地使用着 。 
+.. topic:: [Include/object.h]
 
-以 PyInt_Type 为例 ， 可以更清晰地看到一般的类型对象和这个特立独行的 PyType_Type \
-对象之间的关系 ： 
+    .. code-block:: c 
 
-.. code-block:: c 
+        #ifdef Py_TRACE_REFS
 
-    [Objects/intobject.c]
+            #define _PyObject_EXTRA_INIT 0, 0,
 
-    PyTypeObject PyInt_Type = {
-        PyObject_HEAD_INIT(&PyType_Type)
-        0,
-        "int",
-        sizeof(PyIntObject),
-        0,
-        (destructor)int_dealloc,		/* tp_dealloc */
-        (printfunc)int_print,			/* tp_print */
-        0,					/* tp_getattr */
-        0,					/* tp_setattr */
-        (cmpfunc)int_compare,			/* tp_compare */
-        (reprfunc)int_repr,			/* tp_repr */
-        &int_as_number,				/* tp_as_number */
-        0,					/* tp_as_sequence */
-        0,					/* tp_as_mapping */
-        (hashfunc)int_hash,			/* tp_hash */
+        #else
+        
+            #define _PyObject_EXTRA_INIT
+        #endif
+
+        #define PyObject_HEAD_INIT(type)    \
+            _PyObject_EXTRA_INIT    \
+            1, type,
+
+回顾一下 ``PyObject`` 和 ``PyVarObject`` 的定义， 初始化的动作就一目了然了。 实际\
+上， 这些宏在各种內建类型对象的初始化中被大量地使用着。 
+
+以 ``PyInt_Type`` 为例， 可以更清晰地看到一般的类型对象和这个特立独行的 \
+``PyType_Type`` 对象之间的关系： 
+
+.. topic:: [Objects/intobject.c]
+
+    .. code-block:: c 
+
+        PyTypeObject PyInt_Type = {
+            PyObject_HEAD_INIT(&PyType_Type)
+            0,
+            "int",
+            sizeof(PyIntObject),
+            0,
+            (destructor)int_dealloc,		/* tp_dealloc */
+            (printfunc)int_print,			/* tp_print */
+            0,					/* tp_getattr */
+            0,					/* tp_setattr */
+            (cmpfunc)int_compare,			/* tp_compare */
+            (reprfunc)int_repr,			/* tp_repr */
+            &int_as_number,				/* tp_as_number */
+            0,					/* tp_as_sequence */
+            0,					/* tp_as_mapping */
+            (hashfunc)int_hash,			/* tp_hash */
             0,					/* tp_call */
             (reprfunc)int_repr,			/* tp_str */
-        PyObject_GenericGetAttr,		/* tp_getattro */
-        0,					/* tp_setattro */
-        0,					/* tp_as_buffer */
-        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES |
-            Py_TPFLAGS_BASETYPE,		/* tp_flags */
-        int_doc,				/* tp_doc */
-        0,					/* tp_traverse */
-        0,					/* tp_clear */
-        0,					/* tp_richcompare */
-        0,					/* tp_weaklistoffset */
-        0,					/* tp_iter */
-        0,					/* tp_iternext */
-        int_methods,				/* tp_methods */
-        0,					/* tp_members */
-        0,					/* tp_getset */
-        0,					/* tp_base */
-        0,					/* tp_dict */
-        0,					/* tp_descr_get */
-        0,					/* tp_descr_set */
-        0,					/* tp_dictoffset */
-        0,					/* tp_init */
-        0,					/* tp_alloc */
-        int_new,				/* tp_new */
-        (freefunc)int_free,           		/* tp_free */
-    };
+            PyObject_GenericGetAttr,		/* tp_getattro */
+            0,					/* tp_setattro */
+            0,					/* tp_as_buffer */
+            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES |
+                Py_TPFLAGS_BASETYPE,		/* tp_flags */
+            int_doc,				/* tp_doc */
+            0,					/* tp_traverse */
+            0,					/* tp_clear */
+            0,					/* tp_richcompare */
+            0,					/* tp_weaklistoffset */
+            0,					/* tp_iter */
+            0,					/* tp_iternext */
+            int_methods,				/* tp_methods */
+            0,					/* tp_members */
+            0,					/* tp_getset */
+            0,					/* tp_base */
+            0,					/* tp_dict */
+            0,					/* tp_descr_get */
+            0,					/* tp_descr_set */
+            0,					/* tp_dictoffset */
+            0,					/* tp_init */
+            0,					/* tp_alloc */
+            int_new,				/* tp_new */
+            (freefunc)int_free,           		/* tp_free */
+        };
 
-可以通过想象看到一个整数对象在运行是的形象表示，如图 1-6 所示：
+可以通过想象看到一个整数对象在运行是的形象表示， 如图 1-6 所示：
 
-.. image:: img/1-6.png
+.. figure:: img/1-6.png
+    :align: center
 
-图 1-6 运行时整数对象及其类型之间的关系
+    图 1-6 运行时整数对象及其类型之间的关系
 
+*******************************************************************************
 1.3 Python 对象的多态性
-==============================================================================
+*******************************************************************************
 
-通过 PyObject 和 PyTypeObject ， Python 利用 C 语言完成了 C++ 所提供的对象的多态\
-的特性 。 在 Python 中创建一个对象 ， 比如 PyIntObject 对象时 ， 会分配内存 ， 进\
-行初始化 。 然后 Python 内部会用一个 PyObject\* 变量 ， 而不是通过一个 \
-PyIntObject\* 变量来保存和维护这个对象 。 其他对象与此类似 ， 所以在 Python 内部各\
-个函数之间传递的都是一种范型指针 -- PyObject\* 。 我们并不知道这个指针所指的队形究\
-竟是什么类型的 ， 只能从指针所指对象的 ob_type 域进行动态判断 ， 而正是通过这个域 \
-， Python 实现了多态机制 。 
+通过 ``PyObject`` 和 ``PyTypeObject``， Python 利用 C 语言完成了 C++ 所提供的对象\
+的多态的特性。 在 Python 中创建一个对象， 比如 ``PyIntObject`` 对象时， 会分配内存\
+， 进行初始化。 然后 Python 内部会用一个 ``PyObject*`` 变量， 而不是通过一个 \
+``PyIntObject*`` 变量来保存和维护这个对象。 其他对象与此类似， 所以在 Python 内部各\
+个函数之间传递的都是一种范型指针 - ``PyObject*``。 我们并不知道这个指针所指的队形究\
+竟是什么类型的， 只能从指针所指对象的 ``ob_type`` 域进行动态判断， 而正是通过这个域\
+， Python 实现了多态机制。 
 
-看一下 Print 函数 ： 
+看一下 ``Print`` 函数： 
 
 .. code-block:: c
 
