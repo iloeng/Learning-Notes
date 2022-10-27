@@ -518,3 +518,278 @@ Python 运行期间， 只要所有 ``block`` 的空闲内存被使用完， 就
 变为 ``NULL``， 从而在下一次 ``PyInt_FromLong`` 的调用时激发对 \
 ``fill_free_list`` 的调用。 
 
+.. topic:: [Objects/intobject.c]
+
+    .. code-block:: c 
+
+        static PyIntObject *
+        fill_free_list(void)
+        {
+            PyIntObject *p, *q;
+            /* Python's object allocator isn't appropriate for large blocks. */
+            // [1]: 申请大小为 sizeof(PyIntBlock) 的内存空间，并链接到已有的 block_list 中
+            p = (PyIntObject *) PyMem_MALLOC(sizeof(PyIntBlock));
+            if (p == NULL)
+                return (PyIntObject *) PyErr_NoMemory();
+            ((PyIntBlock *)p)->next = block_list;
+            block_list = (PyIntBlock *)p;
+            /* Link the int objects together, from rear to front, then return
+            the address of the last int object in the block. */
+            // [2]: 将PyIntBlock 中的 PyIntObject 数组--objects--转变成单向链表
+            p = &((PyIntBlock *)p)->objects[0];
+            q = p + N_INTOBJECTS;
+            while (--q > p)
+                q->ob_type = (struct _typeobject *)(q-1);
+            q->ob_type = NULL;
+            return p + N_INTOBJECTS - 1;
+        }
+
+在 ``fill_free_list`` 中， 会首先在 [1] 处申请一个新的 ``PyIntBlock`` 结构。 如\
+图 2-4。  
+
+.. figure:: img/2-4.png
+    :align: center
+
+注意: 图中的虚线并表示指针关系， 虚线表示 ``objects`` 的更详细的表示方式。 
+
+这时 ``block`` 中的 ``objects`` 还仅仅是一个 ``PyIntObject`` 对象的数组， 然后 \
+Python 将 ``objects`` 中的所有 ``PyIntObject`` 对象通过指针依次连接起来， 从而将数\
+组变成一个单向链表， 这就是 [2] 处的行为。 从 ``objects`` 数组最后一个元素开始链接\
+， 在链接过程中， Python 使用了 ``PyObject`` 中的 ``ob_type`` 指针作为链接指针。 
+
+图 2-5 展示了 [2] 处的链表转换动作完成之后的 ``block``， 其中用虚线箭头展示了 [2] \
+开始时 p 和 q 的初始状态。 当链表转换完成之后， ``free_list`` 也出现在它该出现的位\
+置。 从 ``free_list`` 开始， 沿着 ``ob_type`` 指针， 就可以遍历刚刚创建的 \
+``PyIntBlock`` 中所有空闲的为 ``PyIntBlock`` 准备的内存了。 
+
+.. figure:: img/2-5.png
+    :align: center
+
+当一个 ``block`` 中还有剩余的内存没有被一个 ``PyIntBlock`` 占用时， \
+``free_list`` 就不会指向 ``NULL``。 这种情况下调用 ``PyInt_FromLong`` 不会申请新\
+的 ``block``。 只有当所有 ``block`` 中的内存都被占用了， ``PyInt_FromLong`` 才会\
+再次调用 ``fill_free_list`` 申请新的空间， 为新的 ``PyIntObject`` 创建新的家园。 
+
+Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新创建的 ``block`` 必须\
+加入到 ``block_list`` 所维护的链表中， 这个动作在 [1] 处完成。 图 2-6 显示了两次申\
+请 ``block`` 后 ``block_list`` 所维护的链表的情况。 ``block_list`` 始终指向最新创\
+建的 ``PyIntBlock`` 对象。
+
+.. figure:: img/2-6.png
+    :align: center
+
+2.2.4.3 使用通用整数对象池
+-------------------------------------------------------------------------------
+
+在 ``PyInt_FromLong`` 中， 必要的空间申请之后， Python 会从当前有 ``free_list`` \
+所维护的自由内存链表中划出一块， 并在这块内存上创建所需要的新的 ``PyIntObject`` 对象\
+， 同时还会对 ``PyIntObject`` 对象完成必要的初始化工作。 Python 还将调整 \
+``free_list`` 指针， 使其指向下一块还没有被使用的内存。 
+
+在图 2-6 中， 两个 ``PyIntBlock`` 处于同一个链表中， 但是每个 ``PyIntBlock`` 中至\
+关重要的存放 ``PyIntObject`` 对象的 ``objects`` 却是分离的， 这样的结构存在着隐患： 
+
+现有两个 ``PyIntBlock`` 对象， *PyIntBlock1* 和 *PyIntBlock2*， *PyIntBlock1* 中\
+的 ``objects`` 已经被 ``PyIntObject`` 对象填满， 而 *PyIntBlock2* 中的 \
+``object`` 只填充了一部分。 所以现在 ``free_list`` 指针指向的是 \
+``PyIntBlock2.objects`` 中空闲的内存块。 假设现在 ``PyIntBlock1.objects`` 中的一\
+个 ``PyIntObject`` 对象被删除了， 这意味着 *PyIntBlock1* 中出现了一块空闲的内存， \
+那么下次创建新的 ``PyIntObject`` 对象时应该使用 *PyIntBlock1* 中的这块内存。 倘若\
+不然， 就意味着所有的内存只能使用一次， 这跟内存泄漏也没什么区别了。 
+
+实际上， 不同 ``PyIntBlock`` 对象的 ``objects`` 中空闲的内存块是被链接在一起的， \
+形成了一个单向链表， 指向表头的指针正是 ``free_list``。 不同 ``PyIntBlock`` 中的空\
+闲内存块是在 ``PyIntObject`` 对象被销毁的时候被链接在一起的。 
+
+在 Python 对象机制中， 每个对象都有一个引用计数与之相关联， 当这个引用计数减为 0 时\
+， 就意味着这个世上再也没有谁需要它了， 于是 Python 会负责将这个对象销毁。 Python 中\
+不同对象在销毁时会进行不同的动作， 销毁动作在与对象对应的类型对象中被定义， 这个关键\
+的操作就是类型对象中的 ``tp_dealloc``。 看一下 ``PyIntObject`` 对象的 \
+``tp_dealloc`` 操作： 
+
+.. topic:: [Objects/intobject.c]
+
+    .. code-block:: c 
+
+        static void
+        int_dealloc(PyIntObject *v)
+        {
+            if (PyInt_CheckExact(v)) {
+                v->ob_type = (struct _typeobject *)free_list;
+                free_list = v;
+            }
+            else
+                v->ob_type->tp_free((PyObject *)v);
+        }
+
+由 ``block_list`` 维护的 ``PyIntBlock`` 链表中的内存实际上是所有的大整数对象共同分\
+享的。 当一个 ``PyIntObject`` 对象被销毁时， 它所占用的内存并不会被释放， 而是继续\
+被 Python 保留着。 但是这块内存在整数对象被销毁后变为了自由内存， 将来可供别的 \
+``PyIntObject`` 使用， 所以 Python 应该将其链入了 ``free_list`` 所维护的自由内存\
+链表。 ``int_dealloc`` 完成的就是这么一个简单的指针维护工作。 这些动作是在销毁的对象\
+确实是一个 ``PyIntObject`` 对象时发生的。 如果删掉的对象是一个整数的派生类的对象， \
+那么 ``int_dealloc`` 不做任何动作， 只是简单地调用派生类型中指定的 ``tp_free``。
+
+在图 2-7 中相继创建和删除 ``PyIntObject`` 对象， 并展示了内存中的 ``PyIntObject`` \
+对象以及 ``free_list`` 指针的变化情况。 在实际 Python 行为中， 创建 2，3，4 这样的\
+整数对象， 使用的实际上是 ``small_ints`` 这样的小整数对象池， 在这里仅仅是为了展示通\
+用整数对象池的动态变化， 没有考虑实际使用的内存。 
+
+.. figure:: img/2-7.png
+    :align: center
+
+不同 ``PyIntBlock`` 对象中空闲内存的互联也是在 ``int_dealloc`` 被调用时实现的 （白\
+色表示空闲内存）： 
+
+.. figure:: img/2-8.png
+    :align: center
+
+当一个整数对象的引用计数变为 0 时， 就会被 Python 回收， 但是在 ``int_dealloc`` 中\
+， 仅仅是将该整数对象的内存重新加入到自由内存链表中。 也就是说， 在 ``int_dealloc`` \
+中， 永远不会向系统堆交换任何内存。 一旦系统堆中某块内存被 Python 申请用于整数对象\
+， 那么这块内存在 Python 结束之前永远不会被释放。 
+
+2.2.5 小整数对象池的初始化
+===============================================================================
+
+小整数对象池 ``small_ints`` 维护的只是 ``PyIntObject`` 的指针， 完成小整数对象的创\
+建和初始化的函数是 ``_PyInt_Init``。
+
+.. topic:: [Objects/intobject.c]
+
+    .. code-block:: c 
+
+        int
+        _PyInt_Init(void)
+        {
+            PyIntObject *v;
+            int ival;
+        #if NSMALLNEGINTS + NSMALLPOSINTS > 0
+            for (ival = -NSMALLNEGINTS; ival < NSMALLPOSINTS; ival++) {
+                    if (!free_list && (free_list = fill_free_list()) == NULL)
+                    return 0;
+                /* PyObject_New is inlined */
+                v = free_list;
+                free_list = (PyIntObject *)v->ob_type;
+                PyObject_INIT(v, &PyInt_Type);
+                v->ob_ival = ival;
+                small_ints[ival + NSMALLNEGINTS] = v;
+            }
+        #endif
+            return 1;
+        }
+
+从小整数的创建过程中可以看到， 这些小整数对象也是生存在 ``block_list`` 所维护的内存\
+上。 在 Python 初始化的时候， ``_PyInt_Init`` 被调用， 内存被申请， 小整数对象被创\
+建。
+
+.. figure:: img/2-9.png
+    :align: center
+
+*******************************************************************************
+2.3 Hack PyIntObject
+*******************************************************************************
+
+来修改 ``int_print`` 行为， 使其打印关于 ``block_list`` 和 ``free_list`` 的信息\
+， 以及小整数缓冲池的信息： 
+
+.. topic:: [Objects/intobject.c]
+
+    .. code-block:: c 
+
+        static int
+        int_print(PyIntObject *v, FILE *fp, int flags)
+            /* flags -- not used but required by interface */
+        {
+            fprintf(fp, "%ld", v->ob_ival);
+            return 0;
+        }
+
+        // [修改后]
+
+        static int values[10];
+        static int refcounts[10];
+        static int int_print(PyIntObject *v, FILE *fp, int flags)
+        {
+            PyIntObject* intObjectPtr;
+            PyIntBlock *p = block_list;
+            PyIntBlock *last = NULL;
+            int count = 0;
+            int i;
+
+            while (p!= NULL)
+            {
+                ++count;
+                last = p;
+                p = p->next;
+            }
+
+            intObjectPtr = last->objects;
+            intObjectPtr += N_INTOBJECTS - 1;
+            printf(" address @%p\n", v);
+
+            for (i=0; i<10; ++i, --intObjectPtr)
+            {
+                values[i] = intObjectPtr->ob_ival;
+                refcounts[i] = intObjectPtr->ob_refcnt;
+            }
+            printf("  value : ");
+            for (i=0; i<8; ++i)
+            {
+                printf("%d\t", values[i]);
+            }
+            printf("\n");
+
+            printf("  refcnt : ");
+            for (i=0; i<8; ++i)
+            {
+                printf("%d\t", refcounts[i]);
+            }
+            printf("\n");
+
+            printf(" block_list count : %d\n", count);
+            printf(" free_list : %p\n", free_list);
+
+            return 0;
+        }
+
+在初始化小整数缓冲池时， 对于 ``block_list`` 及每个 ``PyIntBlock`` 的 ``objects``\
+， 都是从后往前开始填充的， 所以在初始化完成后， ``-5`` 应该在最后一个 \
+``PyIntBlock`` 对象的 ``objects`` 内最后一块内存， 需要顺藤摸瓜一直找到最后一块内存\
+才能观察从 ``-5`` 到 ``4`` 这 10 个小整数。 
+
+创建一个 ``PyIntObject`` 对象 ``-9999``， 从图中可以看到， 小整数对象被 Python 自\
+身使用多次。 
+
+.. figure:: img/2-10.png
+    :align: center
+
+现在的 ``free_list`` 指向地址为 ``00C191E4`` 的内存， 根据对 ``PyIntObject`` 的分\
+析， 那么下一个 ``PyIntObject`` 会在这个地址安身立命。 再创建两个 ``PyIntObject`` \
+对象， 值分别为 ``-12345``：
+
+.. figure:: img/2-11.png
+    :align: center
+
+从图示可以看到 a 的地址正是创建 i 后 ``free_list`` 所指向的地址， 而 b 的地址也正是\
+创建 a 后 ``free_list`` 所指的地址。 虽然 a 和 b 的值都是一样的， 但是他们确实是两\
+个完全没有关系的 ``PyIntObject`` 对象， 这点儿可以从内存地址上看清楚。 
+
+现在删除 b， 结果如下：
+
+.. figure:: img/2-12.png
+    :align: center
+
+删除 b 后， ``free_list`` 回退到 a 创建后 ``free_list`` 的位置， 这点儿与之前的分\
+析是一致的。 
+
+最后看一下小整数对象的监控， 连续两次创建 ``PyIntObject`` 对象 ``-5``， 结果如图所\
+示：
+
+.. figure:: img/2-13.png
+    :align: center
+
+可以看到， 两次创建的 ``PyIntObject`` 对象 c1 和 c2 的地址都是 ``00AB5948``， 这证\
+明它们实际上是同一个对象。 同时可以看到小整数对象池中 ``-5`` 的引用计数发生了变化， \
+这证明 c1 和 c2 实际上都是指向这个对象。 此外 ``free_list`` 没有发生任何变化， 与分\
+析相符。
