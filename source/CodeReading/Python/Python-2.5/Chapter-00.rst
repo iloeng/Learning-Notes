@@ -119,10 +119,9 @@ Python 2.5 的代码结构如下：
     错， 缺少了一个必要文件， 源码包中没有提供， 需要编译 ``make_buildinfo`` 和 \
     ``make_versioninfo`` 子工程生成。
 
-    编译成功后， 结果都在 **build** 文件夹下， 主要有两个： python25.dll 和 \
+    编译成功后， 结果都在 **PCBuild** 文件夹下， 主要有两个： python25.dll 和 \
     python.exe。 Python 解释器的全部代码都在 python25.dll 中。 对于 WinXP 系统， \
-    安装 python 时， python25.dll 会被拷贝到 ``C:\Windows\system32`` 下。 （此结\
-    果来自与书中， 后续我会尝试在本地编译一次试试）。
+    安装 python 时， python25.dll 会被拷贝到 ``C:\Windows\system32`` 下。
 
 *******************************************************************************
 0.3 Windows 环境下编译 Python 
@@ -130,37 +129,45 @@ Python 2.5 的代码结构如下：
 
 使用 Visual Studio .Net 2003 打开 **PCBuild** 目录下的工程文件。
 
-首先配置工程， 如图 0-4 所示：
+首先配置工程， 刚打开工程文件如图 0-4 所示：
 
 .. figure:: img/0-4.png
     :align: center
 
     图 0-4 调出设置属性对话框
 
-在配置对话框中， 首先修改 Startup Project， Python-2.5 中默认设置的是 ``_bsddb``\
-， 需要改为 Python 如图 0-5 所示
+在配置对话框中， 首先修改 Startup Project （启动项目）， Python-2.5 中默认设置的\
+是 ``_bsddb``， 需要改为 python 如图 0-5 所示
 
 .. figure:: img/0-5.png
     :align: center
 
     图 0-5 改变 startup project
 
-由于只剖析 Python 的核心部分， 不会涉及工程中的一些标准库和其他模块， 所以将其从编译\
-列表中删除。 点击配置对话框中的 "Configuration Properties" 后， 会出现当前配置为需\
-要编译的子工程， 取消多余的子工程的选中状态， 只保留 *pythoncore* 和 *Python* 的选\
-中状态， 如图 0-6 所示：
+由于只剖析 Python 的核心部分， 不会涉及工程中的一些标准库和其他模块， 所以将它们从编\
+译列表中删除。 点击配置对话框中的 "Configuration Properties" (配置管理器) 后， 会\
+出现当前配置为需要编译的子工程， 取消多余的子工程的选中状态， 只保留 *pythoncore* \
+和 *python* 的选中状态， 如图 0-6 所示：
+
+.. figure:: img/0-6-1.png
+    :align: center
 
 .. figure:: img/0-6.png
     :align: center
 
     图 0-6 取消不相关子工程
 
-做完这些改动之后 ， 不能直接编译 ， 否则仍会失败 。 
+做完这些改动之后， 直接编译仍会失败。 
 
 .. figure:: img/0-7.png
     :align: center
 
-    图 0-7 编译失败
+    图 0-7 编译失败(书中的错误信息)
+
+.. figure:: img/0-7-1.png
+    :align: center
+
+    图 0-7-1 编译失败(实操的错误信息)
 
 这是因为需要一个必要的文件， 这个文件需要通过编译 ``make_buildinfo`` 和 \
 ``make_versioninfo`` 子工程 (如图 0-8 所示) 才能完成：
@@ -170,10 +177,20 @@ Python 2.5 的代码结构如下：
 
     图 0-8 编译 make_buildinfo 和 make_versioninfo 两个子工程
 
-再次编译， 编译的结果都放在 **build** 文件夹下， 主要有两个： python25.dll 和 \
-Python.exe。 实际 python.exe 非常小， Python 解释器的全部代码都在 python25.dll 中\
-。 对于 WinXP 操作系统， 在安装时 python25.dll 会被拷贝到 \
+再次编译， 编译的结果都放在 **PCBuild** 文件夹下， 主要文件有两个： python25.dll \
+和 python.exe。 实际 python.exe 非常小， Python 解释器的全部代码都在 \
+python25.dll 中。 对于 WinXP 操作系统， 在安装时 python25.dll 会被拷贝到 \
 ``C:\Windows\system32`` 目录下。 
+
+.. figure:: img/0-9-1.png
+    :align: center
+
+    图 0-9-1 编译成功(Debug模式)
+
+.. figure:: img/0-9-2.png
+    :align: center
+
+    图 0-9-2 运行 Python-2.5
 
 *******************************************************************************
 0.4 Unix/Linux 环境下编译 Python
@@ -211,34 +228,59 @@ libpython2.5.a， 用 C 语言对 Python 进行拓展时需要用到这个静态
 然后借用 Python 的 C API 中提供的输出对象接口， 代码在 ``Include/object.h`` 文件里\
 ， 代码如下：
 
-.. code-block:: c
+.. topic:: [Include/object.h]
 
-    [Include/object.h]
+    .. code-block:: c
 
-    PyAPI_FUNC(int) PyObject_Print(PyObject *, FILE *, int);
+        PyAPI_FUNC(int) PyObject_Print(PyObject *, FILE *, int);
 
 修改后的代码如下：
 
-.. code-block:: c
+.. topic:: Objects/intobject.c
 
-    static int
-    int_print(PyIntObject *v, FILE *fp, int flags)
-        /* flags -- not used but required by interface */
-    {
-      
-        PyObject* str = PyString_FromString("i am in int_print");
-        PyObject_Print(str, stdout, 0);
-        printf("\n");
+    .. code-block:: c
 
-        fprintf(fp, "%ld", v->ob_ival);
-        return 0;
-    }
+        static int
+        int_print(PyIntObject *v, FILE *fp, int flags)
+            /* flags -- not used but required by interface */
+        {
+        
+            PyObject* str = PyString_FromString("i am in int_print");
+            PyObject_Print(str, stdout, 0);
+            printf("\n");
+
+            fprintf(fp, "%ld", v->ob_ival);
+            return 0;
+        }
 
 
 ``PyString_FromString`` 是 Python 提供的 C API， 用于从 C 中的原生字符数组创建出 \
 Python 中的字符串对象。 ``PyObject_Print`` 函数中第二个参数指明的是输出目标。 代码\
 中使用的是 ``stdout``， 即指定的输出目标是标准输出。
 
+.. figure:: img/0-10.png
+    :align: center
+
+    图 0-10 在 Python 源码中输出额外信息
+
+在 ``PyObject_Print`` 中， 第二个参数指明的是输出目标。 上面的例子使用了 \
+``stdout``， 指定了输出目标为标准输出， 当我们从命令行环境中激活 Python 时， 没有问\
+题， 但是如果使用 IDLE 的话， 就会发现， 输出的信息没有了。 原因是 IDLE 的输出目标已\
+经不是 ``stdout`` 了， 说明加入的输出代码失效了。 在 Python 中， 有一个特性 —— 可以\
+自己重定向标准输出， 考虑图 0-11 所示的例子：
+
+.. figure:: img/0-11.png
+    :align: center
+
+    图 0-11 重定向标准输出
+
+.. figure:: img/0-12.png
+    :align: center
+
+    图 0-12 重定向后的标准输出——my_stdout.txt
+
+如果想让自己添加的代码输出到 IDLE 中， 我们也必须使用重定向之后的标准输出， 而不能再\
+使用 stdout 这个系统标准输出了。 
 重定向输出：
 
 .. code-block:: c 
