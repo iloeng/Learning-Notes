@@ -76,21 +76,45 @@ Release 编译 Python 的时候， 是不会定义符号 ``Py_TRACE_REFS`` 的�
     .. code-block:: c
 
         typedef struct _object {
-            Py_ssize_t ob_refcnt;		// 书中是 int ob_refcnt; 对此我有点儿疑惑
+            int ob_refcnt;
             struct _typeobject *ob_type;
         } PyObject;    
 
-在 ``PyObject`` 的定义中， 整型变量 ``ob_refcnt`` (目前不确定是不是整型， 但是书中\
-是的) 与 Python 的内存管理机制有关， 它实现了基于引用计数的垃圾搜集机制。 对于某一个\
-对象 A， 当有一个新的 ``PyObject *`` 引用该对象时， A 的引用计数应该增加； 而当这\
-个 ``PyObject *`` 被删除时， A 的引用计数应该减少。 当 A 的引用计数减少到 0 时， A \
-就可以从堆上被删除， 以释放出内存供别的对象使用。
+        // [Include/patchlevel.h]
+        #define PY_VERSION_HEX ((PY_MAJOR_VERSION << 24) | \
+			(PY_MINOR_VERSION << 16) | \
+			(PY_MICRO_VERSION <<  8) | \
+			(PY_RELEASE_LEVEL <<  4) | \
+			(PY_RELEASE_SERIAL << 0))
+
+        // 0x010502B2 == 1.5.2b2.当 Python 版本小于 2.5 时， Py_ssize_t 等价于 int
+        // 书中直接使用 int 替换感觉不太严谨
+        #if (PY_VERSION_HEX < 0x02050000) 
+        typedef int Py_ssize_t;
+        #endif
+
+        // [Include/pyport.h]
+        #ifdef HAVE_SSIZE_T
+        typedef ssize_t		Py_ssize_t;
+        #elif SIZEOF_VOID_P == SIZEOF_SIZE_T
+        typedef Py_intptr_t	Py_ssize_t;
+        #else
+        #   error "Python needs a typedef for Py_ssize_t in pyport.h."
+        #endif
+
+在 ``PyObject`` 的定义中， 整型变量 ``ob_refcnt`` 与 Python 的内存管理机制有关， \
+它实现了基于引用计数的垃圾搜集机制。 对于某一个对象 A， 当有一个新的 ``PyObject *`` \
+引用该对象时， A 的引用计数应该增加； 而当这个 ``PyObject *`` 被删除时， A 的引用计\
+数应该减少。 当 A 的引用计数减少到 0 时， A 就可以从堆上被删除， 以释放出内存供别的\
+对象使用。
 
 ``ob_type`` 是一个指向 ``_typeobject`` 结构体的指针， ``_typeobject`` 结构体对应\
 着 Python 内部的一种特殊对象， 用来指定一个对象类型的类型对象。
 
-由此可以看出， 在 Python 中， 对象机制的核心其实非常简单， 一个是引用计数， 一个就是\
-类型信息。
+由此可以看出， 在 Python 中， 对象机制的核心其实非常简单:
+
+1. 是引用计数
+2. 是类型信息
 
 在 ``PyObject`` 中定义了每个 Python 对象都必须有的内容， 这些内容将出现在每个 \
 Python 对象所占有的内存的最开始的字节中。 例如： 
