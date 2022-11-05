@@ -4,14 +4,20 @@ Chapter 02 - Python 中的整数对象
 
 .. contents::
 
+在 Python 的所有对象中， 整数对象是最简单的对象。 从对 Python 对象机制的剖析来说， \
+整数对象也最容易使读者真实地感受 Python 对象机制的切入点， 因此我们对 Python 内建对\
+象的剖析就从这个最简单的整数对象开始。
+
 *******************************************************************************
 2.1 初识 PyIntObject 对象
 *******************************************************************************
 
-除了 "定长对象" 和 "变长对象" 这种对象的二分法， 根据对象维护数据的可变性可将对象分\
-为 "可变对象 (``mutable``)" 和 "不可变对象 (``immutable``)"。 ``PyIntObject`` 对\
-象就是一个不可变对象， 也就是创建一个 ``PyIntObject`` 对象之后， 就无法更改该对象的\
-值了。 字符串对象也是。
+Python 中对 "整数" 这个概念的实现是通过 PyIntObject 对象来完成的。 在上一章初探 \
+Python 对象体系时， 我们看到了 "定长对象" 和 "变长对象" 的区别， 除了 "定长对象" \
+和 "变长对象" 这种对象的二分法， 根据对象维护数据的可变性可将对象分为 "可变对象 (\
+``mutable``)" 和 "不可变对象 (``immutable``)"。 ``PyIntObject`` 对象就是一个不可\
+变对象， 也就是创建一个 ``PyIntObject`` 对象之后， 就无法更改该对象的值了。 字符串\
+对象也是。
 
 整数对象池是整数对象的缓冲池机制。 在此基础上， 运行时的整数对象并非一个个对立的对象\
 ， 而是如同自然界的蚂蚁一般， 已经是通过一定的结构联结在一起的庞大的整数对象系统了。 \
@@ -20,12 +26,14 @@ Chapter 02 - Python 中的整数对象
 
 接下来看一下静态的整数对象的定义 - ``PyIntObject``： 
 
-.. code-block:: c 
+.. topic:: [Include/intobject.h]
 
-    typedef struct {
-        PyObject_HEAD
-        long ob_ival;
-    } PyIntObject;
+    .. code-block:: c 
+
+        typedef struct {
+            PyObject_HEAD
+            long ob_ival;
+        } PyIntObject;
 
 ``PyIntObject`` 实际上就是对 C 中原生类型 ``long`` 的一个简单包装。 Python 对象中\
 与对象相关的元信息实际上都是保存在与对象对应的类型对象中的， 对于 ``PyIntObject`` 的\
@@ -79,20 +87,25 @@ Chapter 02 - Python 中的整数对象
             (freefunc)int_free,           		/* tp_free */
         };
 
-``PyIntObject`` 支持的操作：
+在 ``PyInt_Type`` 中保存了关于 ``PyIntObject`` 对象的丰富元信息， 其中有 \
+``PyIntObject`` 对象应该占用的内存大小， ``PyIntObject`` 对象的文档信息， 而更多的\
+是 ``PyIntObject`` 对象所支持的操作。 在表 2-1 中， 列出了一些 ``PyIntObject`` 所\
+支持的操作：
 
-=================  =====================================
-操作                  描述
-=================  =====================================
-``int_dealloc``    ``PyIntObject`` 对象的析构操作
-``int_free``       ``PyIntObject`` 对象的释放操作
-``int_repr``       转化成 ``PyStringObject`` 对象
-``int_hash``       获得 HASH 值
-``int_print``      打印 ``PyIntObject`` 对象
-``int_compare``    比较操作
-``int_as_number``  数值操作集合
-``int_methods``    成员函数集合
-=================  =====================================
+.. table:: 表 2-1
+
+    =================  =====================================
+    操作                  描述
+    =================  =====================================
+    ``int_dealloc``    ``PyIntObject`` 对象的析构操作
+    ``int_free``       ``PyIntObject`` 对象的释放操作
+    ``int_repr``       转化成 ``PyStringObject`` 对象
+    ``int_hash``       获得 HASH 值
+    ``int_print``      打印 ``PyIntObject`` 对象
+    ``int_compare``    比较操作
+    ``int_as_number``  数值操作集合
+    ``int_methods``    成员函数集合
+    =================  =====================================
 
 下面这个例子看一下如何比较两个整数对象的大小。 
 
@@ -199,8 +212,8 @@ Python-2.5 中 ``PyNumberMethods`` 中一共有 39 个函数指针， 即其中�
         }
 
 ``PyIntObject`` 对象所实现的加法操作是直接在其维护的 ``long`` 值上进行的， 在完成加\
-法操作后， 代码中进行了溢出检查， 如果没有溢出就返回一个新的 ``PyIntObject``， 这个 \
-``PyIntObject`` 所拥有的值正好是加法操作的结果。 
+法操作后， 代码 [1] 处进行了溢出检查， 如果没有溢出就返回一个新的 ``PyIntObject``\
+， 这个 ``PyIntObject`` 所拥有的值正好是加法操作的结果。 
 
 在 Python 的实现中， 对某些会频繁执行的代码， 都会同时提供函数和宏两种版本， 比如上\
 文中的 ``PyInt_AS_LONG``， 与之对应的还有一个函数 ``PyInt_AsLong``。 宏版本的 \
@@ -224,6 +237,11 @@ Python-2.5 中 ``PyNumberMethods`` 中一共有 39 个函数指针， 即其中�
     :align: center
 
     图 2-1-0 Python 3.7.7 版本实际结果
+
+.. figure:: img/2-1-1.png 
+    :align: center
+
+    图 2-1-1 Python 2.5 版本实际结果
 
 另一个有趣的元信息是 ``PyIntObject`` 对象的文档信息， 其维护在 ``int_doc`` 域中。 \
 文档无缝地集成在语言中。 可以在 Python 的交互环境下通过 ``PyIntObject`` 对象的 \
@@ -268,9 +286,10 @@ Python-2.5 中 ``PyNumberMethods`` 中一共有 39 个函数指针， 即其中�
 2.2.1 对象创建的 3 种途径
 ===============================================================================
 
-在 Python 自身的实现中， 几乎都是调用 C API 来创建内建实例对象。 而内建对象即便是通\
-过内建类型对象中的 ``tp_new``， ``tp_init`` 操作创建实例对象， 实际上最终还是会调\
-用 Python 为特定对象准备的 C API。
+在上文中已经提到， Python 中创建一个实例对象可以通过 Python 暴露的 C API， 也可以通\
+过类型对象完成创建动作。 在 Python 自身的实现中， 几乎都是调用 C API 来创建内建实例\
+对象。 而内建对象即便是通过内建类型对象中的 ``tp_new``， ``tp_init`` 操作创建实例对\
+象， 实际上最终还是会调用 Python 为特定对象准备的 C API。
 
 在 **intobject.h** 中可以看到， 为了创建 ``PyIntObject`` 对象， Python 提供了 3 \
 条途径， 分别从 ``long`` 值， 从字符串以及 ``Py_UNICODE`` 对象生成 \
@@ -284,75 +303,81 @@ Python-2.5 中 ``PyNumberMethods`` 中一共有 39 个函数指针， 即其中�
     #endif
     PyAPI_FUNC(PyObject *) PyInt_FromLong(long);
 
-只考察从 ``long`` 值生成 ``PyIntObject`` 对象。 因为 ``PyInt_FromString`` 和 \
-``PyInt_FromUnicode`` 实际上都是先将字符串或 ``Py_UNICODE`` 对象转换成浮点数。 然\
-后再调用 ``PyInt_FromFloat``。 它们不过利用了 Adaptor Pattern 的思想对整数对象的核\
-心创建函数 ``PyInt_FromFloat`` 进行了接口转换罢了。 
+这里只考察从 ``long`` 值生成 ``PyIntObject`` 对象。 因为 ``PyInt_FromString`` \
+和 ``PyInt_FromUnicode`` 实际上都是先将字符串或 ``Py_UNICODE`` 对象转换成浮点数\
+。 然后再调用 ``PyInt_FromFloat``。 它们不过利用了 Adaptor Pattern 的思想对整数对\
+象的核心创建函数 ``PyInt_FromFloat`` 进行了接口转换罢了。 
 
-.. code-block:: c 
+.. topic:: [Objects/intobject.c]
 
-    PyObject *
-    PyInt_FromString(char *s, char **pend, int base)
-    {
-        char *end;
-        long x;
-        Py_ssize_t slen;
-        PyObject *sobj, *srepr;
+    .. code-block:: c 
 
-        if ((base != 0 && base < 2) || base > 36) {
-            PyErr_SetString(PyExc_ValueError,
-                    "int() base must be >= 2 and <= 36");
-            return NULL;
-        }
+        PyObject *
+        PyInt_FromString(char *s, char **pend, int base)
+        {
+            char *end;
+            long x;
+            Py_ssize_t slen;
+            PyObject *sobj, *srepr;
 
-        while (*s && isspace(Py_CHARMASK(*s)))
-            s++;
-        errno = 0;
+            if ((base != 0 && base < 2) || base > 36) {
+                PyErr_SetString(PyExc_ValueError,
+                        "int() base must be >= 2 and <= 36");
+                return NULL;
+            }
 
-        // 将字符串转换为 long 
-        if (base == 0 && s[0] == '0') {
-            x = (long) PyOS_strtoul(s, &end, base);
-            if (x < 0)
+            while (*s && isspace(Py_CHARMASK(*s)))
+                s++;
+            errno = 0;
+
+            // 将字符串转换为 long 
+            if (base == 0 && s[0] == '0') {
+                x = (long) PyOS_strtoul(s, &end, base);
+                if (x < 0)
+                    return PyLong_FromString(s, pend, base);
+            }
+            else
+                x = PyOS_strtol(s, &end, base);
+            if (end == s || !isalnum(Py_CHARMASK(end[-1])))
+                goto bad;
+            while (*end && isspace(Py_CHARMASK(*end)))
+                end++;
+            if (*end != '\0') {
+        bad:
+                slen = strlen(s) < 200 ? strlen(s) : 200;
+                sobj = PyString_FromStringAndSize(s, slen);
+                if (sobj == NULL)
+                    return NULL;
+                srepr = PyObject_Repr(sobj);
+                Py_DECREF(sobj);
+                if (srepr == NULL)
+                    return NULL;
+                PyErr_Format(PyExc_ValueError,
+                        "invalid literal for int() with base %d: %s",
+                        base, PyString_AS_STRING(srepr));
+                Py_DECREF(srepr);
+                return NULL;
+            }
+            else if (errno != 0)
                 return PyLong_FromString(s, pend, base);
+            if (pend)
+                *pend = end;
+            return PyInt_FromLong(x);
         }
-        else
-            x = PyOS_strtol(s, &end, base);
-        if (end == s || !isalnum(Py_CHARMASK(end[-1])))
-            goto bad;
-        while (*end && isspace(Py_CHARMASK(*end)))
-            end++;
-        if (*end != '\0') {
-    bad:
-            slen = strlen(s) < 200 ? strlen(s) : 200;
-            sobj = PyString_FromStringAndSize(s, slen);
-            if (sobj == NULL)
-                return NULL;
-            srepr = PyObject_Repr(sobj);
-            Py_DECREF(sobj);
-            if (srepr == NULL)
-                return NULL;
-            PyErr_Format(PyExc_ValueError,
-                    "invalid literal for int() with base %d: %s",
-                    base, PyString_AS_STRING(srepr));
-            Py_DECREF(srepr);
-            return NULL;
-        }
-        else if (errno != 0)
-            return PyLong_FromString(s, pend, base);
-        if (pend)
-            *pend = end;
-        return PyInt_FromLong(x);
-    }
+
+为了深刻地理解 ``PyIntObject`` 对象的创建过程， 首先必须要深入了解 Python 中整数对\
+象在内存中的组织方式。 前面已经提到， 在运行期间， 一个个的整数对象在内存中并不是独立\
+存在， 单兵作战的， 而是形成了一个整数对象系统。 我们首先就重点考察一下 Python 中整\
+数对象系统的结构。
 
 2.2.2 小整数对象
 ===============================================================================
 
 在实际的编程中， 数值比较小的整数， 如 1、 2、 29 等可能在程序中非常频繁地使用。 通\
 过 For 循环就可以了解小整数为何会有那么频繁的使用场合。 在 Python 中， 所有的对象都\
-存活偶在系统堆上， 如果没有特殊的机制， 对于这些频繁使用的小整数对象， Python 将一次\
-又一次地使用 ``malloc`` 在堆上申请空间， 并不厌其烦地一次次 ``free``。 这样的操作不\
-仅会大大降低运行效率， 而且会在系统堆上造成大量的内存碎片， 严重影响 Python 的整体性\
-能。 
+存活在系统堆上， 如果没有特殊的机制， 对于这些频繁使用的小整数对象， Python 将一次又\
+一次地使用 ``malloc`` 在堆上申请空间， 并不厌其烦地一次次 ``free``。 这样的操作不仅\
+会大大降低运行效率， 而且会在系统堆上造成大量的内存碎片， 严重影响 Python 的整体性能。 
 
 于是在 Python 中， 对于小整数对象使用了对象池技术。 对象池中的每一个 \
 ``PyIntObject`` 都能被任意地共享。 
@@ -380,6 +405,9 @@ Python-2.5 中 ``PyNumberMethods`` 中一共有 39 个函数指针， 即其中�
 ``PyIntObject *`` 池， 不过一般称其为小整数对象池。 在 Python-2.5 中， 将小整数集\
 合的范围默认为 ``[-5, 257)``。 可以通过修改 ``NSMALLPOSINTS`` 和 \
 ``NSMALLNEGINTS`` 重新编译 Python， 从而将这个范围向两端伸展或收缩。 
+
+对于小整数对象， Python 直接将这些整数对应的 ``PyIntObject`` 缓存在内存中， 并将其\
+指针存放在 ``small_ints`` 中。
 
 2.2.3 大整数对象
 ===============================================================================
@@ -419,6 +447,13 @@ Python 运行环境提供了一块内存空间， 由大整数轮流使用， �
 
 .. figure:: img/2-3.png
     :align: center
+
+    图 2-3 free_list 和 block_list 的初始状态
+
+    .. note::
+
+        注：在此后的图示中， 我们将统一用实线菱尾箭头表示 ``block_list``， 虚线菱尾\
+        箭头表示 ``free_list``。
 
 2.2.4 添加和删除
 ===============================================================================
