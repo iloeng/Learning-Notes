@@ -136,8 +136,11 @@ Python 的整数对象中， 除了 ``PyObject``， 还有一个额外的 ``long
 ===============================================================================
 
 整数对象的特殊信息是一个 C 中的整型变量， 无论这个整数对象的值有多大， 都可以保存在这\
-个整型变量 (``ob_ival``) 中。 Python 在 ``PyObject`` 对象之外， 还有一个表示这类对\
-象的结构体 - ``PyVarObject``:
+个整型变量 ``ob_ival`` 中。 字符串对象应该维护 “一个字符串”， 但在 C 中， 没有 “一\
+个字符串” 这样的概念， 所以准确的说法是， 字符串对象应该维护 “n 个 char 型变量” 或 \
+“n 个 ``PyObject`` 对象”。 看上去这种 “n 个……” 似乎也是一类 Python 对象的共同特征\
+， 因此 Python 在 ``PyObject`` 对象之外， 还有一个表示这类对象的结构体 - \
+``PyVarObject``:
 
 .. topic:: [Include/object.h]
 
@@ -146,7 +149,7 @@ Python 的整数对象中， 除了 ``PyObject``， 还有一个额外的 ``long
         #define PyObject_VAR_HEAD		\
             PyObject_HEAD			\
             Py_ssize_t ob_size; /* Number of items in variable part */
-            // 此处书中是 int ob_size
+            // Py_ssize_t 可以等价于 int
         
         typedef struct {
             PyObject_VAR_HEAD
@@ -156,11 +159,12 @@ Python 的整数对象中， 除了 ``PyObject``， 还有一个额外的 ``long
 的对象称为 "变长对象"。 区别在于定长对象的不同对象占用的内存大小是一样的， 而变长对象\
 的不同对象占用的内存可能是不一样的。 比如整数对象 "1" 和 "100" 占用的内存大小都是 \
 ``sizeof(PyIntObject)``， 而字符串对象 "Python" 和 "Ruby" 占用的内存大小就不同了\
-。 正是这种区别导致了 ``PyVarObject`` 对象中 ``ob_size`` 的出现。 变长对象通常都是\
-容器， ``ob_size`` 这个成员实际上就是指明了变长对象中一共容纳了多少个元素。 注意 \
-``ob_size`` 指明的是所容纳元素的个数， 而不是字节的数量。 例如 Python 中最常用的 \
-list 就是一个 ``PyVarObject`` 对象， 如果 list 中有 5 个元素， 那么 ``ob_size`` \
-的值就是 5。
+。 正是这种区别导致了 ``PyVarObject`` 对象中 ``ob_size`` 的出现。 
+
+变长对象通常都是容器， ``ob_size`` 这个成员实际上就是指明了变长对象中一共容纳了多少\
+个元素。 注意 ``ob_size`` 指明的是所容纳元素的个数， 而不是字节的数量。 例如 \
+Python 中最常用的 ``list`` 就是一个 ``PyVarObject`` 对象， 如果 ``list`` 中有 5 \
+个元素， 那么 ``ob_size`` 的值就是 5。
 
 从 ``PyObject_VAR_HEAD`` 的定义可以看出， ``PyVarObject`` 实际上只是对 \
 ``PyObject`` 的一个拓展。 因此对于任何一个 ``PyVarObject``， 其所占用的内存， 开始\
@@ -168,7 +172,10 @@ list 就是一个 ``PyVarObject`` 对象， 如果 list 中有 5 个元素， �
 象头部， 这使得 Python 中对对象的引用变得非常统一， 只需要用一个 ``PyObject *`` 指\
 针就可以引用任意的一个对象， 不论该对象实际是什么对象。
 
-.. figure:: img/pyobject-1-1.png
+图 1-1 显示了 Python 中不同对象与 ``PyObject``、 ``PyVarObject`` 在内存布局上的关\
+系：
+
+.. figure:: img/1-1.png
     :align: center
 
     图 1-1 不同 Python 对象与 PyObject、PyVarObject 的关系
@@ -181,8 +188,8 @@ list 就是一个 ``PyVarObject`` 对象， 如果 list 中有 5 个元素， �
 ， 因为不同的对象需要不同的空间。 对象所需的内存空间的大小信息虽然不显见于 \
 ``PyObject`` 的定义中， 但它却隐身于 ``PyObject`` 中。
 
-实际上， 占用内存空间的大小是对象的一种元信息， 这样的元信息是与对象所属类型密切相关\
-的， 因此一定会出现在与对象所对应的类型对象中， 详细考察一下类型对象 ``_typeobject``:
+实际上占用内存空间的大小是对象的一种元信息， 这样的元信息是与对象所属类型密切相关的\
+， 因此一定会出现在与对象所对应的类型对象中， 详细考察一下类型对象 ``_typeobject``:
 
 .. topic:: [Include/object.h]
 
@@ -284,8 +291,8 @@ list 就是一个 ``PyVarObject`` 对象， 如果 list 中有 5 个元素， �
 
 - 下面将要描述的类型的类型信息。
 
-事实上， 一个 ``PyTypeObject`` 对象就是 Python 中对面向对象理论中 "类" 这个概念的\
-实现， 而 ``PyTypeObject`` 也是一个非常复杂的话题， 将在第 2 部分详细剖析构建在 \
+事实上一个 ``PyTypeObject`` 对象就是 Python 中对面向对象理论中 "类" 这个概念的实现\
+， 而 ``PyTypeObject`` 也是一个非常复杂的话题， 将在第 2 部分详细剖析构建在 \
 ``PyTypeObject`` 之上的 Python 的类型和对象体系。 
 
 1.2.1 对象的创建
@@ -318,7 +325,7 @@ Layer)。 这类 API 都具有诸如 ``PyObject_***`` 的形式， 可以应用�
 
 实际上在 Python 完成运行环境的初始化后， 符号 "int" 就对应着一个表示为 \
 ``<type 'int'>`` 的对象， 这个对象其实就是 Python 内部的 ``PyInt_Type``。 当我们\
-执行 "int(10)" 时就是通过 ``PyInt_Type`` 创建了一个整数对象。
+执行 ``int(10)`` 时就是通过 ``PyInt_Type`` 创建了一个整数对象。
 
 图 1-2 中显示， 在 Python 2.2 之后的 ``new style class`` 中， ``int`` 是一个继承\
 自 ``object`` 的类型， 类似于 ``int`` 对应着 Python 内部的 ``PyInt_Type``， \
@@ -346,12 +353,12 @@ Layer)。 这类 API 都具有诸如 ``PyObject_***`` 的形式， 可以应用�
 1.2.2 对象的行为
 ===============================================================================
 
-在 ``PyTypeObject`` 中定义了大量对的函数指针， 最终都会指向某个函数， 或者指向 NULL\
+在 ``PyTypeObject`` 中定义了大量的函数指针， 最终都会指向某个函数， 或者指向 NULL\
 。 这些函数指针可以视为类型对象中所定义的操作， 而这些操作直接决定着一个对象在运行时\
 所表现的行为。 
 
 如 ``PyTypeObject`` 中的 ``tp_hash`` 指明对于该类型的对象， 如何生成其 Hash 值。 \
-可以看到 ``tp_hash`` 是一个 ``hashfunc`` 类型的变量， 在 *object.h* 中， \
+可以看到 ``tp_hash`` 是一个 ``hashfunc`` 类型的变量， 在 **object.h** 中， \
 ``hashfunc`` 实际上是一个函数指针： ``typedef long (*hashfunc)(PyObject *)``。 \
 在上一节中看到了 ``tp_new``， ``tp_init`` 是如何决定一个实例对象被创建出来并初始化\
 的。 在 ``PyTypeObject`` 中指定的不同的操作信息也正是一种对象区别于另一种对象的关键\
@@ -438,9 +445,9 @@ Layer)。 这类 API 都具有诸如 ``PyObject_***`` 的形式， 可以应用�
 
 看上去 ``a['key']`` 操作是一个类似于 ``dict`` 这样的对象才会支持的操作。 从 \
 ``int`` 继承出来的 ``MyInt`` 应该自然就是一个数值对象， 但是通过重写 \
-``__getitem__`` 这个 Python 中的 special method， 可以视为指定了 ``MyInt`` 在 \
-Python 内部对应的 ``PyTypeObject`` 对象的 ``tp_as_mapping.mp_subscript`` 操作。 \
-最终 ``MyInt`` 的实例对象可以 "表现" 得像一个关联对象。 归根结底在于 \
+``__getitem__`` 这个 Python 中的 **special method**， 可以视为指定了 ``MyInt`` \
+在 Python 内部对应的 ``PyTypeObject`` 对象的 ``tp_as_mapping.mp_subscript`` 操作\
+。 最终 ``MyInt`` 的实例对象可以 "表现" 得像一个关联对象。 归根结底在于 \
 ``PyTypeObject`` 中允许一种类型同时指定三种不同对象的行为特性。 
 
 1.2.3 类型的类型
@@ -520,6 +527,7 @@ Python 提供了有用的宏：
 
     .. code-block:: c 
 
+        // 实际代码
         #ifdef Py_TRACE_REFS
         /* Define pointers to support a doubly-linked list of all live heap objects. */
             #define _PyObject_HEAD_EXTRA		\
@@ -540,11 +548,9 @@ Python 2.5 的代码是上述内容，书中的代码如下：
     .. code-block:: c 
 
         #ifdef Py_TRACE_REFS
-
             #define _PyObject_EXTRA_INIT 0, 0,
 
         #else
-        
             #define _PyObject_EXTRA_INIT
         #endif
 
@@ -639,24 +645,26 @@ Python 2.5 的代码是上述内容，书中的代码如下：
 ``PyStringObject*``， 那么就会调用 ``PyStringObject`` 对象对应的类型对象中定义的输\
 出操作。 可以看到， 这里同一个函数在不同情况下表现出不同的行为， 这正是多态的核心所在。 
 
-前文提到的 ``AOL`` 的 C API 正是建立在这种 "多态" 机制上的。 
+前文提到的 ``AOL`` 的 C API 正是建立在这种 "多态" 机制上的。 下面看一个简单的例子： 
 
-.. code-block:: c 
+.. topic:: [Objects/object.c]
 
-    long
-    PyObject_Hash(PyObject *v)
-    {
-        PyTypeObject *tp = v->ob_type;
-        if (tp->tp_hash != NULL)
-            return (*tp->tp_hash)(v);
-        if (tp->tp_compare == NULL && RICHCOMPARE(tp) == NULL) {
-            return _Py_HashPointer(v); /* Use address as hash value */
+    .. code-block:: c 
+
+        long
+        PyObject_Hash(PyObject *v)
+        {
+            PyTypeObject *tp = v->ob_type;
+            if (tp->tp_hash != NULL)
+                return (*tp->tp_hash)(v);
+            if (tp->tp_compare == NULL && RICHCOMPARE(tp) == NULL) {
+                return _Py_HashPointer(v); /* Use address as hash value */
+            }
+            /* If there's a cmp but no hash defined, the object can't be hashed */
+            PyErr_Format(PyExc_TypeError, "unhashable type: '%.200s'",
+                    v->ob_type->tp_name);
+            return -1;
         }
-        /* If there's a cmp but no hash defined, the object can't be hashed */
-        PyErr_Format(PyExc_TypeError, "unhashable type: '%.200s'",
-                v->ob_type->tp_name);
-        return -1;
-    }
 
 *******************************************************************************
 1.4 引用计数
@@ -681,9 +689,10 @@ Python 通过对一个对象的引用计数的管理来维护对象在内存中�
 实际上这个析构动作是通过在对象对应的类型对象中定义的一个函数指针来指定的， 就是 \
 ``tp_dealloc``。
 
-在 ``ob_refcnt`` 减为 0 后， 将触发对象销毁的事件。 在 Python 的对象体系中来看， 各\
-个对象提供了不同的事件处理函数， 而事件的注册动作正是在各个对象对应的类型对象中静态完\
-成的。
+如果熟悉设计模式中的 Observer 模式， 就可以看到， 这里隐隐约约透着 Observer 模式的\
+影子。 在 ``ob_refcnt`` 减为 0 后， 将触发对象销毁的事件。 在 Python 的对象体系中来\
+看， 各个对象提供了不同的事件处理函数， 而事件的注册动作正是在各个对象对应的类型对象\
+中静态完成的。
 
 ``PyObject`` 中的 ``ob_refcnt`` 是一个 32 位的整型变量， 实际蕴含着 Python 所做的\
 一个假设， 即对一个对象的引用不会超过一个整型变量的最大值。 一般情况下， 如果不是恶意\
@@ -746,3 +755,7 @@ Python 通过对一个对象的引用计数的管理来维护对象在内存中�
     :align: center
 
     图 1-7 Python 中对象的分类
+
+现在我们已经有了一些关于 Python 对象体系的基本认识了， 目前所掌握的这些认识已经足够我\
+们支撑到细致剖析 Python 对象体系的那一天了。 从现在开始， 我们将正式进入本书的第一部\
+分， 剖析 Python 的内建对象。
