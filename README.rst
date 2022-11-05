@@ -38,7 +38,7 @@ Learning Notes
       - 名称
     * - 001
       - C
-      - `Write a Hash Table`_
+      - |C-Hash-Table|_
     * - 002
       - C
       - `Let's Build a Simple Database`_
@@ -53,14 +53,16 @@ Learning Notes
       - `A BitTorrent client in Python 3.5`_
     * - 006
       - Golang
-      - `Building a BitTorrent client from the ground up in Go`_
+      - |BitTorrent-in-Go|_
 
-.. _`Building a BitTorrent client from the ground up in Go`: source/Other/BitTorrent-in-Go
+.. |BitTorrent-in-Go| replace:: Building a BitTorrent client from the ground up in Go
+.. _`BitTorrent-in-Go`: source/Other/BitTorrent-in-Go
 .. _`A BitTorrent client in Python 3.5`: source/Python/BitTorrent-client-in-Python3.5
 .. _`A Simple BitTorrent Decoder`: source/Python/Simple-BitTorrent-Decoder
 .. _`Write NoSQL Database in Python`: source/Python/Write.NoSQL.Database.in.Python
-.. _`Write a Hash Table`: source/C/Write.a.Hash.Table
 .. _`Let's Build a Simple Database`: source/C/Let's.Build.a.Simple.Database
+.. |C-Hash-Table| replace:: Write a Hash Table
+.. _`C-Hash-Table`: source/C/Write.a.Hash.Table
 
 *******************************************************************************
 TODO 计划
