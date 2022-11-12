@@ -459,7 +459,7 @@ Python 运行环境提供了一块内存空间， 由大整数轮流使用， �
 ===============================================================================
 
 下面通过 ``PyInt_FromLong`` 进行细致入微的考察， 真实展现一个个 ``PyIntObject`` 对\
-象的产生。 
+象的产生， 并融入到 Python 的整数对象系统中的。 
 
 .. topic:: [Objects/intobject.c]
 
@@ -585,7 +585,11 @@ Python 运行期间， 只要所有 ``block`` 的空闲内存被使用完， 就
 .. figure:: img/2-4.png
     :align: center
 
-注意: 图中的虚线并表示指针关系， 虚线表示 ``objects`` 的更详细的表示方式。 
+    图 2-4 PyIntBlock 的内存布局
+
+.. note:: 
+
+    注意: 图中的虚线并表示指针关系， 虚线表示 ``objects`` 的更详细的表示方式， 下同。 
 
 这时 ``block`` 中的 ``objects`` 还仅仅是一个 ``PyIntObject`` 对象的数组， 然后 \
 Python 将 ``objects`` 中的所有 ``PyIntObject`` 对象通过指针依次连接起来， 从而将数\
@@ -600,6 +604,8 @@ Python 将 ``objects`` 中的所有 ``PyIntObject`` 对象通过指针依次连�
 .. figure:: img/2-5.png
     :align: center
 
+    图 2-5 完成链表转换过程后的 PyIntBlock
+
 当一个 ``block`` 中还有剩余的内存没有被一个 ``PyIntBlock`` 占用时， \
 ``free_list`` 就不会指向 ``NULL``。 这种情况下调用 ``PyInt_FromLong`` 不会申请新\
 的 ``block``。 只有当所有 ``block`` 中的内存都被占用了， ``PyInt_FromLong`` 才会\
@@ -612,6 +618,8 @@ Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新�
 
 .. figure:: img/2-6.png
     :align: center
+
+    图 2-6 PyIntBlock 的链表
 
 2.2.4.3 使用通用整数对象池
 -------------------------------------------------------------------------------
@@ -673,11 +681,15 @@ Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新�
 .. figure:: img/2-7.png
     :align: center
 
+    图 2-7 创建和删除 PyIntObject 对象时缓冲池的变化
+
 不同 ``PyIntBlock`` 对象中空闲内存的互联也是在 ``int_dealloc`` 被调用时实现的 （白\
 色表示空闲内存）： 
 
 .. figure:: img/2-8.png
     :align: center
+
+    图 2-8 不同 PyIntBlock 中的空闲内存的互连
 
 当一个整数对象的引用计数变为 0 时， 就会被 Python 回收， 但是在 ``int_dealloc`` 中\
 ， 仅仅是将该整数对象的内存重新加入到自由内存链表中。 也就是说， 在 ``int_dealloc`` \
@@ -715,18 +727,20 @@ Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新�
         }
 
 从小整数的创建过程中可以看到， 这些小整数对象也是生存在 ``block_list`` 所维护的内存\
-上。 在 Python 初始化的时候， ``_PyInt_Init`` 被调用， 内存被申请， 小整数对象被创\
-建。
+上的。 在 Python 初始化的时候， ``_PyInt_Init`` 被调用， 内存被申请， 小整数对象被\
+创建。
 
 .. figure:: img/2-9.png
     :align: center
+
+    图 2-9 初始化完成之后的 small_ints
 
 *******************************************************************************
 2.3 Hack PyIntObject
 *******************************************************************************
 
-来修改 ``int_print`` 行为， 使其打印关于 ``block_list`` 和 ``free_list`` 的信息\
-， 以及小整数缓冲池的信息： 
+现在来修改 ``int_print`` 行为， 使其打印关于 ``block_list`` 和 ``free_list`` 的信\
+息， 以及小整数缓冲池的信息： 
 
 .. topic:: [Objects/intobject.c]
 
@@ -789,15 +803,17 @@ Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新�
         }
 
 在初始化小整数缓冲池时， 对于 ``block_list`` 及每个 ``PyIntBlock`` 的 ``objects``\
-， 都是从后往前开始填充的， 所以在初始化完成后， ``-5`` 应该在最后一个 \
-``PyIntBlock`` 对象的 ``objects`` 内最后一块内存， 需要顺藤摸瓜一直找到最后一块内存\
-才能观察从 ``-5`` 到 ``4`` 这 10 个小整数。 
+， 都是从后往前开始填充的， 所以在初始化完成后， -5 应该在最后一个 ``PyIntBlock`` \
+对象的 ``objects`` 内最后一块内存， 需要顺藤摸瓜一直找到最后一块内存才能观察从 -5 \
+到 4 这 10 个小整数。 
 
-创建一个 ``PyIntObject`` 对象 ``-9999``， 从图中可以看到， 小整数对象被 Python 自\
+首先创建一个 ``PyIntObject`` 对象 -9999， 从图中可以看到， 小整数对象被 Python 自\
 身使用多次。 
 
 .. figure:: img/2-10.png
     :align: center
+
+    图 2-10 整数对象系统内部状态之一
 
 现在的 ``free_list`` 指向地址为 ``00C191E4`` 的内存， 根据对 ``PyIntObject`` 的分\
 析， 那么下一个 ``PyIntObject`` 会在这个地址安身立命。 再创建两个 ``PyIntObject`` \
