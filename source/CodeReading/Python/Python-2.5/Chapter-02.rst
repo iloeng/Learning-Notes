@@ -813,7 +813,17 @@ Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新�
 .. figure:: img/2-10.png
     :align: center
 
-    图 2-10 整数对象系统内部状态之一
+    图 2-10 整数对象系统内部状态之一 （书中）
+
+.. figure:: img/2-10-1.png
+    :align: center
+
+    图 2-10-1 整数对象系统内部状态之一 （XP 系统）
+
+.. figure:: img/2-10-2.png
+    :align: center
+
+    图 2-10-2 整数对象系统内部状态之一 （Win 10 系统）
 
 现在的 ``free_list`` 指向地址为 ``00C191E4`` 的内存， 根据对 ``PyIntObject`` 的分\
 析， 那么下一个 ``PyIntObject`` 会在这个地址安身立命。 再创建两个 ``PyIntObject`` \
@@ -821,6 +831,8 @@ Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新�
 
 .. figure:: img/2-11.png
     :align: center
+
+    图 2-11 整数对象系统内部状态之二
 
 从图示可以看到 a 的地址正是创建 i 后 ``free_list`` 所指向的地址， 而 b 的地址也正是\
 创建 a 后 ``free_list`` 所指的地址。 虽然 a 和 b 的值都是一样的， 但是他们确实是两\
@@ -831,6 +843,8 @@ Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新�
 .. figure:: img/2-12.png
     :align: center
 
+    图 2-12 整数对象系统内部状态之三
+
 删除 b 后， ``free_list`` 回退到 a 创建后 ``free_list`` 的位置， 这点儿与之前的分\
 析是一致的。 
 
@@ -839,6 +853,8 @@ Python 通过 ``block_list`` 维护整个整数对象的通用对象池。 新�
 
 .. figure:: img/2-13.png
     :align: center
+
+    图 2-13 小整数对象的内部状态
 
 可以看到， 两次创建的 ``PyIntObject`` 对象 c1 和 c2 的地址都是 ``00AB5948``， 这证\
 明它们实际上是同一个对象。 同时可以看到小整数对象池中 ``-5`` 的引用计数发生了变化， \
