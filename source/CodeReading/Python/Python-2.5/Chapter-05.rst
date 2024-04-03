@@ -412,4 +412,5 @@ entry。
 .. figure:: img/5-4.png
     :align: center
 
-
+这里出现了两个整数对象 9876，在第三行调用 print d[9876] 时，Python 会首先到 d \
+中搜索键为 9876 的 entry
