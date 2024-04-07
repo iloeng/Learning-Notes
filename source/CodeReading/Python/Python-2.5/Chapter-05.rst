@@ -288,7 +288,8 @@ Python 为 ``PyDictObject`` 对象提供了两种搜索策略， ``lookdict`` �
 首先分析一下通用搜索策略 ``lookdict``， 一旦清晰地了解了通用搜索策略， \
 ``lookdict_string`` 也就一目了然。 
 
-.. topic:: [Objects/dictobject.c]
+.. topic:: 代码清单 5-2 [Objects/dictobject.c]
+   :name: 代码清单 5-2
 
     .. code-block:: c 
 
@@ -412,5 +413,49 @@ entry。
 .. figure:: img/5-4.png
     :align: center
 
-这里出现了两个整数对象 9876，在第三行调用 print d[9876] 时，Python 会首先到 d \
-中搜索键为 9876 的 entry
+这里出现了两个整数对象 9876，在第三行调用 ``print d[9876]`` 时，Python 会首先\
+到 d 中搜索键为 9876 的 entry。 显然， 在 ``lookdict`` 中， 代码清单 5-2 的[2]\
+处的引用相同检查是不会成功的， 但这并不意味着该 entry 不存在， 因为在图 5-4 中可\
+以看到， 这个 entry 明明是存在的。 这就是 “值相同” 这条规则存在的意义。
+
+在 ``lookdict`` 中， 代码清单 5-2 的 [4] 处完成了两个 key 的值检查。 值检查的过\
+程首先会检查两个对象的 hash 值是否相同， 如果不相同， 则其值也一定不相同， 不用\
+再继续下去了； 而如果 hash 值相等， 那么 Python 将通过 \
+``PyObject_RichCompareBool`` 进行比较， 其原型为： 
+
+.. topic:: [Objects/object.c]
+
+    .. code-block:: c
+
+      /* Return -1 if error; 1 if v op w; 0 if not (v op w). */
+      int
+      PyObject_RichCompareBool(PyObject *v, PyObject *w, int op)
+      {
+        PyObject *res;
+        int ok;
+
+        /* Quick result when objects are the same.
+          Guarantees that identity implies equality. */
+        if (v == w) {
+          if (op == Py_EQ)
+            return 1;
+          else if (op == Py_NE)
+            return 0;
+        }
+
+        res = PyObject_RichCompare(v, w, op);
+        if (res == NULL)
+          return -1;
+        if (PyBool_Check(res))
+          ok = (res == Py_True);
+        else
+          ok = PyObject_IsTrue(res);
+        Py_DECREF(res);
+        return ok;
+      }
+
+这是 Python 提供的一个相当典型的比较操作， 可以自己指定比较操作的类型， 当 \
+``(v op w)`` 成立时， 返回 1； 当 ``(v op w)`` 不成立时， 返回 0； 如果在比较中\
+发生错误， 则返回 -1。 在代码清单 5-2 的 [4] 处， ``lookdict`` 指定了 ``Py_EQ``\
+， 这将指示 ``PyObject_RichCompareBool`` 进行相等比较操作。
+
