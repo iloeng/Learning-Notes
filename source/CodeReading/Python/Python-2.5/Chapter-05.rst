@@ -459,3 +459,16 @@ entry。
 发生错误， 则返回 -1。 在代码清单 5-2 的 [4] 处， ``lookdict`` 指定了 ``Py_EQ``\
 ， 这将指示 ``PyObject_RichCompareBool`` 进行相等比较操作。
 
+[1] 根据 hash 值获得 entry 的索引， 这是冲突探测链上第一个 entry 的索引。
+
+[2] 在两种情况下， 搜索结束：
+  - entry 处于 Unused 态， 表明冲突探测链搜索完成， 搜索失败；
+  - ``ep->me_key == key``， 表明 entry 的 key 与待搜索的 key 匹配， 搜索成功。
+
+[3] 若当前 entry 处于 Dummy 态， 设置 freeslot。
+
+[4] 检查 Active 态 entry 中的 key 与待查找的 key 是否“值相同”，若成立，搜索成功。
+
+根据 hash 值获得的冲突探测链上第一个 entry 与待查找的元素的比较。 实际上， 由于 \
+entry 对应于某一个散列值， 几乎都有一个冲突探测链与之对应， 所以现在只是考察了所\
+有候选 entry 中的第一个 entry， 万里长征仅仅迈出了第一步。
