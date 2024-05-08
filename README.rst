@@ -22,6 +22,17 @@ Learning Notes
 5. 符号后添加空格
 6. 以上约定在代码段中忽略
 
+符号使用： 
+
+.. code-block:: 
+
+  # with overline, for parts
+  * with overline, for chapters
+  =, for sections
+  -, for subsections
+  ^, for subsubsections
+  ", for paragraphs
+
 暂时这样约定
 
 *******************************************************************************

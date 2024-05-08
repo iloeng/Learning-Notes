@@ -9,4 +9,4 @@ Python 标准库代码笔记
    :caption: 目录:
 
    Python-Standard-Library.rst
-   string/string-01.rst
+   string/string.rst

@@ -4,7 +4,7 @@ Python 标准库
 
 .. contents::
 
-本次以 Python 3.7 为例。
+本次以 Python 3.7.13 为例。
 
 下文来自于 `Python 官方文档`_ 。 
 
