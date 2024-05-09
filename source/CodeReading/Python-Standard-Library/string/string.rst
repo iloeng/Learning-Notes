@@ -350,15 +350,74 @@ auto_arg_index 。 然后对 obj 和 format_spec 变量进行格式化字段 `fo
 1.1.2.5 get_value 方法
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+提取给定的字段值。 ``key`` 参数将为整数或字符串。 如果是整数， 它表示 ``args`` \
+中位置参数的索引； 如果是字符串， 它表示 ``kwargs`` 中的关键字参数名。
+
+``args`` 形参会被设为 ``vformat()`` 的位置参数列表， 而 ``kwargs`` 形参会被设为\
+由关键字参数组成的字典。
+
+对于复合字段名称， 仅会为字段名称的第一个组件调用这些函数； 后续组件会通过普通属\
+性和索引操作来进行处理。
+
+因此举例来说， 字段表达式 ``'0.name'`` 将导致调用 ``get_value()`` 时附带 \
+``key`` 参数值 ``0``。 在 ``get_value()`` 通过调用内置的 ``getattr()`` 函数返回\
+后将会查找 ``name`` 属性。
+
+如果索引或关键字引用了一个不存在的项， 则将引发 ``IndexError`` 或 ``KeyError``。
+
+源码如下 ： 
+
+.. code-block:: python 
+
+    class Formatter:
+
+        def get_value(self, key, args, kwargs):
+            if isinstance(key, int):
+                return args[key]
+            else:
+                return kwargs[key]
+
 1.1.2.6 check_unused_args 方法
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+在必要时实现对未使用参数进行检测。 此函数的参数是格式字符串中实际引用的所有参数\
+键的集合 （整数表示位置参数， 字符串表示名称参数）， 以及被传给 ``vformat`` 的 \
+``args`` 和 ``kwargs`` 的引用。 未使用参数的集合可以根据这些形参计算出来。 如果\
+检测失败则 ``check_unused_args()`` 应会引发一个异常。
+
+但是在 Python 3.7.13 中， 这个函数并没有实现。
+
+源码如下 ： 
+
+.. code-block:: python 
+
+    class Formatter:
+
+        def check_unused_args(self, used_args, args, kwargs):
+            pass
 
 1.1.2.7 format_field 方法
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+``format_field()`` 会简单地调用内置全局函数 ``format()``。 提供该方法是为了让子\
+类能够重载它。
+
+源码如下 ： 
+
+.. code-block:: python 
+
+    class Formatter:
+
+        def format_field(self, value, format_spec):
+            return format(value, format_spec)
+
+
 1.1.2.8 convert_field 方法
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+使用给定的转换类型 （来自 ``parse()`` 方法所返回的元组） 来转换 （由 \
+``get_field()`` 所返回的）值。 默认版本支持 's'(str), 'r'(repr) 和 'a'(ascii) \
+等转换类型。
 
 源码如下 ： 
 
@@ -377,3 +436,14 @@ auto_arg_index 。 然后对 obj 和 format_spec 变量进行格式化字段 `fo
             elif conversion == 'a':
                 return ascii(value)
             raise ValueError("Unknown conversion specifier {0!s}".format(conversion))
+
+1.1.3 格式字符串语法
+-------------------------------------------------------------------------------
+
+``str.format()`` 方法和 ``Formatter`` 类共享相同的格式字符串语法 （虽然对于 \
+``Formatter`` 来说， 其子类可以定义它们自己的格式字符串语法）。 具体语法与格式化\
+字符串字面值相似， 但也存在区别。
+
+格式字符串包含有以花括号 {} 括起来的“替换字段”。 不在花括号之内的内容被视为字面文本，会不加修改地复制到输出中。 如果你需要在字面文本中包含花括号字符，可以通过重复来转义: {{ and }}。
+
+替换字段的语法如下：
