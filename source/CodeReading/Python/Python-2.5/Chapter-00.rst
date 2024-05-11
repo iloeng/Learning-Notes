@@ -212,17 +212,23 @@ Python 2.5 的代码结构如下：
 
 - ``make install``
 
-三个步骤执行完毕后， 指定的路径下会显示 Python 安装的结果。 bin 下存放的是可执行文件\
-； 目录 lib 下存放的是 Python 的标准库； lib/python2.5/config 下存放的是 \
-libpython2.5.a， 用 C 语言对 Python 进行拓展时需要用到这个静态库。 
+三个步骤执行完毕后， 指定的路径下会显示 Python 安装的结果。 **bin** 下存放的是\
+可执行文件； 目录 **lib** 下存放的是 Python 的标准库； \
+**lib/python2.5/config** 下存放的是 **libpython2.5.a**， 用 C 语言对 Python 进\
+行拓展时需要用到这个静态库。 
+
+.. note:: 
+
+    并没有实际操作
 
 *******************************************************************************
 0.5 修改 Python 源代码
 *******************************************************************************
 
-书中修改了一个函数的源代码， 它的原始代码在 ``Objects/intobject.c`` 里面， 代码如下：
+书中修改了一个函数的源代码， 它的原始代码在 ``Objects/intobject.c`` 里面， 代码\
+如下：
 
-.. topic:: Objects/intobject.c
+.. topic:: [Objects/intobject.c]
     
     .. code:: c
 
@@ -235,8 +241,8 @@ libpython2.5.a， 用 C 语言对 Python 进行拓展时需要用到这个静态
         }
    
 
-然后借用 Python 的 C API 中提供的输出对象接口， 代码在 ``Include/object.h`` 文件里\
-， 代码如下：
+然后借用 Python 的 C API 中提供的输出对象接口， 代码在 ``Include/object.h`` 文\
+件里， 代码如下：
 
 .. topic:: [Include/object.h]
 
@@ -246,13 +252,13 @@ libpython2.5.a， 用 C 语言对 Python 进行拓展时需要用到这个静态
 
 修改后的代码如下：
 
-.. topic:: Objects/intobject.c
+.. topic:: [Objects/intobject.c]
 
     .. code-block:: c
 
         static int
         int_print(PyIntObject *v, FILE *fp, int flags)
-            /* flags -- not used but required by interface */
+        /* flags -- not used but required by interface */
         {
         
             PyObject* str = PyString_FromString("i am in int_print");
@@ -264,9 +270,9 @@ libpython2.5.a， 用 C 语言对 Python 进行拓展时需要用到这个静态
         }
 
 
-``PyString_FromString`` 是 Python 提供的 C API， 用于从 C 中的原生字符数组创建出 \
-Python 中的字符串对象。 ``PyObject_Print`` 函数中第二个参数指明的是输出目标。 代码\
-中使用的是 ``stdout``， 即指定的输出目标是标准输出。
+``PyString_FromString`` 是 Python 提供的 C API， 用于从 C 中的原生字符数组创建\
+出 Python 中的字符串对象。 ``PyObject_Print`` 函数中第二个参数指明的是输出目标\
+。 代码中使用的是 ``stdout``， 即指定的输出目标是标准输出。
 
 .. figure:: img/0-10.png
     :align: center
@@ -274,10 +280,10 @@ Python 中的字符串对象。 ``PyObject_Print`` 函数中第二个参数指�
     图 0-10 在 Python 源码中输出额外信息
 
 在 ``PyObject_Print`` 中， 第二个参数指明的是输出目标。 上面的例子使用了 \
-``stdout``， 指定了输出目标为标准输出， 当我们从命令行环境中激活 Python 时， 没有问\
-题， 但是如果使用 IDLE 的话， 就会发现， 输出的信息没有了。 原因是 IDLE 的输出目标已\
-经不是 ``stdout`` 了， 说明加入的输出代码失效了。 在 Python 中， 有一个特性 —— 可以\
-自己重定向标准输出， 考虑图 0-11 所示的例子：
+``stdout``， 指定了输出目标为标准输出， 当我们从命令行环境中激活 Python 时， 没\
+有问题， 但是如果使用 IDLE 的话， 就会发现输出的信息没有了。 原因是 IDLE 的输出\
+目标已经不是 ``stdout`` 了， 说明加入的输出代码失效了。 在 Python 中， 有一个特\
+性 -- 可以自己重定向标准输出， 考虑图 0-11 所示的例子：
 
 .. figure:: img/0-11.png
     :align: center
@@ -287,10 +293,11 @@ Python 中的字符串对象。 ``PyObject_Print`` 函数中第二个参数指�
 .. figure:: img/0-12.png
     :align: center
 
-    图 0-12 重定向后的标准输出——my_stdout.txt
+    图 0-12 重定向后的标准输出 - my_stdout.txt
 
-如果想让自己添加的代码输出到 IDLE 中， 我们也必须使用重定向之后的标准输出， 而不能再\
-使用 stdout 这个系统标准输出了。 
+如果想让自己添加的代码输出到 IDLE 中， 我们也必须使用重定向之后的标准输出， 而不\
+能再使用 stdout 这个系统标准输出了。 
+
 重定向输出：
 
 .. code-block:: c 
@@ -344,9 +351,9 @@ Python 中的字符串对象。 ``PyObject_Print`` 函数中第二个参数指�
 
 通常 Python 的源代码中会使用 ``PyObject_GC_New``, ``PyObject_GC_Malloc``, \
 ``PyMem_MALLOC``, ``PyObject_MALLOC`` 等 API， 只需坚持一个原则， 即凡是以 \
-``New`` 结尾的， 都以 C++ 中的 ``new`` 操作符视之； 凡是以 ``Malloc`` 结尾的， 都\
-以 C 中的 ``malloc`` 操作符视之。 （C++ 中的 ``new`` 我不知道啊 ^_^!, 找时间了解一\
-下）。 例如：
+``New`` 结尾的， 都以 C++ 中的 ``new`` 操作符视之； 凡是以 ``Malloc`` 结尾的， \
+都以 C 中的 ``malloc`` 操作符视之。 （C++ 中的 ``new`` 我不知道啊 ^_^!, 找时间\
+了解一下）。 例如：
 
 .. code-block:: c 
 
