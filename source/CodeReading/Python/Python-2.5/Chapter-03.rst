@@ -408,9 +408,9 @@ intern 标志设为 ``SSTATE_NOT_INTERNED``。 最后将参数 ``str`` 指向字
 3.3 字符串对象的 intern 机制
 *******************************************************************************
 
-无论是 ``PyString_FromString`` 还是 ``PyString_FromStringAndSize``， 当字符数组\
-的长度为 0 或 1 时， 需要进行一个特别的动作： ``PyString_InternInPlace``。 就是前\
-文中提到的 intern 机制。
+无论是 ``PyString_FromString`` 还是 ``PyString_FromStringAndSize``， 当字符数\
+组的长度为 0 或 1 时， 需要进行一个特别的动作： ``PyString_InternInPlace``。 就\
+是前文中提到的 intern 机制。
 
 .. topic:: [Objects/stringobject.c]
 
@@ -463,11 +463,11 @@ intern 标志设为 ``SSTATE_NOT_INTERNED``。 最后将参数 ``str`` 指向字
             return (PyObject *) op;
         }
 
-``PyStringObject`` 对象的 intern 机制的目的是： 对于被 intern 之后的字符串， 比如 \
-"Ruby"， 在整个 Python 的运行期间， 系统中都只有唯一的一个与字符串 "Ruby" 对应的 \
-``PyStringObject`` 对象。 这样当判断两个 ``PyStringObject`` 对象是否相同时， 如果\
-他们都被 intern 了， 那么只需要简单地检查它们对应的 ``PyObject*`` 是否相同即可。 这\
-个机制既节省了空间， 又简化了对 ``PyStringObject`` 对象的比较。 \
+``PyStringObject`` 对象的 intern 机制的目的是： 对于被 intern 之后的字符串， 比\
+如 "Ruby"， 在整个 Python 的运行期间， 系统中都只有唯一的一个与字符串 "Ruby" 对\
+应的 ``PyStringObject`` 对象。 这样当判断两个 ``PyStringObject`` 对象是否相同时\
+， 如果它们都被 intern 了， 那么只需要简单地检查它们对应的 ``PyObject*`` 是否相\
+同即可。 这个机制既节省了空间， 又简化了对 ``PyStringObject`` 对象的比较。 \
 ``PyString_InternInPlace`` 负责完成对一个对象进行 intern 操作的函数。
 
 .. topic:: [Objects/stringobject.c]
@@ -552,41 +552,45 @@ intern 标志设为 ``SSTATE_NOT_INTERNED``。 最后将参数 ``str`` 指向字
 ``PyString_InternInPlace`` 首先会进行一系列的检查， 其中包括：
 
 - 检查传入的对象是否是一个 ``PyStringObject`` 对象， intern 机制只能应用在 \
-  ``PyStringObject`` 对象上， 甚至对于他的派生类对象系统都不会应用 intern 机制。 
+  ``PyStringObject`` 对象上， 甚至对于它的派生类对象系统都不会应用 intern 机制。 
 
-- 检查传入的 ``PyStringObject`` 对象是否已经被 intern 机制处理过了， Python 不会对\
-  同一个 ``PyStringObject`` 对象进行一次以上的 intern 操作。 
+- 检查传入的 ``PyStringObject`` 对象是否已经被 intern 机制处理过了， Python 不\
+  会对同一个 ``PyStringObject`` 对象进行一次以上的 intern 操作。 
 
-intern 机制的核心在于 interned， interned 在 *stringobject.c* 中被定义为： \
+intern 机制的核心在于 interned， interned 在 **stringobject.c** 中被定义为： \
 ``static PyObject *interned``。
 
-在代码中 interned 实际指向的是 ``PyDict_New`` 创建的一个对象。 ``PyDict_New`` 实\
-际上创建了一个 ``PyDictObject`` 对象， 即 Python 中常用的 ``dict``。 可以看作是 \
-C++ 中的 map， 即 ``map<PyObject*, PyObject*>``。 C++ 我不懂， 先记下笔记。 
+在代码中 interned 实际指向的是 ``PyDict_New`` 创建的一个对象。 ``PyDict_New`` \
+实际上创建了一个 ``PyDictObject`` 对象， 即 Python 中常用的 ``dict``。 可以看作\
+是 C++ 中的 map， 即 ``map<PyObject*, PyObject*>``。 C++ 我不懂， 先记下笔记。 
 
-interned 机制的关键就是在系统中有一个 key value 映射关系的集合， 集合的名称叫做 \
-interned。 其中记录着被 intern 机制处理过的 ``PyStringObject`` 对象。 当对一个 \
-``PyStringObject`` 对象 a 应用 intern 机制时， 首先会在 interned 这个 dict 中检查\
-是否有满足以下条件的对象 b： b 中维护的原生字符串与 a 相同。 如果确实存在对象 b， 那\
-么指向 a 的 ``PyObject`` 指针会指向 b， 而 a 的引用计数减 1， 而 a 只是一个被临时创\
-建的对象。 如果 interned 中不存在这样的 b， 那么就在 [2] 处将 a 记录到 interned 中。 
+interned 机制的关键就是在系统中有一个 key value 映射关系的集合， 集合的名称叫\
+做 interned。 其中记录着被 intern 机制处理过的 ``PyStringObject`` 对象。 当对一\
+个 ``PyStringObject`` 对象 a 应用 intern 机制时， 首先会在 interned 这个 dict \
+中检查是否有满足以下条件的对象 b： b 中维护的原生字符串与 a 相同。 如果确实存在\
+对象 b， 那么指向 a 的 ``PyObject`` 指针会指向 b， 而 a 的引用计数减 1， 而 a \
+只是一个被临时创建的对象。 如果 interned 中不存在这样的 b， 那么就在代码 [2] 处\
+将 a 记录到 interned 中。 
 
-下图展示了如果 interned 中存在这样的对象 b， 再对 a 进行 intern 操作时， 原本指向 \
-a 的 ``PyObject*`` 指针的变化： 
+下图展示了如果 interned 中存在这样的对象 b， 再对 a 进行 intern 操作时， 原本指\
+向 a 的 ``PyObject*`` 指针的变化： 
 
 .. figure:: img/3-2.png
     :align: center
 
-对于被 intern 机制处理的 ``PyStringObject`` 对象， Python 采用了特殊的引用计数机制\
-。 在将一个 ``PyStringObject`` 对象 a 的 ``PyObject`` 指针作为 key 和 value 添加\
-到 interned 中时 ``PyDictObject`` 对象会通过这两个指针对 a 的引用计数进行两次加 1 \
-的操作。 但是 Python 的设计者规定在 interned 中 a 的指针不能被视为对象 a 的有效引用\
-， 因为如果是有效引用的话， 那么 a 的引用计数在 Python 结束之前永远不能为 0， 因为 \
-interned 中至少有两个指针引用了 a， 那么删除 a 就永远不可能了。
+    图 3-2 intern 机制示意图
 
-因此 interned 中的指针不能作为 a 的有效引用。 这就是代码中 [3] 处会将引用计数减 2 \
-的原因。 在 A 的引用计数在某个时刻减为 0 之后， 系统将会销毁对象 a， 同时会在 \
-interned 中删除指向 a 的指针， 在 ``string_dealloc`` 代码中得到验证： 
+对于被 intern 机制处理的 ``PyStringObject`` 对象， Python 采用了特殊的引用计数\
+机制。 在将一个 ``PyStringObject`` 对象 a 的 ``PyObject`` 指针作为 key 和 \
+value 添加到 interned 中时， ``PyDictObject`` 对象会通过这两个指针对 a 的引用计\
+数进行两次加 1 的操作。 但是 Python 的设计者规定在 interned 中 a 的指针不能被视\
+为对象 a 的有效引用， 因为如果是有效引用的话， 那么 a 的引用计数在 Python 结束\
+之前永远不能为 0， 因为 interned 中至少有两个指针引用了 a， 那么删除 a 就永远不\
+可能了。
+
+因此 interned 中的指针不能作为 a 的有效引用。 这就是代码 [3] 处会将引用计数减 \
+2 的原因。 在 A 的引用计数在某个时刻减为 0 之后， 系统将会销毁对象 a， 同时会\
+在 interned 中删除指向 a 的指针， 在 ``string_dealloc`` 代码中得到验证： 
 
 .. topic:: [Objects/stringobject.c]
 
@@ -616,19 +620,20 @@ interned 中删除指向 a 的指针， 在 ``string_dealloc`` 代码中得到�
             op->ob_type->tp_free(op);
         }
 
-Python 在创建一个字符串的时候， 会首先在 interned 中检查是否已经有改字符串对应的 \
-``PyStringObject`` 对象了， 如有则不用创建新的。 这样会节省内存空间， 但是 Python \
-并不是在创建 ``PyStringObject`` 时就通过 interned 实现了节省空间的目的。 事实上从 \
-``PyString_FromString`` 中可以看到， 无论如何， 一个合法的 ``PyStringObject`` 对\
-象是会被创建的， 同样 ``PyString_InternInPlace`` 也只对 ``PyStringObject`` 起作用\
-。 Python 始终会为字符串 s 创建 ``PyStringObject`` 对象， 尽管 s 中维护的原生字符\
-数组在 interned 中已经有一个与之对应的 ``PyStringObject`` 对象了。 而 intern 机制\
-是在 s 被创建后才起作用的， 通常 Python 在运行时创建了一个 ``PyStringObject`` 对\
-象 temp 后， 基本上都会调用 ``PyString_InternInPlace`` 对 temp 进行处理， intern \
-机制会减少 temp 的引用计数， temp 对象会由于引用计数减为 0 而被销毁。 
+Python 在创建一个字符串的时候， 会首先在 interned 中检查是否已经有改字符串对应\
+的 ``PyStringObject`` 对象， 如有则不用创建新的。 这样会节省内存空间， 但是 \
+Python 并不是在创建 ``PyStringObject`` 时就通过 interned 实现了节省空间的目的\
+。 事实上从 ``PyString_FromString`` 中可以看到， 无论如何， 一个合法的 \
+``PyStringObject`` 对象是会被创建的， 同样 ``PyString_InternInPlace`` 也只对 \
+``PyStringObject`` 起作用。 Python 始终会为字符串 s 创建 ``PyStringObject`` 对\
+象， 尽管 s 中维护的原生字符数组在 interned 中已经有一个与之对应的 \
+``PyStringObject`` 对象了。 而 intern 机制是在 s 被创建后才起作用的， 通常 \
+Python 在运行时创建了一个 ``PyStringObject`` 对象 temp 后， 基本上都会调用 \
+``PyString_InternInPlace`` 对 temp 进行处理， intern 机制会减少 temp 的引用计\
+数， temp 对象会由于引用计数减为 0 而被销毁。 
 
-Python 提供了一个以 ``char*`` 为参数的 intern 机制相关的函数用来直接对 C 原生字符串\
-上做 intern 操作： 
+Python 提供了一个以 ``char*`` 为参数的 intern 机制相关的函数用来直接对 C 原生字\
+符串上做 intern 操作： 
 
 .. code-block:: c 
 
@@ -647,14 +652,14 @@ Python 提供了一个以 ``char*`` 为参数的 intern 机制相关的函数用
 ``PyObject *`` 指针作为键。 
 
 实际上被 intern 机制处理后的 ``PyStringObject`` 对象分为两类， 一类处于 \
-``SSTATE_INTERNED_IMMORTAL`` 状态， 而另一类则处于 ``SSTATE_INTERNED_MORTAL`` 状\
-态， 这两种状态的区别在 ``string_dealloc`` 中可以清晰地看到， 显然 \
-``SSTATE_INTERNED_IMMORTAL`` 状态的 ``PyStringObject`` 对象是永远不会被销毁的， \
-它将与 Python 虚拟机共存， 即同年同月同日死。 
+``SSTATE_INTERNED_IMMORTAL`` 状态， 而另一类则处于 ``SSTATE_INTERNED_MORTAL`` \
+状态， 这两种状态的区别在 ``string_dealloc`` 中可以清晰地看到， 显然 \
+``SSTATE_INTERNED_IMMORTAL`` 状态的 ``PyStringObject`` 对象是永远不会被销毁的\
+， 它将与 Python 虚拟机共存， 即同年同月同日死。 
 
 ``PyString_InternInPlace`` 只能创建 ``SSTATE_INTERNED_MORTAL`` 状态的 \
-``PyStringObject`` 对象， 如果想创建 ``SSTATE_INTERNED_IMMORTAL`` 状态的对象， \
-必须通过另一个接口， 在调用 ``PyString_InternInPlace`` 后， 强制改变 \
+``PyStringObject`` 对象， 如果想创建 ``SSTATE_INTERNED_IMMORTAL`` 状态的对象\
+， 必须通过另一个接口， 在调用 ``PyString_InternInPlace`` 后， 强制改变 \
 ``PyStringObject`` 的 intern 状态。 
 
 .. code-block:: c 
