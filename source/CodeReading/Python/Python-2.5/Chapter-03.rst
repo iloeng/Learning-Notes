@@ -4,29 +4,30 @@ Chapter 03 - Python 中的字符串对象
 
 .. contents::
 
-在对 ``PyIntObject`` 的分析中， Python 中具有不可变长度数据的对象 （定长对象）。 \
-在 Python 中， 还大量存在着另一种对象， 即具有可变长度数据的对象 （变长对象）。 与定\
-长对象不同， 变长对象维护的数据的长度在对象定义时是不知道的。 
+在对 ``PyIntObject`` 的分析中， Python 中具有不可变长度数据的对象 （定长对象）\
+。 在 Python 中， 还大量存在着另一种对象， 即具有可变长度数据的对象 （变长对象\
+）。 与定长对象不同， 变长对象维护的数据的长度在对象定义时是不知道的。 
 
-整数对象 ``PyIntObject`` 其维护的数据的长度在对象定义时就已经确定了， 是一个 C 中 \
-``long`` 变量的长度； 而可变对象维护的数据的长度只能在对象创建时才能确定， 例如只能\
-在创建一个字符串或一个列表时才知道它们所维护的数据的长度， 在此之前， 一无所知。
+整数对象 ``PyIntObject`` 维护的数据的长度在对象定义时就已经确定了， 是一个 C \
+中 ``long`` 变量的长度； 而可变对象维护的数据的长度只能在对象创建时才能确定， 例\
+如只能在创建一个字符串或一个列表时才知道它所维护的数据的长度， 在此之前一无所知。
 
-在变长对象中， 实际上还可以分为可变对象和不可变对象。 可变对象维护的数据在对象被创建\
-后还能变化， 比如一个 ``list`` 被创建后， 可以向其中添加元素或删除对象， 这些操作都\
-会改变其维护的数据； 而不可变对象所维护的数据在对象创建之后就不能在改变了， 比如 \
-Python 中的 ``string`` 和 ``tuple``， 它们都不支持添加或删除操作。 
+在变长对象中， 实际上还可以分为可变对象和不可变对象。 可变对象维护的数据在对象被\
+创建后还能变化， 比如一个 ``list`` 被创建后， 可以向其中添加元素或删除对象， 这\
+些操作都会改变其维护的数据； 而不可变对象所维护的数据在对象创建之后就不能再改变\
+了， 比如 Python 中的 ``string`` 和 ``tuple``， 它们都不支持添加或删除操作。 
 
 *******************************************************************************
 3.1 PyStringObject 与 PyString_Type
 *******************************************************************************
 
-在 Python 中， ``PyStringObject`` 是对字符串对象的实现。 ``PyStringObject`` 是一\
-个拥有可变长度内存的对象。 对于两个不同的 ``PyStringObject`` 对象， 其内部所需的保\
-存字符串内容的内存空间显然是不同的。 同时 ``PyStringObject`` 对象是一个不变对象。 \
-当创建了一个 ``PyStringObject`` 对象之后， 该对象内部维护的字符串就不能在被改变了\
-。 这一特性使得 ``PyStringObject`` 对象可作为 ``dict`` 的键值， 但也使得一些字符串\
-操作的效率大大降低， 比如多个字符串的连接。 ``PyStringObject`` 对象定义： 
+在 Python 中， ``PyStringObject`` 是对字符串对象的实现。 ``PyStringObject`` 是\
+一个拥有可变长度内存的对象。 对于两个不同的 ``PyStringObject`` 对象， 其内部所\
+需的保存字符串内容的内存空间显然是不同的。 同时 ``PyStringObject`` 对象是一个不\
+变对象。 当创建了一个 ``PyStringObject`` 对象之后， 该对象内部维护的字符串就不\
+能在被改变了。 这一特性使得 ``PyStringObject`` 对象可作为 ``dict`` 的键值， 但\
+也使得一些字符串操作的效率大大降低， 比如多个字符串的连接。 ``PyStringObject`` \
+对象定义： 
 
 .. topic:: [Include/stringonject.h]
 
@@ -49,22 +50,24 @@ Python 中的 ``string`` 和 ``tuple``， 它们都不支持添加或删除操�
         } PyStringObject;
 
 在 ``PyStringObject`` 的定义中可以看到， 在 ``PyStringObject`` 的头部实际上是一\
-个 ``PyObject_VAR_HEAD``， 其中有一个 ``ob_size`` 变量保存着对象中维护的可变长度内\
-存的大小。 虽然在 ``PyStringObject`` 的定义中， ``ob_sval`` 是一个字符的字符数组\
-。 但是 ``ob_sval`` 实际上是作为一个字符指针指向一段内存的， 这段内存保存着这个字符\
-串对象所维护的实际字符串， 显然这段内存不会只是一个字节。 这段内存的实际长度（字节）\
-， 正是有 ``ob_size`` 维护的， 这个机制是 Python 中所有变长对象的实现机制。 
+个 ``PyObject_VAR_HEAD``， 其中有一个 ``ob_size`` 变量保存着对象中维护的可变长\
+度内存的大小。 虽然在 ``PyStringObject`` 的定义中， ``ob_sval`` 是一个字符的字\
+符数组。 但是 ``ob_sval`` 实际上是作为一个字符指针指向一段内存的， 这段内存保存\
+着这个字符串对象所维护的实际字符串， 显然这段内存不会只是一个字节。 这段内存的实\
+际长度（字节）， 正是由 ``ob_size`` 维护的， 这个机制是 Python 中所有变长对象的\
+实现机制。 
 
-同 C 中的字符串一样， ``PyStringObject`` 内部维护的字符串在末尾必须以 '\0' 结尾， \
-但是由于字符串的实际长度是由 ``ob_size`` 维护的， 所以 ``PyStringObject`` 表示的字\
-符串对象中间是可能出现字符 '\0' 的， 这与 C 语言不同， 因为在 C 中， 只要遇到了字符 \
-'\0' 就认为一个字符串结束了， 所以实际上， ``ob_sval`` 指向的是一段长度为 \
-``ob_size + 1`` 个字节的内存， 而且必须满足 ``ob_sval[ob_size] == '\0'``。
+同 C 中的字符串一样， ``PyStringObject`` 内部维护的字符串在末尾必须以 '\0' 结尾\
+， 但是由于字符串的实际长度是由 ``ob_size`` 维护的， 所以 ``PyStringObject`` 表\
+示的字符串对象中间是可能出现字符 ``\0`` 的， 这与 C 语言不同， 因为在 C 中， 只\
+要遇到了字符 ``\0`` 就认为一个字符串结束了， 所以实际上， ``ob_sval`` 指向的是\
+一段长度为 ``ob_size + 1`` 个字节的内存， 而且必须满足 \
+``ob_sval[ob_size] == '\0'``。
 
-``PyStringObject`` 中的 ``ob_shash`` 变量的作用是缓存该对象的 hash 值， 这样避免每\
-一次都重新计算该字符串对象的 hash 值。 如果一个 ``PyStringObject`` 对象还没有别计算\
-过 hash 值， 那么 ``ob_shash`` 的初始值是 ``-1``。 在后面 ``dict`` 中， 这个 \
-hash 将会发挥巨大的作用。 计算一个字符串对象的 hash 值时， 采用如下算法： 
+``PyStringObject`` 中的 ``ob_shash`` 变量的作用是缓存该对象的 hash 值， 这样避\
+免每一次都重新计算该字符串对象的 hash 值。 如果一个 ``PyStringObject`` 对象还没\
+有被计算过 hash 值， 那么 ``ob_shash`` 的初始值是 ``-1``。 在后面 ``dict`` 中\
+， 这个 hash 将会发挥巨大的作用。 计算一个字符串对象的 hash 值时， 采用如下算法： 
 
 .. topic:: [Objects/stringobject.c]
 
@@ -91,12 +94,10 @@ hash 将会发挥巨大的作用。 计算一个字符串对象的 hash 值时�
             return x;
         }
 
-- Here 49 页
-
-``PyStringObject`` 对象的 ``ob_sstate`` 变量标记了该对象是否已经过 intern 机制的\
-处理， 关于 ``PyStringObject`` 的 intern 机制， 在后面会详细介绍， 在 Python 源码\
-中的注释显示， 预存字符串的 hash 值和这里的 intern 机制将 Python 虚拟机的执行效率提\
-升了 20%。
+``PyStringObject`` 对象的 ``ob_sstate`` 变量标记了该对象是否已经过 intern 机制\
+的处理， 关于 ``PyStringObject`` 的 intern 机制， 在后面会详细介绍， 在 Python \
+源码中的注释显示， 预存字符串的 hash 值和这里的 intern 机制将 Python 虚拟机的执\
+行效率提升了 20%。
 
 下面列出了 ``PyStringObject`` 对应的类型对象 - ``PyString_Type``：
 
@@ -149,19 +150,19 @@ hash 将会发挥巨大的作用。 计算一个字符串对象的 hash 值时�
         };
 
 在 ``PyStringObject`` 的类型对象中， ``tp_itemsize`` 被设置为 ``sizeof(char)``\
-， 即一个字节。 对于 Python 中的任何一种变长对象， ``tp_itemsize`` 这个域是必须设置\
-的， ``tp_itemsize`` 指明了由变长对象保存的元素 (item) 的单位长度， 所谓单位长度即\
-是指单一一个元素在内存中的长度。 这个 ``tp_itemsize`` 和 ``ob_size`` 共同决定了应\
-该额外申请的内存总大小是多少。 ``tp_as_number``、 ``tp_as_sequence``、 \
-``tp_as_mapping`` 三个域都被设置了， 表示 ``PyStringObject`` 对数值操作， 序列操作\
-和映射操作都支持。 
+， 即一个字节。 对于 Python 中的任何一种变长对象， ``tp_itemsize`` 这个域是必须\
+设置的， ``tp_itemsize`` 指明了由变长对象保存的元素 (item) 的单位长度， 所谓单\
+位长度即是指单一一个元素在内存中的长度。 这个 ``tp_itemsize`` 和 ``ob_size`` 共\
+同决定了应该额外申请的内存总大小是多少。 ``tp_as_number``、 ``tp_as_sequence``\
+、 ``tp_as_mapping`` 三个域都被设置了， 表示 ``PyStringObject`` 对数值操作， 序\
+列操作和映射操作都支持。 
 
 *******************************************************************************
 3.2 创建 ``PyStringObject`` 对象
 *******************************************************************************
 
-Python 提供了两条路径， 从 C 中原生的字符串创建 ``PyStringObject`` 对象。 先看一下\
-最一般的 ``PyString_FromString``。  
+Python 提供了两条路径， 从 C 中原生的字符串创建 ``PyStringObject`` 对象。 先看\
+一下最一般的 ``PyString_FromString``。  
 
 .. topic:: [Objects/stringobject.c]
     
@@ -268,34 +269,37 @@ Python 提供了两条路径， 从 C 中原生的字符串创建 ``PyStringObje
             return (PyObject *) op;
         }
 
-显然传给 ``PyString_FromString`` 的参数必须是一个指向 NUL ('\0') 结尾的字符串指针\
-。 在从一个原生字符串创建 ``PyStringObject`` 时， 首先 [1] 处检查该字符数组的长度\
-， 如果长度大于了 ``PY_SSIZE_T_MAX``， Python 将不会创建对应的 \
-``PyStringObject`` 对象。 ``PY_SSIZE_T_MAX`` 是一个与平台相关的值， 在 Win32 系统\
-下， 该值为 ``2 147 483 647``， 即 2GB。 
+显然传给 ``PyString_FromString`` 的参数必须是一个指向 NUL (``\0``) 结尾的字符串\
+指针。 在从一个原生字符串创建 ``PyStringObject`` 时， 首先代码 [1] 处检查该字符\
+数组的长度， 如果长度大于了 ``PY_SSIZE_T_MAX``， Python 将不会创建对应的 \
+``PyStringObject`` 对象。 ``PY_SSIZE_T_MAX`` 是一个与平台相关的值， 在 Win32 \
+系统下， 该值为 ``2 147 483 647``， 即 2GB。 
 
-在 [2] 处， 检查传入的字符串是否是一个空串， 对于空串， Python 并不是每次都会创建相\
-应的 ``PyStringObject``。 Python 运行时有一个 ``PyStringObject`` 对象指针 \
-``nullstring`` 专门负责处理空的字符数组。 如果第一次在一个空字符串基础上创建 \
-``PyStringObject``， 由于 ``nullstring`` 指针被初始化为 ``NULL``， 所以 Python \
-会为这个空字符建立一个 ``PyStringObject`` 对象， 将这个 ``PyStringObject`` 对象通\
-过 intern 机制进行共享， 然后将 ``nullstring`` 指向这个被共享的对象。 如果在以后 \
-Python 检查到需要为一个空字符串创建 ``PyStringObject`` 对象， 这时 \
-``nullstring`` 已经存在了， 就直接返回 ``nullstring`` 的引用。
+在代码 [2] 处， 检查传入的字符串是否是一个空串， 对于空串， Python 并不是每次都\
+会创建相应的 ``PyStringObject``。 Python 运行时有一个 ``PyStringObject`` 对象\
+指针 ``nullstring`` 专门负责处理空的字符数组。 如果第一次在一个空字符串基础上创\
+建 ``PyStringObject``， 由于 ``nullstring`` 指针被初始化为 ``NULL``， 所以 \
+Python 会为这个空字符建立一个 ``PyStringObject`` 对象， 将这个 \
+``PyStringObject`` 对象通过 intern 机制进行共享， 然后将 ``nullstring`` 指向这\
+个被共享的对象。 如果在以后 Python 检查到需要为一个空字符串创建 \
+``PyStringObject`` 对象， 这时 ``nullstring`` 已经存在了， 就直接返回 \
+``nullstring`` 的引用。
 
 如果不是创建空字符串对象， 接下来的进行的动作就是申请内存， 创建 \
-``PyStringObject`` 对象。 [4] 处申请的内存除了 ``PyStringObject`` 的内存， 还有为\
-字符数组内的元素申请的额外内存。 然后将 hash 缓存值设为 ``-1``， 将 intern 标志设\
-为 ``SSTATE_NOT_INTERNED``。 最后将参数 ``str`` 指向字符数组内的字符拷贝到 \
-``PyStringObject`` 所维护的空间中， 在拷贝的过程中， 将字符数组最后的 '\0' 字符也拷\
-贝了。 假如对字符数组 "Python" 建立 ``PyStringObject`` 对象， 那么对象建立完成后在\
-内存中的状态如图： 
+``PyStringObject`` 对象。 代码 [4] 处申请的内存除了 ``PyStringObject`` 的内存\
+， 还有为字符数组内的元素申请的额外内存。 然后将 hash 缓存值设为 ``-1``， 将 \
+intern 标志设为 ``SSTATE_NOT_INTERNED``。 最后将参数 ``str`` 指向字符数组内的字\
+符拷贝到 ``PyStringObject`` 所维护的空间中， 在拷贝的过程中， 将字符数组最后的 \
+``\0`` 字符也拷贝了。 假如对字符数组 "Python" 建立 ``PyStringObject`` 对象， 那\
+么对象建立完成后在内存中的状态如图： 
 
 .. figure:: img/3-1.png
     :align: center
 
-在 ``PyString_FromString`` 之外， 还有一条创建 ``PyStringObject`` 对象的途径 - \
-``PyString_FromStringAndSize``:
+    图 3-1 新创建的 PyStringObject 对象的内存布局
+
+在 ``PyString_FromString`` 之外， 还有一条创建 ``PyStringObject`` 对象的途径 \
+- ``PyString_FromStringAndSize``:
 
 .. topic:: [Objects/stringobject.c]
 
@@ -395,10 +399,10 @@ Python 检查到需要为一个空字符串创建 ``PyStringObject`` 对象， �
             return (PyObject *) op;
         }
 
-``PyString_FromStringAndSize`` 的操作过程和 ``PyString_FromString`` 一般无二， \
-只是有一点， ``PyString_FromString`` 传入的参数必须是以 NUL ('\0') 结尾的字符数组\
-的指针， 而 ``PyString_FromStringAndSize`` 没有这样的要求， 因为通过传入的 \
-``size`` 参数就可以确定需要拷贝的字符的个数。
+``PyString_FromStringAndSize`` 的操作过程和 ``PyString_FromString`` 一般无二\
+， 只是有一点， ``PyString_FromString`` 传入的参数必须是以 NUL (``\0``) 结尾的\
+字符数组的指针， 而 ``PyString_FromStringAndSize`` 没有这样的要求， 因为通过传\
+入的 ``size`` 参数就可以确定需要拷贝的字符的个数。
 
 *******************************************************************************
 3.3 字符串对象的 intern 机制
