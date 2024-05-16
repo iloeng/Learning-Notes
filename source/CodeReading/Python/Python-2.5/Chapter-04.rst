@@ -5,18 +5,19 @@ Chapter 04 - Python 中的 List 对象
 .. contents:: 
 
 *******************************************************************************
-4.1 ``PyListObject`` 对象
+4.1 PyListObject 对象
 *******************************************************************************
 
 ``PyListObject`` 是 Python 提供的对列表的抽象， 与 STL 中的 ``vector`` 神似。 
 
-``PyListObject`` 对象可以有效地支持元素的插入、 添加、 删除等操作， 在 Python 的列\
-表中， 无一例外存放的都是 ``PyObject*`` 指针。 因此可以这样看待 Python 中的 \
-``PyListObject : vector<PyObject*>``。 
+``PyListObject`` 对象可以有效地支持元素的插入、 添加、 删除等操作， 在 Python \
+的列表中， 无一例外存放的都是 ``PyObject*`` 指针。 因此可以这样看待 Python 中\
+的 ``PyListObject : vector<PyObject*>``。 
 
-``PyListObject`` 是一个变长对象， 因为不同的 ``list`` 中存储的元素个数会是不同的。 \
-与 ``PyStringObject`` 不同的是， ``PyListObject`` 对象支持插入删除等操作， 可以在\
-运行时动态调整它所维护的内存和元素， 是一个可变对象。 ``PyListObject`` 定义如下： 
+``PyListObject`` 是一个变长对象， 因为不同的 ``list`` 中存储的元素个数会是不同\
+的。 与 ``PyStringObject`` 不同的是， ``PyListObject`` 对象支持插入删除等操作\
+， 可以在运行时动态调整它所维护的内存和元素， 是一个可变对象。 \
+``PyListObject`` 定义如下： 
 
 .. topic:: [Include/listobject.h]
 
@@ -43,16 +44,16 @@ Chapter 04 - Python 中的 List 对象
         } PyListObject;
 
 ``PyListObject`` 的头部是一个 ``PyObject_VAR_HEAD``， 随后是一个类型为 \
-``PyObject**`` 的 ``ob_item``， 这个指针和紧接着的 ``allocated`` 数值正是维护元素\
-列表 (``PyObject*`` 列表) 的关键。 指针指向了元素列表所在的内存块的首地址， 而 \
-``allocated`` 中则维护了当前列表中可容纳元素的总数。 
+``PyObject**`` 的 ``ob_item``， 这个指针和紧接着的 ``allocated`` 数值正是维护元\
+素列表 (``PyObject*`` 列表) 的关键。 指针指向了元素列表所在的内存块的首地址， \
+而 ``allocated`` 中则维护了当前列表中可容纳元素的总数。 
 
 ``PyObject_VAR_HEAD`` 中的 ``ob_size`` 和 ``allocated`` 都与 ``PyListObject`` \
-对象的内存管理有关， ``PyListObject`` 所采用的内存管理策略和 C++ 中 ``vector`` 采\
-取的内存管理策略是一样的。 并不是存多少东西就申请对应大小的内存， 每次需要申请内存的\
-时候， ``PyListObject`` 总会申请一大块内存， 其大小记录在 ``allocated`` 中， 而其\
-中实际被是用了的内存的数量则记录在 ``ob_size`` 中。 如一个能容纳 10 个元素的 \
-``PyListObject`` 对象已经装入 5 个元素， 那么其 ``ob_size`` 为 5， \
+对象的内存管理有关， ``PyListObject`` 所采用的内存管理策略和 C++ 中 ``vector`` \
+采取的内存管理策略是一样的。 并不是存多少东西就申请对应大小的内存， 每次需要申请\
+内存的时候， ``PyListObject`` 总会申请一大块内存， 其大小记录在 ``allocated`` \
+中， 而其中实际被是用了的内存的数量则记录在 ``ob_size`` 中。 如一个能容纳 10 个\
+元素的 ``PyListObject`` 对象已经装入 5 个元素， 那么其 ``ob_size`` 为 5， \
 ``allocated`` 为 10。
 
 一个 ``PyListObject`` 对象一定存在下列关系：
@@ -71,8 +72,8 @@ Chapter 04 - Python 中的 List 对象
 ===============================================================================
 
 Python 只提供了唯一的途径去创建一个列表 - ``PyList_New``。 这个函数接受一个 \
-``size`` 参数， 运行可以创建一个 ``PyListObject`` 对象的同时指定该列表初始的元素个\
-数。 仅仅指定了元素的个数， 并没有指定元素是什么。 看一下创建过程。 
+``size`` 参数， 运行可以创建一个 ``PyListObject`` 对象的同时指定该列表初始的元\
+素个数。 仅仅指定了元素的个数， 并没有指定元素是什么。 看一下创建过程。 
 
 .. topic:: [Objects/listobject.c]
 
@@ -124,21 +125,21 @@ Python 只提供了唯一的途径去创建一个列表 - ``PyList_New``。 这�
             return (PyObject *) op;
         }
 
-在 [1] 处会计算需要使用的内存总量， 因为 ``PyList_New`` 指定的仅仅是元素个数， 而不\
-是元素实际将占用的内存空间。 在此 Python 会检查指定的元素个数是否会大到使所需内存数量\
-产生溢出的程度， 如果会产生溢出， 那么 Python 不会进行任何动作。 
+在代码 [1] 处会计算需要使用的内存总量， 因为 ``PyList_New`` 指定的仅仅是元素个\
+数， 而不是元素实际将占用的内存空间。 在此 Python 会检查指定的元素个数是否会大到\
+使所需内存数量产生溢出的程度， 如果会产生溢出， 那么 Python 不会进行任何动作。 
 
-接着就是 Python 对列表对象的创建动作。 Python 中的列表对象实际上是分为两部分的， 一\
-是 ``PyListObject`` 对象本身， 二是 ``PyListObject`` 对象维护的元素列表。 这是两块\
-分离的内存， 它们通过 ``ob_item`` 建立联系。 
+接着就是 Python 对列表对象的创建动作。 Python 中的列表对象实际上是分为两部分的\
+， 一是 ``PyListObject`` 对象本身， 二是 ``PyListObject`` 对象维护的元素列表。 \
+这是两块分离的内存， 它们通过 ``ob_item`` 建立联系。 
 
-[2] 处创建新的 ``PyListObject`` 对象时， 使用了 Python 对象级缓冲池技术。 创建 \
-``PyListObject`` 对象时， 首先检查缓冲池 ``free_lists`` 中是否有可用的对象， 如有\
-则直接使用该可用对象。 如果缓冲池中所有对象都不可用， 会通过 ``PyObject_GC_New`` 在\
-系统堆中申请内存， 创建新的 ``PyListObject`` 对象。 ``PyObject_GC_New`` 除了申请\
-内存， 还会为 Python 中的自动垃圾收集机制做准备工作， 在这里只需将它看做 \
-``malloc`` 即可。 在 Python 2.5 中， 默认情况下 ``free_lists`` 中最多会维护 80 \
-个 ``PyListObject`` 对象。
+代码 [2] 处创建新的 ``PyListObject`` 对象时， 使用了 Python 对象级缓冲池技术。 \
+创建 ``PyListObject`` 对象时， 首先检查缓冲池 ``free_lists`` 中是否有可用的对象\
+， 如有则直接使用该可用对象。 如果缓冲池中所有对象都不可用， 会通过 \
+``PyObject_GC_New`` 在系统堆中申请内存， 创建新的 ``PyListObject`` 对象。 \
+``PyObject_GC_New`` 除了申请内存， 还会为 Python 中的自动垃圾收集机制做准备工作\
+， 在这里只需将它看做 ``malloc`` 即可。 在 Python 2.5 中， 默认情况下 \
+``free_lists`` 中最多会维护 80 个 ``PyListObject`` 对象。
 
 .. code-block:: c 
 
@@ -147,22 +148,24 @@ Python 只提供了唯一的途径去创建一个列表 - ``PyList_New``。 这�
     static PyListObject *free_lists[MAXFREELISTS];
     static int num_free_lists = 0;
 
-当 Python 创建新的 ``PyListObject`` 对象之后， [3] 处会立即根据调用 \
+当 Python 创建新的 ``PyListObject`` 对象之后， 代码 [3] 处会立即根据调用 \
 ``PyList_New`` 时传递的 ``size`` 参数创建 ``PyListObject`` 对象所维护的元素列表\
 。 在创建的 ``PyListObject*`` 列表中， 每个元素都会被初始化为 NULL 值。 
 
-完成 ``PyListObject`` 对象及其维护的列表创建后， Python 会调整 ``PyListObject`` \
-对象， 用于维护元素列表中元素数量的 ``ob_size`` 和 ``allocated`` 变量。 
+完成 ``PyListObject`` 对象及其维护的列表创建后， Python 会调整 \
+``PyListObject`` 对象， 用于维护元素列表中元素数量的 ``ob_size`` 和 \
+``allocated`` 变量。 
 
-[2] 处提及的 ``PyListObject`` 对象缓冲池实际上有个奇特的地方。 在 ``free_lists`` \
-中缓存的只是 ``PyListObject*``， 那么这个缓冲池例的 ``PyListObject*`` 究竟指向什么\
-地方？ 或者这些 ``PyListObject*`` 指向的 ``PyListObject`` 对象是何时何地被创建的？
+代码 [2] 处提及的 ``PyListObject`` 对象缓冲池实际上有个奇特的地方。 在 \
+``free_lists`` 中缓存的只是 ``PyListObject*``， 那么这个缓冲池里的 \
+``PyListObject*`` 究竟指向什么地方？ 或者这些 ``PyListObject*`` 指向的 \
+``PyListObject`` 对象是何时何地被创建的？
 
 4.2.2 设置元素
 ===============================================================================
 
-在第一个 ``PyListObject`` 创建的时候， 这时的 ``num_free_lists`` 是 0， 所以 [2] \
-处会绕过对象缓冲池， 转而调用 ``PyObject_GC_New`` 在系统堆创建一个新的 \
+在第一个 ``PyListObject`` 创建的时候， 这时的 ``num_free_lists`` 是 0， 所以代\
+码 [2] 处会绕过对象缓冲池， 转而调用 ``PyObject_GC_New`` 在系统堆创建一个新的 \
 ``PyListObject`` 对象， 假设创建的 ``PyListObject`` 对象是包含 6 个元素的 \
 ``PyListObject``， 即通过 ``PyList_New(6)`` 来创建 ``PyListObject`` 对象， 在 \
 ``PyList_New`` 完成之后， 第一个 ``PyListObject`` 对象的情形如图 4-1：
@@ -170,9 +173,11 @@ Python 只提供了唯一的途径去创建一个列表 - ``PyList_New``。 这�
 .. figure:: img/4-1.png
     :align: center
 
+    图 4-1 新创建的 PyListObject 对象
+
 注意 Python 交互环境或 .py 源文件中创建一个 ``list`` 时， 内存中的 \
-``PyListObject`` 对象中元素列表中的元素不可能是 NULL。 这里只是为了演示元素列表的变\
-化。
+``PyListObject`` 对象中元素列表中的元素不可能是 NULL。 这里只是为了演示元素列表\
+的变化。
 
 把一个整数对象 100 放到第 4 个位置上去， 即 ``list[3] = 100``
 
@@ -206,15 +211,18 @@ Python 只提供了唯一的途径去创建一个列表 - ``PyList_New``。 这�
             return 0;
         }
 
-Python 中运行 ``list[3] = 100`` 时， 在 Python 内部就是调用 ``PyList_SetItem`` \
-完成的。 首先会进行类型检查， 随后在 [1] 处， 会进行索引的有效性检查。 当类型检查和索\
-引有效性检查都顺利通过后， [2] 处将待加入的 ``PyObject*`` 指针放到特定的位置， 然后\
-调整引用计数， 将这个位置原来存放的对象的引用计数减 1。 ``olditem`` 很可能会是 NULL\
-， 比如向一个新创建的 ``PyListObject`` 对象加入元素， 就会碰到这样的情况， 所以这里\
-必须使用 ``Py_XDECREF``。
+Python 中运行 ``list[3] = 100`` 时， 在 Python 内部就是调用 \
+``PyList_SetItem`` 完成的。 首先会进行类型检查， 随后在代码 [1] 处， 会进行索引\
+的有效性检查。 当类型检查和索引有效性检查都顺利通过后， 代码 [2] 处将待加入的 \
+``PyObject*`` 指针放到特定的位置， 然后调整引用计数， 将这个位置原来存放的对象\
+的引用计数减 1。 ``olditem`` 很可能会是 NULL， 比如向一个新创建的 \
+``PyListObject`` 对象加入元素， 就会碰到这样的情况， 所以这里必须使用 \
+``Py_XDECREF``。
 
 .. figure:: img/4-2.png
     :align: center
+
+    图 4-2 设置元素后的 PyListObject 对象
 
 4.2.3 插入元素
 ===============================================================================
