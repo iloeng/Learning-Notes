@@ -678,8 +678,8 @@ Python 提供了一个以 ``char*`` 为参数的 intern 机制相关的函数用
 3.4 字符缓冲池
 *******************************************************************************
 
-Python 为 ``PyStringObject`` 中的一个字节的字符对应的 ``PyStringObject`` 对象也设\
-计了一个对象池 ``characters``:
+Python 为 ``PyStringObject`` 中的一个字节的字符对应的 ``PyStringObject`` 对象\
+也设计了一个对象池 ``characters``:
 
 .. topic:: [Objects/stringobject.c]
 
@@ -687,54 +687,110 @@ Python 为 ``PyStringObject`` 中的一个字节的字符对应的 ``PyStringObj
 
         static PyStringObject *characters[UCHAR_MAX + 1];
 
-``UCHAR_MAX`` 是在系统头文件中定义的常量， 这是一个平台相关的常量， 在 Win32 平台下： 
+``UCHAR_MAX`` 是在系统头文件中定义的常量， 这是一个平台相关的常量， 在 Win32 平\
+台下： 
 
 .. code-block:: c 
 
     #define UCHAR_MAX    0xff   
 
-这个被定义在 C 语言的 *limits.h* 头文件中。 
+这个被定义在 C 语言的 **limits.h** 头文件中。 
 
-在 Python 的整数对象体系中， 小整数的缓冲池是在 Python 初始化的时候被创建的， 而字符\
-串对象体系中的字符缓冲池则是以静态变量的形式存在。 在 Python 初始化完成之后， 缓冲池\
-中的所有 ``PyStringObject`` 指针都为空。 
+在 Python 的整数对象体系中， 小整数的缓冲池是在 Python 初始化的时候被创建的， \
+而字符串对象体系中的字符缓冲池则是以静态变量的形式存在。 在 Python 初始化完成之\
+后， 缓冲池中的所有 ``PyStringObject`` 指针都为空。 
 
-创建一个 ``PyStringObject`` 对象时， 无论是通过调用 ``PyString_FromString`` 还是\
-通过调用 ``PyString_FromStringAndSize``， 若字符串实际就一个字符， 则会进行如下操作： 
+创建一个 ``PyStringObject`` 对象时， 无论是通过调用 ``PyString_FromString`` 还\
+是通过调用 ``PyString_FromStringAndSize``， 若字符串实际就一个字符， 则会进行如\
+下操作： 
 
-.. code-block:: c 
+.. topic:: [Objects/stringobject.c]
 
-    PyObject *
-    PyString_FromStringAndSize(const char *str, Py_ssize_t size)
-    {
-        ...
-        else if (size == 1 && str != NULL) {
-            PyObject *t = (PyObject *)op;
-            PyString_InternInPlace(&t);
-            op = (PyStringObject *)t;
-            characters[*str & UCHAR_MAX] = op;
-            Py_INCREF(op);
+    .. code-block:: c 
+
+        PyObject *
+        PyString_FromStringAndSize(const char *str, Py_ssize_t size)
+        {
+            ...
+            else if (size == 1 && str != NULL) {
+                PyObject *t = (PyObject *)op;
+                PyString_InternInPlace(&t);
+                op = (PyStringObject *)t;
+                characters[*str & UCHAR_MAX] = op;
+                Py_INCREF(op);
+            }
+            return (PyObject *) op;
         }
-        return (PyObject *) op;
-    }
 
-先对所创建的字符串 (字符) 对象进行 intern 操作， 在将 intern 的结果缓存到字符缓冲\
-池 ``characters`` 中。 图 3-3 演示了缓存一个字符到对应的 ``PyStringObject`` 对象\
-的过程。
+        // 代码
+        PyObject *
+        PyString_FromStringAndSize(const char *str, Py_ssize_t size)
+        {
+            register PyStringObject *op;
+            assert(size >= 0);
+            if (size == 0 && (op = nullstring) != NULL) {
+        #ifdef COUNT_ALLOCS
+                null_strings++;
+        #endif
+                Py_INCREF(op);
+                return (PyObject *)op;
+            }
+            if (size == 1 && str != NULL &&
+                (op = characters[*str & UCHAR_MAX]) != NULL)
+            {
+        #ifdef COUNT_ALLOCS
+                one_strings++;
+        #endif
+                Py_INCREF(op);
+                return (PyObject *)op;
+            }
+
+            /* Inline PyObject_NewVar */
+            op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
+            if (op == NULL)
+                return PyErr_NoMemory();
+            PyObject_INIT_VAR(op, &PyString_Type, size);
+            op->ob_shash = -1;
+            op->ob_sstate = SSTATE_NOT_INTERNED;
+            if (str != NULL)
+                Py_MEMCPY(op->ob_sval, str, size);
+            op->ob_sval[size] = '\0';
+            /* share short strings */
+            if (size == 0) {
+                PyObject *t = (PyObject *)op;
+                PyString_InternInPlace(&t);
+                op = (PyStringObject *)t;
+                nullstring = op;
+                Py_INCREF(op);
+            } else if (size == 1 && str != NULL) {
+                PyObject *t = (PyObject *)op;
+                PyString_InternInPlace(&t);
+                op = (PyStringObject *)t;
+                characters[*str & UCHAR_MAX] = op;
+                Py_INCREF(op);
+            }
+            return (PyObject *) op;
+        }
+
+先对所创建的字符串 (字符) 对象进行 intern 操作， 在将 intern 的结果缓存到字符缓\
+冲池 ``characters`` 中。 图 3-3 演示了缓存一个字符到对应的 ``PyStringObject`` \
+对象的过程。
 
 .. figure:: img/3-3.png
     :align: center
 
+    图 3-3 创建字符对应的 PyStringObject 对象
+
 3 条带有标号的曲线既代表指针， 有代表进行操作的顺序： 
 
-1. 创建 ``PyStringObject`` 对象 <string p>；
+1. 创建 ``PyStringObject`` 对象 ``<string p>``；
 
-2. 对对象 <string p> 进行 intern 操作；
+2. 对对象 ``<string p>`` 进行 intern 操作；
 
-3. 将对象 <string p> 缓存至字符串缓冲池中。 
+3. 将对象 ``<string p>`` 缓存至字符串缓冲池中。 
 
-在创建 ``PyStringObject`` 时， 会首先检查所要创建的是否是一个字符对象， 然后检查字\
-符缓冲池中是否包含这个字符的字符对象的缓冲， 若有直接返回这个缓冲对象即可：
+在创建 ``PyStringObject`` 时， 会首先检查所要创建的是否是一个字符对象， 然后检\
+查字符缓冲池中是否包含这个字符的字符对象的缓冲， 若有直接返回这个缓冲对象即可：
 
 .. topic:: [Objects/stringobject.c]
 
@@ -758,212 +814,221 @@ Python 为 ``PyStringObject`` 中的一个字节的字符对应的 ``PyStringObj
 3.5 ``PyStringObject`` 效率相关问题
 *******************************************************************************
 
-Python 的字符串连接时严重影响 Python 程序执行效率， Python 通过 "+" 进行字符串连接\
-的方法极其低下， 根源在于 Python 中的 ``PyStringObject`` 对象是一个不可变对象。 这\
-意味着进行字符串连接时， 必须创建一个新的 ``PyStringObject`` 对象。 这样如果要连接 \
-N 个 ``PyStringObject`` 对象， 就必须进行 ``N - 1`` 次的内存申请及搬运工作。 
+Python 的字符串连接时严重影响 Python 程序执行效率， Python 通过 "+" 进行字符串\
+连接的方法效率极其低下， 根源在于 Python 中的 ``PyStringObject`` 对象是一个不可\
+变对象。 这意味着进行字符串连接时， 必须创建一个新的 ``PyStringObject`` 对象。 \
+这样如果要连接 N 个 ``PyStringObject`` 对象， 就必须进行 ``N - 1`` 次的内存申请\
+及搬运工作。 
 
-推荐的做法是通过利用 ``PyStringObject`` 对象的 ``join`` 操作来对存储在 ``list`` \
-或 ``tuple`` 中的一组 ``PyStringObject`` 对象进行连接操作， 这样只需分配一次内存\
-， 执行效率大大提高。
+推荐的做法是通过利用 ``PyStringObject`` 对象的 ``join`` 操作来对存储在 \
+``list`` 或 ``tuple`` 中的一组 ``PyStringObject`` 对象进行连接操作， 这样只需分\
+配一次内存， 执行效率大大提高。
 
 通过 "+" 操作符对字符串进行连接时， 会调用 ``string_concat`` 函数：
 
-.. code-block:: c 
+.. topic:: [Objects/stringobject.c]
 
-    static PyObject *
-    string_concat(register PyStringObject *a, register PyObject *bb)
-    {
-        register Py_ssize_t size;
-        register PyStringObject *op;
-        if (!PyString_Check(bb)) {
-    #ifdef Py_USING_UNICODE
-            if (PyUnicode_Check(bb))
-                return PyUnicode_Concat((PyObject *)a, bb);
-    #endif
-            PyErr_Format(PyExc_TypeError,
-                    "cannot concatenate 'str' and '%.200s' objects",
-                    bb->ob_type->tp_name);
-            return NULL;
-        }
-    #define b ((PyStringObject *)bb)
-        /* Optimize cases with empty left or right operand */
-        if ((a->ob_size == 0 || b->ob_size == 0) &&
-            PyString_CheckExact(a) && PyString_CheckExact(b)) {
-            if (a->ob_size == 0) {
-                Py_INCREF(bb);
-                return bb;
+    .. code-block:: c 
+
+        static PyObject *
+        string_concat(register PyStringObject *a, register PyObject *bb)
+        {
+            register Py_ssize_t size;
+            register PyStringObject *op;
+            if (!PyString_Check(bb)) {
+        #ifdef Py_USING_UNICODE
+                if (PyUnicode_Check(bb))
+                    return PyUnicode_Concat((PyObject *)a, bb);
+        #endif
+                PyErr_Format(PyExc_TypeError,
+                        "cannot concatenate 'str' and '%.200s' objects",
+                        bb->ob_type->tp_name);
+                return NULL;
             }
-            Py_INCREF(a);
-            return (PyObject *)a;
+        #define b ((PyStringObject *)bb)
+            /* Optimize cases with empty left or right operand */
+            if ((a->ob_size == 0 || b->ob_size == 0) &&
+                PyString_CheckExact(a) && PyString_CheckExact(b)) {
+                if (a->ob_size == 0) {
+                    Py_INCREF(bb);
+                    return bb;
+                }
+                Py_INCREF(a);
+                return (PyObject *)a;
+            }
+            // 计算字符串连接后的长度 size 
+            size = a->ob_size + b->ob_size;
+            if (size < 0) {
+                PyErr_SetString(PyExc_OverflowError,
+                        "strings are too large to concat");
+                return NULL;
+            }
+            
+            /* Inline PyObject_NewVar */
+            // 创建新的 PyStringObject 对象 ， 其维护的用于存储字符的内存长度为 size
+            op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
+            if (op == NULL)
+                return PyErr_NoMemory();
+            PyObject_INIT_VAR(op, &PyString_Type, size);
+            op->ob_shash = -1;
+            op->ob_sstate = SSTATE_NOT_INTERNED;
+            // 将 a 和 b 中的字符拷贝到新建的 PyStringObject 中 
+            Py_MEMCPY(op->ob_sval, a->ob_sval, a->ob_size);
+            Py_MEMCPY(op->ob_sval + a->ob_size, b->ob_sval, b->ob_size);
+            op->ob_sval[size] = '\0';
+            return (PyObject *) op;
+        #undef b
         }
-        // 计算字符串连接后的长度 size 
-        size = a->ob_size + b->ob_size;
-        if (size < 0) {
-            PyErr_SetString(PyExc_OverflowError,
-                    "strings are too large to concat");
-            return NULL;
-        }
-        
-        /* Inline PyObject_NewVar */
-        // 创建新的 PyStringObject 对象 ， 其维护的用于存储字符的内存长度为 size
-        op = (PyStringObject *)PyObject_MALLOC(sizeof(PyStringObject) + size);
-        if (op == NULL)
-            return PyErr_NoMemory();
-        PyObject_INIT_VAR(op, &PyString_Type, size);
-        op->ob_shash = -1;
-        op->ob_sstate = SSTATE_NOT_INTERNED;
-        // 将 a 和 b 中的字符拷贝到新建的 PyStringObject 中 
-        Py_MEMCPY(op->ob_sval, a->ob_sval, a->ob_size);
-        Py_MEMCPY(op->ob_sval + a->ob_size, b->ob_sval, b->ob_size);
-        op->ob_sval[size] = '\0';
-        return (PyObject *) op;
-    #undef b
-    }
 
-对于任意两个 ``PyStringObject`` 对象的连接， 就会进行一次内存申请的动作。 而如果利\
-用 ``PyStringObject`` 对象的 ``join`` 操作， 则会进行如下的动作 (假设是对 \
+对于任意两个 ``PyStringObject`` 对象的连接， 就会进行一次内存申请的动作。 而如\
+果利用 ``PyStringObject`` 对象的 ``join`` 操作， 则会进行如下的动作 (假设是对 \
 ``list`` 中的 ``PyStringObject`` 对象进行连接)：
 
-.. code-block:: c  
+.. topic:: [Objects/stringobject.c]
 
-    static PyObject *
-    string_join(PyStringObject *self, PyObject *orig)
-    {
-        char *sep = PyString_AS_STRING(self);
-        // 假设调用 "abc".join(list) ， 那么 self 就是 "abc" 对应的 PyStringObject 
-        // 对象 ， 所以 seplen 中存储着 abc 的长度 。 
-        const Py_ssize_t seplen = PyString_GET_SIZE(self);
-        PyObject *res = NULL;
-        char *p;
-        Py_ssize_t seqlen = 0;
-        size_t sz = 0;
-        Py_ssize_t i;
-        PyObject *seq, *item;
+    .. code-block:: c  
 
-        seq = PySequence_Fast(orig, "");
-        if (seq == NULL) {
-            return NULL;
-        }
-        
-        // 获取 list 中 PyStringObject 对象的个数， 保存在 seqlen 中
-        seqlen = PySequence_Size(seq);
-        if (seqlen == 0) {
-            Py_DECREF(seq);
-            return PyString_FromString("");
-        }
-        if (seqlen == 1) {
-            item = PySequence_Fast_GET_ITEM(seq, 0);
-            if (PyString_CheckExact(item) || PyUnicode_CheckExact(item)) {
-                Py_INCREF(item);
-                Py_DECREF(seq);
-                return item;
+        static PyObject *
+        string_join(PyStringObject *self, PyObject *orig)
+        {
+            char *sep = PyString_AS_STRING(self);
+            // 假设调用 "abc".join(list) ， 那么 self 就是 "abc" 对应的 PyStringObject 
+            // 对象 ， 所以 seplen 中存储着 abc 的长度 。 
+            const Py_ssize_t seplen = PyString_GET_SIZE(self);
+            PyObject *res = NULL;
+            char *p;
+            Py_ssize_t seqlen = 0;
+            size_t sz = 0;
+            Py_ssize_t i;
+            PyObject *seq, *item;
+
+            seq = PySequence_Fast(orig, "");
+            if (seq == NULL) {
+                return NULL;
             }
-        }
-
-        /* There are at least two things to join, or else we have a subclass
-        * of the builtin types in the sequence.
-        * Do a pre-pass to figure out the total amount of space we'll
-        * need (sz), see whether any argument is absurd, and defer to
-        * the Unicode join if appropriate.
-        */
-        // 遍历 list 中每个字符串 ， 累加获得 连接 list 中所有字符串后的长度
-        for (i = 0; i < seqlen; i++) {
-            const size_t old_sz = sz;
-            // seq为python 中的 list 对象 ， 这里获取其中第 i 个字符串 。
-            item = PySequence_Fast_GET_ITEM(seq, i);
-            if (!PyString_Check(item)){
-    #ifdef Py_USING_UNICODE
-                if (PyUnicode_Check(item)) {
-                    /* Defer to Unicode join.
-                    * CAUTION:  There's no gurantee that the
-                    * original sequence can be iterated over
-                    * again, so we must pass seq here.
-                    */
-                    PyObject *result;
-                    result = PyUnicode_Join((PyObject *)self, seq);
+            
+            // 获取 list 中 PyStringObject 对象的个数， 保存在 seqlen 中
+            seqlen = PySequence_Size(seq);
+            if (seqlen == 0) {
+                Py_DECREF(seq);
+                return PyString_FromString("");
+            }
+            if (seqlen == 1) {
+                item = PySequence_Fast_GET_ITEM(seq, 0);
+                if (PyString_CheckExact(item) || PyUnicode_CheckExact(item)) {
+                    Py_INCREF(item);
                     Py_DECREF(seq);
-                    return result;
+                    return item;
                 }
-    #endif
-                PyErr_Format(PyExc_TypeError,
-                        "sequence item %zd: expected string,"
-                        " %.80s found",
-                        i, item->ob_type->tp_name);
-                Py_DECREF(seq);
-                return NULL;
             }
-            sz += PyString_GET_SIZE(item);
-            if (i != 0)
-                sz += seplen;
-            if (sz < old_sz || sz > PY_SSIZE_T_MAX) {
-                PyErr_SetString(PyExc_OverflowError,
-                    "join() result is too long for a Python string");
-                Py_DECREF(seq);
-                return NULL;
-            }
-        }
 
-        /* Allocate result space. */
-        // 创建长度为 sz 的 PyStringObject 对象 
-        res = PyString_FromStringAndSize((char*)NULL, sz);
-        if (res == NULL) {
+            /* There are at least two things to join, or else we have a subclass
+            * of the builtin types in the sequence.
+            * Do a pre-pass to figure out the total amount of space we'll
+            * need (sz), see whether any argument is absurd, and defer to
+            * the Unicode join if appropriate.
+            */
+            // 遍历 list 中每个字符串 ， 累加获得 连接 list 中所有字符串后的长度
+            for (i = 0; i < seqlen; i++) {
+                const size_t old_sz = sz;
+                // seq为python 中的 list 对象 ， 这里获取其中第 i 个字符串 。
+                item = PySequence_Fast_GET_ITEM(seq, i);
+                if (!PyString_Check(item)){
+        #ifdef Py_USING_UNICODE
+                    if (PyUnicode_Check(item)) {
+                        /* Defer to Unicode join.
+                        * CAUTION:  There's no gurantee that the
+                        * original sequence can be iterated over
+                        * again, so we must pass seq here.
+                        */
+                        PyObject *result;
+                        result = PyUnicode_Join((PyObject *)self, seq);
+                        Py_DECREF(seq);
+                        return result;
+                    }
+        #endif
+                    PyErr_Format(PyExc_TypeError,
+                            "sequence item %zd: expected string,"
+                            " %.80s found",
+                            i, item->ob_type->tp_name);
+                    Py_DECREF(seq);
+                    return NULL;
+                }
+                sz += PyString_GET_SIZE(item);
+                if (i != 0)
+                    sz += seplen;
+                if (sz < old_sz || sz > PY_SSIZE_T_MAX) {
+                    PyErr_SetString(PyExc_OverflowError,
+                        "join() result is too long for a Python string");
+                    Py_DECREF(seq);
+                    return NULL;
+                }
+            }
+
+            /* Allocate result space. */
+            // 创建长度为 sz 的 PyStringObject 对象 
+            res = PyString_FromStringAndSize((char*)NULL, sz);
+            if (res == NULL) {
+                Py_DECREF(seq);
+                return NULL;
+            }
+
+            /* Catenate everything. */
+            // 将 list 中的字符串拷贝到新创建的 PyStringObject 对象中 
+            p = PyString_AS_STRING(res);
+            for (i = 0; i < seqlen; ++i) {
+                size_t n;
+                item = PySequence_Fast_GET_ITEM(seq, i);
+                n = PyString_GET_SIZE(item);
+                Py_MEMCPY(p, PyString_AS_STRING(item), n);
+                p += n;
+                if (i < seqlen - 1) {
+                    Py_MEMCPY(p, sep, seplen);
+                    p += seplen;
+                }
+            }
+
             Py_DECREF(seq);
-            return NULL;
+            return res;
         }
 
-        /* Catenate everything. */
-        // 将 list 中的字符串拷贝到新创建的 PyStringObject 对象中 
-        p = PyString_AS_STRING(res);
-        for (i = 0; i < seqlen; ++i) {
-            size_t n;
-            item = PySequence_Fast_GET_ITEM(seq, i);
-            n = PyString_GET_SIZE(item);
-            Py_MEMCPY(p, PyString_AS_STRING(item), n);
-            p += n;
-            if (i < seqlen - 1) {
-                Py_MEMCPY(p, sep, seplen);
-                p += seplen;
-            }
-        }
+执行 ``join`` 操作时， 会先统计 ``list`` 中共有多少个 ``PyStringObject`` 对象\
+， 并统计这些 ``PyStringObject`` 对象所维护的字符串一共的长度， 然后申请内存， \
+将 ``list`` 中所有的 ``PyStringObject`` 对象维护的字符串都拷贝到新开辟的内存空\
+间中。 这里只进行了一次内存申请就完成了 N 个 ``PyStringObject`` 对象的连接操作\
+。 相比于 "+" 提升了效率。
 
-        Py_DECREF(seq);
-        return res;
-    }
-
-执行 ``join`` 操作时， 会先统计 ``list`` 中共有多少个 ``PyStringObject`` 对象， \
-并统计这些 ``PyStringObject`` 对象所维护的字符串一共的长度， 然后申请内存， 将 \
-``list`` 中所有的 ``PyStringObject`` 对象维护的字符串都拷贝到新开辟的内存空间中。 \
-这里只进行了一次内存申请就完成了 N 个 ``PyStringObject`` 对象的连接操作。 相比于 \
-"+" 提升了效率。
-
-通过在 ``string_concat`` 和 ``string_join`` 中添加输出代码， 可以清晰看到两种字符\
-串连接的的区别：
+通过在 ``string_concat`` 和 ``string_join`` 中添加输出代码， 可以清晰看到两种字\
+符串连接的的区别：
 
 .. figure:: img/3-4.png
     :align: center
+
+    图 3-4 concat 与 join 的区别
 
 *******************************************************************************
 3.6 Hack ``PyStringObject``
 *******************************************************************************
 
-对 ``PyStringObject`` 对象的运行时的行为进行两项观察。 首先观察 intern 机制， 在 \
-Python Interactive 环境中， 创建一个 ``PyStringObject`` 对象后， 会对这个 \
-``PyStringObject`` 对象进行 intern 操作， 因此期望内容相同的 ``PyStringObject`` \
-对象在 intern 后应该是同一个对象， 观察结果：
+对 ``PyStringObject`` 对象的运行时的行为进行两项观察。 首先观察 intern 机制， \
+在 Python Interactive 环境中， 创建一个 ``PyStringObject`` 对象后， 会对这个 \
+``PyStringObject`` 对象进行 intern 操作， 因此期望内容相同的 \
+``PyStringObject`` 对象在 intern 后应该是同一个对象， 观察结果：
 
 .. figure:: img/3-5.png
     :align: center
 
-通过在 ``string_length`` 中添加打印地址和引用计数的代码， 可以在 Python 运行期间获\
-得每一个 ``PyStringObject`` 对象的地址及引用计数 (在 address 下一行输出的不是字符\
-串的长度信息， 已将其更换为引用计数信息)。 归于一般的字符串及单个字符， intern 机制\
-最终会使不同的 ``PyStringObject*`` 指针指向相同的对象。 
+    图 3-5 intern 机制的观察结果
 
-观察进行缓冲处理的字符对象， 同样在 ``string_length`` 中添加代码， 打印出缓冲池中\
-从 a 到 e 的字符对象的引用计数信息。 为了避免执行 ``len()`` 对引用计数的影响， 不会\
-对 a 到 e 的字符对象调用 ``len`` 操作， 而是对另外的 ``PyStringObject`` 对象调用 \
-``len`` 操作： 
+通过在 ``string_length`` 中添加打印地址和引用计数的代码， 可以在 Python 运行期\
+间获得每一个 ``PyStringObject`` 对象的地址及引用计数 (在 address 下一行输出的不\
+是字符串的长度信息， 已将其更换为引用计数信息)。 对于一般的字符串和单个字符， \
+intern 机制最终会使不同的 ``PyStringObject*`` 指针指向相同的对象。 
+
+观察进行缓冲处理的字符对象， 同样在 ``string_length`` 中添加代码， 打印出缓冲池\
+中从 a 到 e 的字符对象的引用计数信息。 为了避免执行 ``len()`` 对引用计数的影响\
+， 不会对 a 到 e 的字符对象调用 ``len`` 操作， 而是对另外的 ``PyStringObject`` \
+对象调用 ``len`` 操作： 
 
 .. code-block:: c 
 
@@ -1003,8 +1068,10 @@ Python Interactive 环境中， 创建一个 ``PyStringObject`` 对象后， 会
         printf("\n");
     }
 
-图 3-6 展示了观察的结果， 在创建字符对象时， Python 确实只使用了缓冲池里的对象， 没\
-有创建新的对象。 
+图 3-6 展示了观察的结果， 在创建字符对象时， Python 确实只使用了缓冲池里的对象\
+， 没有创建新的对象。 
 
 .. figure:: img/3-6.png
     :align: center
+
+    图 3-6 Python 内部的字符缓冲池
