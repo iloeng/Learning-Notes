@@ -434,32 +434,32 @@ entry， 同样是一个能指示失败且立即可用的 entry。
 
     .. code-block:: c
 
-      /* Return -1 if error; 1 if v op w; 0 if not (v op w). */
-      int
-      PyObject_RichCompareBool(PyObject *v, PyObject *w, int op)
-      {
-        PyObject *res;
-        int ok;
+        /* Return -1 if error; 1 if v op w; 0 if not (v op w). */
+        int
+        PyObject_RichCompareBool(PyObject *v, PyObject *w, int op)
+        {
+            PyObject *res;
+            int ok;
 
-        /* Quick result when objects are the same.
-          Guarantees that identity implies equality. */
-        if (v == w) {
-          if (op == Py_EQ)
-            return 1;
-          else if (op == Py_NE)
-            return 0;
+            /* Quick result when objects are the same.
+            Guarantees that identity implies equality. */
+            if (v == w) {
+            if (op == Py_EQ)
+                return 1;
+            else if (op == Py_NE)
+                return 0;
+            }
+
+            res = PyObject_RichCompare(v, w, op);
+            if (res == NULL)
+            return -1;
+            if (PyBool_Check(res))
+            ok = (res == Py_True);
+            else
+            ok = PyObject_IsTrue(res);
+            Py_DECREF(res);
+            return ok;
         }
-
-        res = PyObject_RichCompare(v, w, op);
-        if (res == NULL)
-          return -1;
-        if (PyBool_Check(res))
-          ok = (res == Py_True);
-        else
-          ok = PyObject_IsTrue(res);
-        Py_DECREF(res);
-        return ok;
-      }
 
 这是 Python 提供的一个相当典型的比较操作， 可以自己指定比较操作的类型， 当 \
 ``(v op w)`` 成立时， 返回 1； 当 ``(v op w)`` 不成立时， 返回 0； 如果在比较中\
@@ -483,3 +483,116 @@ entry， 同样是一个能指示失败且立即可用的 entry。
 根据 hash 值获得的冲突探测链上第一个 entry 与待查找的元素的比较。 实际上， 由\
 于 entry 对应于某一个散列值， 几乎都有一个冲突探测链与之对应， 所以现在只是考察\
 了所有候选 entry 中的第一个 entry， 万里长征仅仅迈出了第一步。
+
+如果冲突探测链上第一个 entry 的 key 与待查找的 key 不匹配， 那么很自然地， \
+``lookdict`` 会沿着探测链， 顺藤摸瓜， 依次比较探测链上的 entry 与待查找的 key \
+（见代码清单 5-3）。
+
+.. topic:: 代码清单 5-3 [Objects/dictobject.c]
+
+    .. code-block:: c
+
+        static dictentry *
+        lookdict(dictobject *mp, PyObject *key, register long hash)
+        {
+            register size_t i;
+            register size_t perturb;
+            register dictentry *freeslot;
+            register size_t mask = (size_t)mp->ma_mask;
+            dictentry *ep0 = mp->ma_table;
+            register dictentry *ep;
+            register int cmp;
+            PyObject *startkey;
+
+            i = (size_t)hash & mask;
+            ep = &ep0[i];
+            if (ep->me_key == NULL || ep->me_key == key)
+                return ep;
+
+            if (ep->me_key == dummy)
+                freeslot = ep;
+            else {
+                if (ep->me_hash == hash) {
+                    startkey = ep->me_key;
+                    cmp = PyObject_RichCompareBool(startkey, key, Py_EQ);
+                    if (cmp < 0)
+                        return NULL;
+                    if (ep0 == mp->ma_table && ep->me_key == startkey) {
+                        if (cmp > 0)
+                            return ep;
+                    }
+                    else {
+                        /* The compare did major nasty stuff to the
+                        * dict:  start over.
+                        * XXX A clever adversary could prevent this
+                        * XXX from terminating.
+                        */
+                        return lookdict(mp, key, hash);
+                    }
+                }
+                freeslot = NULL;
+            }
+
+            /* In the loop, me_key == dummy is by far (factor of 100s) the
+                least likely outcome, so test for that last. */
+            //[5]：寻找探测链上下一个 entry
+            for (perturb = hash; ; perturb >>= PERTURB_SHIFT) {
+                i = (i << 2) + i + perturb + 1;
+                ep = &ep0[i & mask];
+                //[6]：到达 Unused 态 entry，搜索失败
+                if (ep->me_key == NULL)
+                    return freeslot == NULL ? ep : freeslot;
+                //[7]：检查“引用相同”是否成立
+                if (ep->me_key == key)
+                    return ep;
+                //[8]：检查“值相同”是否成立
+                if (ep->me_hash == hash && ep->me_key != dummy) {
+                    startkey = ep->me_key;
+                    cmp = PyObject_RichCompareBool(startkey, key, Py_EQ);
+                    if (cmp < 0)
+                        return NULL;
+                    if (ep0 == mp->ma_table && ep->me_key == startkey) {
+                        if (cmp > 0)
+                            return ep;
+                    }
+                    else {
+                        /* The compare did major nasty stuff to the
+                        * dict:  start over.
+                        * XXX A clever adversary could prevent this
+                        * XXX from terminating.
+                        */
+                        return lookdict(mp, key, hash);
+                    }
+                }
+                //[9]: 设置 freeslot
+                else if (ep->me_key == dummy && freeslot == NULL)
+                    freeslot = ep;
+            }
+        }
+
+上文已经清楚地了解了 ``lookdict`` 检查冲突探测链上的第一个 entry 时所进行的动作\
+， 其实对探测链上的其他 entry 也将进行同样的动作， 对第一个 entry 和其他 entry \
+的检查本质上是一样的， 我们看一看在遍历探测链时发生 ``lookdict`` 所进行的操作\
+， 如代码清单 5-3 中的[5]、[6]、[7]、[8]、[9]所示。
+
+[5] 根据 Python 所采用的探测函数， 获得探测链中的下一个待检查的 entry。
+
+[6] 检查到一个 **Unused** 态 entry， 表明搜索失败， 这时有两种结果：
+  - 如果 ``freeslot`` 不为空， 则返回 ``freeslot`` 所指 entry；
+  - 如果 ``freeslot`` 为空， 则返回该 ``Unused`` 态 entry。
+
+[7] 检查 entry 中的 key 与待查找的 key 是否符合 “引用相同” 规则。
+
+[8] 检查 entry 中的 key 与待查找的 key 是否符合 “值相同” 规则。
+
+[9] 在遍历过程中，如果发现 **Dummy** 态 entry， 且 ``freeslot`` 未设置， 则设\
+置 ``freeslot``。
+
+需要特别注意的是， 如果搜索成功， 那么 ``ep`` 一定指向一个有效的 entry， 直接返\
+回这个 entry 即可； 如果搜索失败， 那么此时 ``ep`` 指向一个 **Unused** 态的 \
+entry， 不能直接返回该 entry， 因为有可能在遍历的过程中， 已经发现了一个 \
+**Dummy** 态 entry， 这个 entry 实际是一个空闲的 entry， 可以被 Python 使用， \
+所以在代码清单 5-3 的 [6] 处， 我们会检查当前 ``freeslot`` 是否已经被设置， 如\
+果被设置， 则不会返回 **Dummy** 态 entry， 而是需要返回 ``freeslot`` 所指向的 \
+entry 。
+
