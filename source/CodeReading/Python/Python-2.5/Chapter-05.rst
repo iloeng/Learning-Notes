@@ -692,4 +692,87 @@ Python 自身大量使用了 ``PyDictObject`` 对象， 用来维护一个名字
 ``lookdict_string`` 的意义就显得非常重要了， 它对 Python 整体的运行效率都有着重\
 要的影响。
 
+5.3.3 插入与删除
+===============================================================================
+
+``PyDictObject`` 对象中元素的插入动作建立在搜索的基础之上， 理解了 \
+``PyDictObject`` 对象中的搜索策略， 对于插入动作也就很容易理解了 （见代码清单 \
+5-5）。
+
+.. topic:: 代码清单 5-5 [Objects/dictobject.c]
+    
+    .. code-block:: c
+
+        static int
+        insertdict(register dictobject *mp, PyObject *key, long hash, PyObject *value)
+        {
+            PyObject *old_value;
+            register dictentry *ep;
+            typedef PyDictEntry *(*lookupfunc)(PyDictObject *, PyObject *, long);
+
+            assert(mp->ma_lookup != NULL);
+            ep = mp->ma_lookup(mp, key, hash);
+            if (ep == NULL) {
+                Py_DECREF(key);
+                Py_DECREF(value);
+                return -1;
+            }
+            //[1]：搜索成功
+            if (ep->me_value != NULL) {
+                old_value = ep->me_value;
+                ep->me_value = value;
+                Py_DECREF(old_value); /* which **CAN** re-enter */
+                Py_DECREF(key);
+            }
+            //[2]：搜索失败
+            else {
+                if (ep->me_key == NULL)
+                    mp->ma_fill++;
+                else {
+                    assert(ep->me_key == dummy);
+                    Py_DECREF(dummy);
+                }
+                ep->me_key = key;
+                ep->me_hash = (Py_ssize_t)hash;
+                ep->me_value = value;
+                mp->ma_used++;
+            }
+            return 0;
+        }
+
+前面提到， 搜索操作在成功时， 返回相应的处于 **Active** 态的 entry， 而在搜索失\
+败时会返回两种不同的结果： 一是处于 **Unused** 态的 entry； 二是处于 **Dummy** \
+态的 entry。 那么插入操作对应不同的 entry， 所需要进行的动作显然也是不一样的。 \
+对于 **Active** 的 entry， 只需要简单地替换 ``me_value`` 值就可以了； 而对于 \
+**Unused** 或 **Dummy** 的 entry， 则需要完整地设置 ``me_key``， ``me_hash`` \
+和 ``me_value``。 在 ``insertdict`` 中， 正是根据搜索的结果采取了不同的动作， \
+如代码清单 5-5 中的 [1]、 [2] 所示。
+
+[1] 搜索成功， 返回处于 **Active** 的 entry， 直接替换 ``me_value``；
+
+[2] 搜索失败， 返回 **Unused** 或 **Dummy** 的 entry， 完整设置 ``me_key``、 \
+``me_hash`` 和 ``me_value``。
+
+在 Python 中， 对 ``PyDictObject`` 对象插入或设置元素有两种情况， 如下面的代码\
+所示：
+
+.. code-block:: python
+
+    d = {}
+    d[1] = 1
+    d[1] = 2
+
+第二行 Python 代码是在 ``PyDictObject`` 对象中没有这个 entry 的情况下插入元素\
+， 第三行是在 ``PyDictObject`` 对象中已经有这个 entry 的情况下重新设置元素。 可\
+以看到， ``insertdict`` 完全可以适应这两种情况， 在 ``insertdict`` 中， 代码清\
+单 5-5 的 [2] 处理第二行 Python 代码， 代码清单 5-5 的 [1] 处理第三行 Python 代\
+码。 实际上， 这两行 Python 代码也确实都调用了 ``insertdict``。
+
+当这两行设置 ``PyDictObject`` 对象元素的 Python 代码被 Python 虚拟机执行时， 并\
+不是直接就调用 ``insertdict``， 因为观察代码可以看到， ``insertdict`` 需要一个 \
+hash 值作为调用参数， 那这个 hash 值是在什么地方获得的呢？ 实际上， 在调用 \
+``insertdict`` 之前， 还会调用 ``PyDict_SetItem`` （见代码清单 5-6）。
+
+
+
 
