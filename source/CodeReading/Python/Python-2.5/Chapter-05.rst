@@ -596,3 +596,100 @@ entry， 不能直接返回该 entry， 因为有可能在遍历的过程中， 
 果被设置， 则不会返回 **Dummy** 态 entry， 而是需要返回 ``freeslot`` 所指向的 \
 entry 。
 
+到这里， 我们已经清晰地了解了 ``PyDictObject`` 中的搜索策略， 现在可以来看一看 \
+Python 在 ``PyDict_New`` 中为 ``PyDictObject`` 对象提供的默认搜索策略了 （见代\
+码清单 5-4）。
+
+.. topic:: 代码清单 5-4 [Objects/dictobject.c]
+    
+    .. code-block:: c
+
+        static dictentry *
+        lookdict_string(dictobject *mp, PyObject *key, register long hash)
+        {
+            register size_t i;
+            register size_t perturb;
+            register dictentry *freeslot;
+            register size_t mask = (size_t)mp->ma_mask;
+            dictentry *ep0 = mp->ma_table;
+            register dictentry *ep;
+
+            /* Make sure this function doesn't have to handle non-string keys,
+            including subclasses of str; e.g., one reason to subclass
+            strings is to override __eq__, and for speed we don't cater to
+            that here. */
+
+            // [0]：选择搜索策略
+            if (!PyString_CheckExact(key)) {
+        #ifdef SHOW_CONVERSION_COUNTS
+                ++converted;
+        #endif
+                mp->ma_lookup = lookdict;
+                return lookdict(mp, key, hash);
+            }
+            //搜索第一阶段：检查冲突链上第一个 entry
+            //[1]：散列，定位冲突探测链的第一个 entry
+            i = hash & mask;
+            ep = &ep0[i];
+            //[2]：
+            //1. entry 处于 Unused 态
+            //2. entry 中的 key 与待搜索的 key 匹配
+            if (ep->me_key == NULL || ep->me_key == key)
+                return ep;
+            //[3]：第一个 entry 处于 Dummy 态，设置 freeslot
+            if (ep->me_key == dummy)
+                freeslot = ep;
+            else {
+                //[4]: 检查 Active 态 entry
+                if (ep->me_hash == hash && _PyString_Eq(ep->me_key, key))
+                    return ep;
+                freeslot = NULL;
+            }
+
+            /* In the loop, me_key == dummy is by far (factor of 100s) the
+            least likely outcome, so test for that last. */
+            //搜索第二阶段：遍历冲突链，检查每一个 entry
+            for (perturb = hash; ; perturb >>= PERTURB_SHIFT) {
+                i = (i << 2) + i + perturb + 1;
+                ep = &ep0[i & mask];
+                if (ep->me_key == NULL)
+                    return freeslot == NULL ? ep : freeslot;
+                if (ep->me_key == key
+                    || (ep->me_hash == hash
+                        && ep->me_key != dummy
+                    && _PyString_Eq(ep->me_key, key)))
+                    return ep;
+                if (ep->me_key == dummy && freeslot == NULL)
+                    freeslot = ep;
+            }
+        }
+
+正如前面所说， ``lookdict_string`` 是一种有条件限制的搜索策略。 \
+``lookdict_string`` 背后有一个假设， 即待搜索的 ``key`` 是一个 \
+``PyStringObject`` 对象。 只有在这种假设成立的情况下， ``lookdict_string`` 才会\
+被使用。 需要特别注意的是， 这里只对需要搜索的 ``key`` 进行了假设， 没有对参与搜\
+索的 ``dict`` 做出任何的假设。 这就意味着， 即使参与搜索的 ``dict`` 中所有 \
+entry 的 ``key`` 都是 ``PyIntObject`` 对象， 只要待搜索的 ``key`` 是 \
+``PyStringObject`` 对象， 都会采用 ``lookdict_string`` 进行搜索， \
+``_PyString_Eq`` 将保证能正确处理非 ``PyStringObject*`` 参数。
+
+在代码清单 5-4 的 [0] 处， ``lookdict_string`` 首先会对这种假设进行确定， 检查\
+需要搜索的 ``key`` 是否严格对应一个 ``PyStringObject`` 对象， 只有在检查通过后\
+， 才会进行下面的动作； 如果检查不通过， 那么就会转向 ``PyDictObject`` 中的通用\
+搜索策略 ``lookdict``。
+
+``lookdict_string`` 实际上就是一个 ``lookdict`` 对于 ``PyStringDict`` 对象的优\
+化版本。  在 ``lookdict`` 中有许多捕捉错误并处理错误的代码， 因为 ``lookdict`` \
+面对的是 ``PyObject*``， 所以会出现很多意外情况。 而在 ``lookdict_string`` 中\
+， 完全没有了这些处理错误的代码。 而另一方面， 在 ``lookdict`` 中， 使用的是非\
+常通用的 ``PyObject_RichCompareBool``， 而 ``lookdict_string`` 使用的是 \
+``_PyString_Eq``， 要简单很多， 这些因素使得 ``lookdict_string`` 的搜索效率要\
+比 ``lookdict`` 高很多。
+
+Python 自身大量使用了 ``PyDictObject`` 对象， 用来维护一个名字空间中变量名和变\
+量值之间的对应关系， 或是用来在为函数传递参数时维护参数名与参数值的对应关系。 这\
+些对象几乎都是用 ``PyStringObject`` 对象作为 entry 中的 key， 所以 \
+``lookdict_string`` 的意义就显得非常重要了， 它对 Python 整体的运行效率都有着重\
+要的影响。
+
+
