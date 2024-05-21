@@ -773,6 +773,120 @@ Python 自身大量使用了 ``PyDictObject`` 对象， 用来维护一个名字
 hash 值作为调用参数， 那这个 hash 值是在什么地方获得的呢？ 实际上， 在调用 \
 ``insertdict`` 之前， 还会调用 ``PyDict_SetItem`` （见代码清单 5-6）。
 
+.. topic:: 代码清单 5-6 [Objects/dictobject.c]
+
+    .. code-block:: c
+
+        int
+        PyDict_SetItem(register PyObject *op, PyObject *key, PyObject *value)
+        {
+            register dictobject *mp;
+            register long hash;
+            register Py_ssize_t n_used;
+
+            if (!PyDict_Check(op)) {
+                PyErr_BadInternalCall();
+                return -1;
+            }
+            assert(key);
+            assert(value);
+            mp = (dictobject *)op;
+            //[1]：计算 hash 值
+            if (PyString_CheckExact(key)) {
+                hash = ((PyStringObject *)key)->ob_shash;
+                if (hash == -1)
+                    hash = PyObject_Hash(key);
+            }
+            else {
+                hash = PyObject_Hash(key);
+                if (hash == -1)
+                    return -1;
+            }
+            //[2]：插入(key, value)元素对
+            assert(mp->ma_fill <= mp->ma_mask);  /* at least one empty slot */
+            n_used = mp->ma_used;
+            Py_INCREF(value);
+            Py_INCREF(key);
+            if (insertdict(mp, key, hash, value) != 0)
+                return -1;
+            /* If we added a key, we can safely resize.  Otherwise just return!
+            * If fill >= 2/3 size, adjust size.  Normally, this doubles or
+            * quaduples the size, but it's also possible for the dict to shrink
+            * (if ma_fill is much larger than ma_used, meaning a lot of dict
+            * keys have been * deleted).
+            *
+            * Quadrupling the size improves average dictionary sparseness
+            * (reducing collisions) at the cost of some memory and iteration
+            * speed (which loops over every possible entry).  It also halves
+            * the number of expensive resize operations in a growing dictionary.
+            *
+            * Very large dictionaries (over 50K items) use doubling instead.
+            * This may help applications with severe memory constraints.
+            */
+            //[3]：必要时调整 dict 的内存空间
+            if (!(mp->ma_used > n_used && mp->ma_fill*3 >= (mp->ma_mask+1)*2))
+                return 0;
+            return dictresize(mp, (mp->ma_used > 50000 ? 2 : 4) * mp->ma_used);
+        }
+
+在 ``PyDict_SetItem`` 中， 会首先在代码清单 5-6 的 [1] 处获得 key 的 hash 值， \
+在上面的例子中， 也就是一个 ``PyIntObject`` 对象 1 的 hash 值。 然后代码清单 \
+[2] 处通过 ``insertdict`` 进行元素的插入或设置。
+
+``PyDict_SetItem`` 在插入或设置元素的动作结束之后， 并不会草草返回了事。 接下来\
+它会检查是否需要改变 ``PyDictObject`` 内部 ``ma_table`` 所维护的内存区域的大小\
+， 在以后的叙述中将这块内存称为 “table”。 那么什么时候需要改变 table 的大小呢\
+？ 在前面说过， 如果 table 的装载率大于 2/3 时， 后续的插入动作遭遇到冲突的可能\
+性会非常大。 所以装载率是否大于或等于 2/3 就是判断是否需要改变 table 大小的准则。
+
+上述代码中的:
+
+.. code-block:: c
+
+    if (!(mp->ma_used > n_used && mp->ma_fill*3 >= (mp->ma_mask+1)*2))
+        return 0;
+
+经过转换， 实际上可以得到：
+
+.. code-block:: c
+
+    (mp->ma_fill)/(mp->ma_mask+1) >= 2/3
+
+这个等式左边的表达式正是装载率。 然而装载率只是判定是否需要改变 table 大小的一个\
+标准， 还有另一个标准是在 ``insertdict`` 的过程中， 是否使用了一个处于 \
+**Unused** 态或 **Dummy** 态的 entry。 前面说过在搜索失败时， 会返回一个 \
+**Dummy** 态或 **Unused** 态的 entry， ``insertdict`` 会对这个 entry 进行填充\
+。 只有当这种情况发生并且装载率超标时， 才会进行改变 table 大小的动作。 而判断\
+在 ``insertdict`` 的过程中是否填充了 **Unused** 态或 **Dummy** 态 entry， 是通\
+过下面的条件判断完成的：
+
+.. code-block:: c
+
+    mp->ma_used > n_used
+
+其中的 ``n_used`` 就是进行 ``insertdict`` 操作之前的 ``mp->ma_used``。 通过观\
+察 ``mp->ma_used`` 是否改变， 就可以知道是否有 **Unused** 态或 **Dummy** 态的 \
+entry 被填充。 在改变 table 时， 并不一定是增加 table 的大小， 同样也可能是减\
+小 table 的大小。 更改 table 的大小时， 新的 table 的空间为：
+
+.. code-block:: c
+
+    mp->ma_used*(mp->ma_used>50000 ? 2 : 4)
+
+如果一个 ``PyDictObject`` 对象的 table 中只有几个 entry 处于 **Active** 态， 而\
+大多数 entry 都处于 **Dummy** 态， 那么改变 table 大小的结果显然就是减小了 \
+table 的空间大小。
+
+在确定新的 table 的大小时， 通常选用的策略是新的 table 中 entry 的数量是现在 \
+table 中 **Active** 态 entry 数量的 4 倍， 选用 4 倍是为了使 table 中处于 \
+**Active** 态的 entry 的分布更加稀疏， 减少插入元素时的冲突概率。 当然这是以内\
+存空间为代价的。 由于机器的内存是有限的， Python 总不能在任何时候都要求 4 倍空\
+间， 所以当 table 中 **Active** 态的 entry 数量非常大时， Python 只会要求 2 倍\
+的空间， 这次又是以执行速度来交换内存空间。 Python 2.5 将这个 “非常大” 的标准划\
+定在 50000。 如此一来， 各得其所， 万事大吉。
+
+至于具体改变 table 大小的重任， 则交到了 ``dictresize`` 一人的肩上 （见代码清\
+单 5-7）。
 
 
 
