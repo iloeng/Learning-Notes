@@ -888,5 +888,127 @@ table 中 **Active** 态 entry 数量的 4 倍， 选用 4 倍是为了使 table
 至于具体改变 table 大小的重任， 则交到了 ``dictresize`` 一人的肩上 （见代码清\
 单 5-7）。
 
+.. topic:: 代码清单 5-7 [Objects/dictobject.c]
+
+    .. code-block:: c
+
+        static int
+        dictresize(dictobject *mp, Py_ssize_t minused)
+        {
+            Py_ssize_t newsize;
+            dictentry *oldtable, *newtable, *ep;
+            Py_ssize_t i;
+            int is_oldtable_malloced;
+            dictentry small_copy[PyDict_MINSIZE];
+
+            assert(minused >= 0);
+
+            /* Find the smallest table size > minused. */
+            //[1]：确定新的 table 的大小
+            for (newsize = PyDict_MINSIZE;
+                newsize <= minused && newsize > 0;
+                newsize <<= 1)
+                ;
+            if (newsize <= 0) {
+                PyErr_NoMemory();
+                return -1;
+            }
+
+            /* Get space for a new table. */
+            oldtable = mp->ma_table;
+            assert(oldtable != NULL);
+            is_oldtable_malloced = oldtable != mp->ma_smalltable;
+
+            //[2]: 新的 table 可以使用 mp->ma_smalltable
+            if (newsize == PyDict_MINSIZE) {
+                /* A large table is shrinking, or we can't get any smaller. */
+                newtable = mp->ma_smalltable;
+                if (newtable == oldtable) {
+                    if (mp->ma_fill == mp->ma_used) {
+                        /* No dummies, so no point doing anything. */
+                        //没有任何 Dummy 态 entry,直接返回
+                        return 0;
+                    }
+                    /* We're not going to resize it, but rebuild the
+                    table anyway to purge old dummy entries.
+                    Subtle:  This is *necessary* if fill==size,
+                    as lookdict needs at least one virgin slot to
+                    terminate failing searches.  If fill < size, it's
+                    merely desirable, as dummies slow searches. */
+                    assert(mp->ma_fill > mp->ma_used);
+                    //将旧 table 拷贝，进行备份
+                    memcpy(small_copy, oldtable, sizeof(small_copy));
+                    oldtable = small_copy;
+                }
+            }
+            //[3]: 新的 table 不能使用 mp->ma_smalltable，需要在系统堆上申请
+            else {
+                newtable = PyMem_NEW(dictentry, newsize);
+                if (newtable == NULL) {
+                    PyErr_NoMemory();
+                    return -1;
+                }
+            }
+
+            /* Make the dict empty, using the new table. */
+            assert(newtable != oldtable);
+            //[4]：设置新 table
+            mp->ma_table = newtable;
+            mp->ma_mask = newsize - 1;
+            memset(newtable, 0, sizeof(dictentry) * newsize);
+            mp->ma_used = 0;
+            i = mp->ma_fill;
+            mp->ma_fill = 0;
+
+            /* Copy the data over; this is refcount-neutral for active entries;
+            dummy entries aren't copied over, of course */
+            //[5]：处理旧 table 中的 entry：
+            // 1、Active 态 entry，搬移到新 table 中
+            // 2、Dummy 态 entry，调整 key 的引用计数，丢弃该 entry
+            for (ep = oldtable; i > 0; ep++) {
+                if (ep->me_value != NULL) {	/* active entry */
+                    --i;
+                    insertdict_clean(mp, ep->me_key, (long)ep->me_hash,
+                            ep->me_value);
+                }
+                else if (ep->me_key != NULL) {	/* dummy entry */
+                    --i;
+                    assert(ep->me_key == dummy);
+                    Py_DECREF(ep->me_key);
+                }
+                /* else key == value == NULL:  nothing to do */
+            }
+            //[6]：必要时释放旧 table 所维护的内存空间
+            if (is_oldtable_malloced)
+                PyMem_DEL(oldtable);
+            return 0;
+        }
+
+在改变 dict 的内存空间时所发生的动作， 如代码清单 5-7 中的 [1]、 [2]、 [3]、 \
+[4]、 [5]、 [6] 所示。
+
+[1] ``dictresize`` 首先会确定新的 table 的大小， 很显然， 这个大小一定要大于传\
+入的参数 ``minused``， 这个 ``minused`` 在前面已经看到了， 这是 Python 在调用 \
+``dictresize`` 时要求 ``dictresize`` 必须保证的内存空间， 只许超出， 不许偷工减\
+料。 ``dictresize`` 从 8 开始， 以指数方式增加大小， 直到超过了 ``minused`` 为\
+止。 所以实际上新的 table 的大小在大多数情况下至少是原来 table 中 **Active** \
+态 entry 数量的 4 倍。
+
+[2]、 [3] 如果在代码清单 5-7 的 [1] 中获得的新的 table 大小为 8， 则不需要在堆\
+上分配空间， 直接使用 ``ma_smalltable`` 就可以了； 否则， 则需要在堆上分配空间。
+
+[4] 对新的 table 进行初始化， 并调整原来 ``PyDictObject`` 对象中用于维护 table \
+使用情况的变量。
+
+[5] 对原来 table 中的非 **Unused** 态 entry 进行处理。 对于 **Active** 态 \
+entry， 显然需要将其插入到新的 table 中， 这个动作由前面考察过的 \
+``insertdict`` 完成； 而对于 **Dummy** 态的 entry， 则将该 entry 丢弃， 当然要\
+调整 entry 中 key 的引用计数。 之所以能将 **Dummy** 态 entry 丢弃， 是因为 \
+**Dummy** 态 entry 存在的唯一理由就是为了不使搜索时的探测链中断。 现在所有 \
+**Active** 态的 entry 都重新依次插入新的 table 中， 它们会形成一条新的探测序列\
+， 不再需要这些 **Dummy** 态的 entry 了。
+
+[6] 如果之前旧的 table 指向了一片系统堆中的内存空间， 那么我们还需要释放这片内存\
+空间， 防止内存泄露。
 
 
