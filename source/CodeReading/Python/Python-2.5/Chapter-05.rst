@@ -1011,4 +1011,108 @@ entry， 显然需要将其插入到新的 table 中， 这个动作由前面考
 [6] 如果之前旧的 table 指向了一片系统堆中的内存空间， 那么我们还需要释放这片内存\
 空间， 防止内存泄露。
 
+现在， 利用我们对 ``PyDictObject`` 的认识， 想象一下从 ``table`` 中删除一个元素\
+应该怎样操作呢？
+
+.. topic:: 代码清单 5-8 [Objects/dictobject.c]
+
+    .. code-block:: c
+
+        int
+        PyDict_DelItem(PyObject *op, PyObject *key)
+        {
+            register dictobject *mp;
+            register long hash;
+            register dictentry *ep;
+            PyObject *old_value, *old_key;
+
+            if (!PyDict_Check(op)) {
+                PyErr_BadInternalCall();
+                return -1;
+            }
+            assert(key);
+            //[1]：获得 hash 值
+            if (!PyString_CheckExact(key) ||
+                (hash = ((PyStringObject *) key)->ob_shash) == -1) {
+                hash = PyObject_Hash(key);
+                if (hash == -1)
+                    return -1;
+            }
+            //[2]：搜索 entry
+            mp = (dictobject *)op;
+            ep = (mp->ma_lookup)(mp, key, hash);
+            if (ep == NULL)
+                return -1;
+            if (ep->me_value == NULL) {
+                PyErr_SetObject(PyExc_KeyError, key);
+                return -1;
+            }
+            //[3]：删除 entry 所维护的元素，将 entry 的状态转为 dummy 态
+            old_key = ep->me_key;
+            Py_INCREF(dummy);
+            ep->me_key = dummy;
+            old_value = ep->me_value;
+            ep->me_value = NULL;
+            mp->ma_used--;
+            Py_DECREF(old_value);
+            Py_DECREF(old_key);
+            return 0;
+        }
+
+流程非常清晰， 先计算 hash 值， 然后搜索相应的 entry， 最后删除 entry 中维护的\
+元素， 并将 entry 从 **Active** 态变换为 **Dummy** 态， 同时还将调整 \
+``PyDictObject`` 对象中维护 table 使用情况的变量。
+
+5.3.4 操作示例
+===============================================================================
+
+下面用一个简单的例子来动态地展示对 ``PyDictObject`` 中 **table** 的维护过程， \
+需要提醒的是， 这里采用的散列函数和探测函数都与 Python 中 ``PyDictObject`` 实际\
+采用的策略不同， 这里只是从观念上展示对 **table** 的维护过程。 在下面的图中， \
+**白色背景**元素代表 **Unused** 态 entry， **灰色背景**元素为 **Active** 态， \
+**交叉图饰**背景元素为 **Dummy** 态。
+
+假如 **table** 中有 10 个 entry， 散列函数为 ``HASH(x) = x mod 10``， 冲突解决\
+方案采用线性探测， 且探测函数为 ``x = x + 1``。 假设向 **table** 中依次加入了以\
+下元素对： (4, 4), (14, 14), (24, 24), (34, 34)， 则加入元素后的 entry 的 \
+dict 如图 5-5 所示：
+
+.. figure:: img/5-5.png
+    :align: center
+
+    图 5-5 插入与删除示例图之一
+
+现在删除元素对 (14, 14)， 位置 #5 处的 entry 将从 **Active** 态进入 **Dummy** \
+态。 然后向 table 中插入新的元素对 (104, 104)， 则在搜索的过程中， 由于原来位\
+置 #5 处维护 14 的 entry 现在处于 **Dummy** 态， 所以 ``freeslots`` 会指向这个\
+可用的 entry， 如图 5-6 所示：
+
+.. figure:: img/5-6.png
+    :align: center
+
+    图 5-6 插入与删除示例图之二
+
+搜索完成后， 填充 ``freeslot`` 所指向的 entry， 其结果如图 5-7 所示：
+
+.. figure:: img/5-7.png
+    :align: center
+
+    图 5-7 插入与删除示例图之三
+
+然后再向 table 中插入元素对 (14, 14)， 这时由于探测序列上已经没有 **Dummy** 态\
+的 entry 了， 所以最后返回的 ep 会指向一个处于 **Unused** 态的 entry， 如图 \
+5-8 所示：
+
+.. figure:: img/5-8.png
+    :align: center
+
+    图 5-8 插入与删除示例图之四
+
+最后插入元素对（14，14），结果如图 5-9 所示：
+
+.. figure:: img/5-9.png
+    :align: center
+
+    图 5-9 插入与删除示例图之五
+
 
