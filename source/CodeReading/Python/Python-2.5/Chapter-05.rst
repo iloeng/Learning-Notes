@@ -1014,7 +1014,7 @@ entry， 显然需要将其插入到新的 table 中， 这个动作由前面考
 现在， 利用我们对 ``PyDictObject`` 的认识， 想象一下从 ``table`` 中删除一个元素\
 应该怎样操作呢？
 
-.. topic:: 代码清单 5-8 [Objects/dictobject.c]
+.. topic:: [Objects/dictobject.c]
 
     .. code-block:: c
 
@@ -1115,4 +1115,240 @@ dict 如图 5-5 所示：
 
     图 5-9 插入与删除示例图之五
 
+*******************************************************************************
+5.4 PyDictObject 对象缓冲池
+*******************************************************************************
 
+前面提到， 在 ``PyDictObject`` 的实现机制中， 同样使用了缓冲池的技术。 现在来看\
+看 ``PyDictObject`` 对象的缓冲池：
+
+.. topic:: [dictobject.c]
+
+    .. code-block:: c
+
+        /* Dictionary reuse scheme to save calls to malloc, free, and memset */
+        #define MAXFREEDICTS 80
+        static PyDictObject *free_dicts[MAXFREEDICTS];
+        static int num_free_dicts = 0;
+
+实际上， ``PyDictObject`` 中使用的这个缓冲池机制与 ``PyListObject`` 中使用的缓\
+冲池机制是一样的。 开始时， 这个缓冲池里什么都没有， 直到第一个 \
+``PyDictObject`` 被销毁时， 这个缓冲池才开始接纳被缓冲的 ``PyDictObject`` 对\
+象 （见代码清单 5-8）。
+
+.. topic:: 代码清单 5-8 [dictobject.c]
+
+    .. code-block:: c
+
+        static void
+        dict_dealloc(register dictobject *mp)
+        {
+            register dictentry *ep;
+            Py_ssize_t fill = mp->ma_fill;
+            PyObject_GC_UnTrack(mp);
+            Py_TRASHCAN_SAFE_BEGIN(mp)
+            //[1]：调整 dict 中对象的引用计数
+            for (ep = mp->ma_table; fill > 0; ep++) {
+                if (ep->me_key) {
+                    --fill;
+                    Py_DECREF(ep->me_key);
+                    Py_XDECREF(ep->me_value);
+                }
+            }
+            //[2] ：释放从系统堆中申请的内存空间
+            if (mp->ma_table != mp->ma_smalltable)
+                PyMem_DEL(mp->ma_table);
+            //[3] ：将被销毁的 PyDictObject 对象放入缓冲池
+            if (num_free_dicts < MAXFREEDICTS && mp->ob_type == &PyDict_Type)
+                free_dicts[num_free_dicts++] = mp;
+            else
+                mp->ob_type->tp_free((PyObject *)mp);
+            Py_TRASHCAN_SAFE_END(mp)
+        }   
+
+和 ``PyListObject`` 中缓冲池的机制一样， 缓冲池中只保留了 ``PyDictObject`` 对象\
+。 如果 ``PyDictObject`` 对象中 ``ma_table`` 维护的是从系统堆申请的内存空间， \
+那么 Python 将释放这块内存空间， 归还给系统堆。 而如果被销毁的 \
+``PyDictObject`` 中的 **table** 实际上并没有从系统堆中申请， 而是指向 \
+``PyDictObject`` 固有的 ``ma_smalltable``， 那么只需要调整 ``ma_smalltable`` \
+中的对象引用计数就可以了。
+
+在创建新的 ``PyDictObject`` 对象时， 如果在缓冲池中有可以使用的对象， 则直接从\
+缓冲池中取出使用， 而不需要再重新创建：
+
+.. topic:: [dictobject.c]
+
+    .. code-block:: c
+
+        PyObject *
+        PyDict_New(void)
+        {
+            register dictobject *mp;
+            if (dummy == NULL) { /* Auto-initialize dummy */
+                dummy = PyString_FromString("<dummy key>");
+                if (dummy == NULL)
+                    return NULL;
+        #ifdef SHOW_CONVERSION_COUNTS
+                Py_AtExit(show_counts);
+        #endif
+            }
+            if (num_free_dicts) {
+                mp = free_dicts[--num_free_dicts];
+                assert (mp != NULL);
+                assert (mp->ob_type == &PyDict_Type);
+                _Py_NewReference((PyObject *)mp);
+                if (mp->ma_fill) {
+                    EMPTY_TO_MINSIZE(mp);
+                }
+                assert (mp->ma_used == 0);
+                assert (mp->ma_table == mp->ma_smalltable);
+                assert (mp->ma_mask == PyDict_MINSIZE - 1);
+            } else {
+                mp = PyObject_GC_New(dictobject, &PyDict_Type);
+                if (mp == NULL)
+                    return NULL;
+                EMPTY_TO_MINSIZE(mp);
+            }
+            mp->ma_lookup = lookdict_string;
+        #ifdef SHOW_CONVERSION_COUNTS
+            ++created;
+        #endif
+            _PyObject_GC_TRACK(mp);
+            return (PyObject *)mp;
+        }
+
+*******************************************************************************
+5.5 Hack PyDictObject
+*******************************************************************************
+
+现在可以根据对 ``PyDictObject`` 的了解， 在 Python 源代码中添加代码， 动态而真\
+实地观察 Python 运行时 ``PyDictObject`` 的一举一动了。
+
+我们首先来观察， 在 ``insertdict`` 发生之后， ``PyDictObject`` 对象中 \
+**table** 的变化情况。 由于 Python 内部大量地使用 ``PyDictObject``， 所以对 \
+``insertdict`` 的调用会非常频繁， 成千上万的 ``PyDictObject`` 对象会排着长队来\
+依次使用 ``insertdict``。 如果只是简单地输出， 我们立刻就会被淹没在输出信息中\
+。 所以我们需要一套机制来确保当 ``insertdict`` 发生在某一特定的 \
+``PyDictObject`` 对象身上时， 才会输出信息。 这个 ``PyDictObject`` 对象当然是我\
+们自己创建的对象， 必须使它有区别于 Python 内部使用的 ``PyDictObject`` 对象的特\
+征。 这个特征， 在这里， 我把它定义为 ``PyDictObject`` 包含 "PR" 的 \
+``PyStringObject`` 对象， 当然， 你也可以选用自己的特征串。 如果在 \
+``PyDictObject`` 中找到了这个对象， 则输出信息：
+
+.. code-block:: c
+
+    static void ShowDictObject(dictobject* dictObject)
+    {
+        dictentry* entry = dictObject->ma_table;
+        int count = dictObject->ma_mask+1;
+        int i;
+        //输出 key
+        printf(" key : ");
+        for(i = 0; i < count; ++i) {
+            PyObject* key = entry->me_key;
+            PyObject* value = entry->me_value;
+            if(key == NULL) {
+                printf("NULL");
+            }
+            else {
+                if(PyString_Check(key)) {
+                    if(PyString_AsString(key)[0] == '<') {
+                        printf("dummy");
+                    }
+                    else {
+                        (key->ob_type)->tp_print(key, stdout, 0);
+                    }
+                }
+                else{
+                    (key->ob_type)->tp_print(key, stdout, 0);
+                }
+            }
+            printf("\t");
+            ++entry;
+        }
+        //输出 value
+        printf("\nvalue : ");
+        entry = dictObject->ma_table;
+        for(i = 0; i < count; ++i) {
+            PyObject* key = entry->me_key;
+            PyObject* value = entry->me_value;
+            if(value == NULL) {
+                printf("NULL");
+            }
+            else {
+                (key->ob_type)->tp_print(value, stdout, 0);
+            }
+            printf("\t");
+            ++entry;
+        }
+        printf("\n");
+    }
+
+    static int
+    insertdict(register dictobject *mp, PyObject *key, long hash, PyObject *value)
+    {
+        PyObject *old_value;
+        register dictentry *ep;
+        typedef PyDictEntry *(*lookupfunc)(PyDictObject *, PyObject *, long);
+
+        assert(mp->ma_lookup != NULL);
+        ep = mp->ma_lookup(mp, key, hash);
+        if (ep == NULL) {
+            Py_DECREF(key);
+            Py_DECREF(value);
+            return -1;
+        }
+        if (ep->me_value != NULL) {
+            old_value = ep->me_value;
+            ep->me_value = value;
+            Py_DECREF(old_value); /* which **CAN** re-enter */
+            Py_DECREF(key);
+        }
+        else {
+            if (ep->me_key == NULL)
+                mp->ma_fill++;
+            else {
+                assert(ep->me_key == dummy);
+                Py_DECREF(dummy);
+            }
+            ep->me_key = key;
+            ep->me_hash = (Py_ssize_t)hash;
+            ep->me_value = value;
+            mp->ma_used++;
+        }
+        {
+            dictentry *p; 
+            long strHash; 
+            PyObject* str = PyString_FromString("PR"); 
+            strHash = PyObject_Hash(str); 
+            p = mp->ma_lookup(mp, str, strHash); 
+            if(p->me_value != NULL && (key->ob_type)->tp_name[0] == 'i') 
+            { 
+                PyIntObject* intObject = (PyIntObject*)key; 
+                printf("insert %d\n", intObject->ob_ival); 
+                ShowDictObject(mp); 
+            } 
+        }
+        return 0;
+    }
+
+对于 ``PyDictObject`` 对象， 依次插入 9 和 17， 根据 ``PyDictObject`` 选用的 \
+hash 策略， 这两个数会产生冲突， 9 的 hash 结果为 1， 而 17 经过再次探测后， 会\
+获得 hash 结果为 7。 图 5-10 中的前两个结果显示了这个过程。
+
+.. figure:: img/5-10.png
+    :align: center
+
+    图 5-10 dict 变动时 table 的变化情况
+
+.. figure:: img/5-10-1.png
+    :align: center
+
+    图 5-10-1 dict 变动时 table 的变化情况 on Win 10
+
+.. figure:: img/5-10-2.png
+    :align: center
+
+    图 5-10-1 dict 变动时 table 的变化情况 on Win XP
+
+下面的两幅图是我真实运行情况， 确实没有 dummy 状态的出现， 很迷惑。
