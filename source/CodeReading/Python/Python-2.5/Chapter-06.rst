@@ -221,3 +221,183 @@ Small Python 中的 ``PyStringObject`` 与 CPython 中大不相同， 在 CPytho
             string_add,
             string_hash
         };
+
+在 Python 的解释器工作时， 还有一个非常重要的对象， ``PyDictObject`` 对象。 \
+``PyDictObject`` 对象在 Python 运行时会维护变量名和变量值的映射关系， Python 所有\
+的动作都是基于这种映射关系的。 在 Small Python 中， 我们基于 C++ 中的 map 来实现 \
+``PyDictObject`` 对象。 当然， map 的运行效率比 CPython 中所采用的 hash 技术会慢一\
+些， 而且对于散列冲突的情况， map 也没有办法解决， 但是对于我们的 Small Python， \
+map 就足够了：
+
+.. topic:: [PyDictObject]
+
+    .. code-block:: c
+
+        typedef struct tagPyDictObject
+        {
+            PyObject_HEAD;
+            map<long, PyObject*> dict;
+        } PyDictObject;
+
+        PyObject* PyDict_Create()
+        {
+            PyDictObject* object = new PyDictObject;
+            object->refCount = 1;
+            object->type = &PyDict_Type;
+            return (PyObject*)object;
+        }
+
+        PyObject* PyDict_GetItem(PyObject* target, PyObject* key)
+        {
+            long keyHashValue = (key->type)->hash(key);
+            map<long, PyObject*>& dict = ((PyDictObject*)target)->dict;
+            map<long, PyObject*>::iterator it = dict.find(keyHashValue);
+            map<long, PyObject*>::iterator end = dict.end();
+            if(it == end)
+            {
+                return NULL;
+            }
+            return it->second;
+        }
+
+        int PyDict_SetItem(PyObject* target, PyObject* key, PyObject* value)
+        {
+            long keyHashValue = (key->type)->hash(key);
+            PyDictObject* dictObject = (PyDictObject*)target;
+            (dictObject->dict)[keyHashValue] = value;
+            return 0;
+        }
+        //function for PyDict_Type
+        static void dict_print(PyObject* object)
+        {
+            PyDictObject* dictObject = (PyDictObject*)object;
+            printf("{");
+            map<long, PyObject*>::iterator it = (dictObject->dict).begin();
+            map<long, PyObject*>::iterator end = (dictObject->dict).end();
+            for( ; it != end; ++it)
+            {
+                //print key
+                printf("%ld : ", it->first);
+                //print value
+                PyObject* value = it->second;
+                (value->type)->print(value);
+                printf(", ");
+            }
+            printf("}\n");
+        }
+
+        PyTypeObject PyDict_Type =
+        {
+            PyObject_HEAD_INIT(&PyType_Type),
+            "dict",
+            dict_print,
+            0,
+            0
+        };
+
+Small Python 中的对象机制的所有内容都在上边列出了， 非常简单， 对吧， 这就对了， 要\
+的就是这个简单。
+
+*******************************************************************************
+6.3 解释过程
+*******************************************************************************
+
+Small Python 中的这种解释动作还是被简化到了极致， 它实际上就是简单的字符串查找加 \
+``if…else…`` 结构：
+
+.. code-block:: c++
+
+    void ExcuteCommand(string& command)
+    {
+        string::size_type pos = 0;
+        if((pos = command.find("print ")) != string::npos)
+        {
+            ExcutePrint(command.substr(6));
+        }
+        else if((pos = command.find(" = ")) != string::npos)
+        {
+            string target = command.substr(0, pos);
+            string source = command.substr(pos+3);
+            ExcuteAdd(target, source);
+        }
+    }
+
+    void ExcuteAdd(string& target, string& source)
+    {
+        string::size_type pos;
+        PyObject* strValue = NULL;
+        PyObject* resultValue = NULL;
+        if(IsSourceAllDigit(source))
+        {
+            PyObject* intValue = PyInt_Create(atoi(source.c_str()));
+            PyObject* key = PyStr_Create(target.c_str());
+            PyDict_SetItem(m_LocalEnvironment, key, intValue);
+        }
+        else if(source.find("\"") != string::npos)
+        {
+            strValue = PyStr_Create(source.substr(1, source.size()-2).c_str());
+            PyObject* key = PyStr_Create(target.c_str());
+            PyDict_SetItem(m_LocalEnvironment, key, strValue);
+        }
+        else if((pos = source.find("+")) != string::npos)
+        {
+            PyObject* leftObject = GetObjectBySymbol(source.substr(0, pos));
+            PyObject* rightObject =
+            GetObjectBySymbol(source.substr(pos+1));
+            if(leftObject != NULL && right != NULL 
+              && leftObject->type == rightObject->type)
+            {
+                resultValue = (leftObject->type)->add(leftObject,
+                rightObject);
+                PyObject* key = PyStr_Create(target.c_str());
+                PyDict_SetItem(m_LocalEnvironment, key, resultValue);
+            }
+            (m_LocalEnvironment->type)->print(m_LocalEnvironment);
+        }
+    }
+
+通过字符串搜索， 如果命令中出现 "="， 就是一个赋值或加法过程； 如果命令中出现 \
+"print"， 就是一个输出过程。 在 ``ExcuteAdd`` 中， 还需要进行进一步地字符串搜索， \
+以确定是否需要有一个额外的加法过程。 根据这些解析的结果进行不同的动作， 就是 Small \
+Python 中的解释过程。 这个过程在 CPython 中是通过正常的编译过程来实现的， 而且最后\
+会得到字节码的编译结果。
+
+在这里需要重点指出的是那个 ``m_LocalEnvironment``， 这是一个 ``PyDictObject`` 对\
+象， 其维护着 Small Python 运行过程中， 动态创建的变量的变量名和变量值的映射。 这个\
+就是 Small Python 中的执行环境， Small Python 正是靠它来维护运行过程中的所有变量的\
+状态。 在 CPython 中， 运行环境实际上也是这样一个机制。 当需要访问变量时， 就从这个 \
+``PyDictObject`` 对象中查找变量的值。 这一点在执行输出操作时可以看得很清楚：
+
+.. code-block:: c
+
+    PyObject* GetObjectBySymbol(string& symbol)
+    {
+        PyObject* key = PyStr_Create(symbol.c_str());
+        PyObject* value = PyDict_GetItem(m_LocalEnvironment, key);
+        if(value == NULL)
+        {
+            cout << "[Error] : " << symbol << " is not defined!!" << endl;
+            return NULL;
+        }
+        return value;
+    }
+
+    void ExcutePrint(string symbol)
+    {
+        PyObject* object = GetObjectFromSymbol(symbol);
+        if(object != NULL)
+        {
+            PyTypeObject* type = object->type;
+            type->print(object);
+        }
+    }
+
+在这里， 通过变量名 symbol， 获得了变量值 object。 而在刚才的 ExcueteAdd 中， 我们\
+将变量名和变量值建立了联系， 并存放到 ``m_LocalEnvironment`` 中。 这种一进一出的机\
+制正是 CPython 执行时的关键， 在以后对 Python 字节码解释器的详细剖析中， 我们将真实\
+而具体地看到这种机制。
+
+*******************************************************************************
+6.4 交互式环境
+*******************************************************************************
+
